@@ -1,7 +1,6 @@
 package com.taobao.meta.avatar.tts
 
 import android.util.Log
-import com.alibaba.mls.api.ApplicationProvider
 import com.k2fsa.sherpa.mnn.GeneratedAudio
 import com.taobao.meta.avatar.debug.DebugModule
 import com.taobao.meta.avatar.utils.AppUtils
