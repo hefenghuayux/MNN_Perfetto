@@ -27,6 +27,7 @@
 #endif // _OPENMP
 #include "backend/cpu/CPURuntime.hpp"
 #include "core/Macro.h"
+#include <perfetto.h>
 #ifdef MNN_USE_ARMV82
 #include "backend/arm82/Arm82Backend.hpp"
 #endif
@@ -43,6 +44,10 @@
 #define MNN_CPU_MAX_BUFFER_INDEX 2
 #define MNN_CPU_CHECK_NAN 1
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
+PERFETTO_DEFINE_CATEGORIES(
+    perfetto::Category("mnn_CPUBackend").SetDescription("CPUBackend functions")
+
+);
 namespace MNN {
 void registerCPUOps();
 ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs) {
@@ -54,6 +59,7 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
     if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
         // Avg divide
+        // TRACE_EVENT("mnn_CPUBackend","CPUBackend::computeDivideSizes avg divide");
         int length = UP_DIV(size, mThreadNumber);
         int cur = length;
         for (int i=0; i<mThreadNumber; ++i) {

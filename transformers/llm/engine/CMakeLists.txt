@@ -32,7 +32,11 @@ if (MNN_SEP_BUILD)
         # compile dynamic so, support Linux/Mac
         add_library(llm SHARED ${SRCS})
         set_target_properties(llm PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
-        target_link_libraries(llm ${LLM_DEPS})
+        # target_link_libraries(llm ${LLM_DEPS})
+        target_link_libraries(llm 
+        ${LLM_DEPS}
+        ${CMAKE_THREAD_LIBS_INIT}
+        )
     else()
         add_library(llm STATIC ${SRCS})
     endif()
@@ -60,6 +64,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "^Android" AND NOT MNN_BUILD_FOR_ANDROID_COMMAND)
 IF(NOT NATIVE_INCLUDE_OUTPUT)
   set(NATIVE_INCLUDE_OUTPUT ".")
 ENDIF()
+
 add_custom_command(
   TARGET llm
   POST_BUILD
@@ -71,6 +76,8 @@ INSTALL(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/ DESTINATION include FILES_M
 ENDIF()
 
 
+
+
 add_executable(llm_demo ${CMAKE_CURRENT_LIST_DIR}/demo/llm_demo.cpp)
 add_executable(embedding_demo ${CMAKE_CURRENT_LIST_DIR}/demo/embedding_demo.cpp)
 add_executable(reranker_demo ${CMAKE_CURRENT_LIST_DIR}/demo/reranker_demo.cpp)
@@ -80,7 +87,17 @@ target_link_libraries(llm_demo ${LLM_DEPS})
 target_link_libraries(embedding_demo ${LLM_DEPS})
 target_link_libraries(reranker_demo ${LLM_DEPS})
 target_link_libraries(rollback_demo ${LLM_DEPS})
-target_link_libraries(llm_bench ${LLM_DEPS})
+# -----------------------------------------------------
+# (!! MODIFY THIS LINE) 修改 llm_bench 的链接
+# -----------------------------------------------------
+# 原始行: target_link_libraries(llm_bench ${LLM_DEPS})
+#
+# 修改为:
+target_link_libraries(llm_bench 
+    ${LLM_DEPS}
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+# -----------------------------------------------------
 
 
 if (BUILD_MLS)
@@ -142,3 +159,4 @@ set_property(TARGET mls PROPERTY CXX_STANDARD_REQUIRED ON)
 target_link_libraries(mls PRIVATE ${LLM_DEPS})
 target_compile_definitions(mls PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 endif()
+
