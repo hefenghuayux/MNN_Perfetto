@@ -11,215 +11,252 @@
 #include <thread>
 #include <algorithm>
 #include <numeric>
-
+#include <perfetto.h>
 
 #define MNN_OPEN_TIME_TRACE
 
 
+// 1. 定义 llm_bench 会用到的类别
+PERFETTO_DEFINE_CATEGORIES(
+    perfetto::Category("llm_load").SetDescription("Model loading"),
+    perfetto::Category("mnn_bench").SetDescription("High-level LLM benchmarks")
+);    
+
+
 using namespace MNN::Transformer;
 
-struct RuntimeParameters {
-    std::vector<std::string>         model;
-    std::vector<int>                 backends;
-    std::vector<int>                 threads;
-    bool                             useMmap;
-    std::vector<int>                 power;
-    std::vector<int>                 precision;
-    std::vector<int>                 memory;
-    std::vector<int>                 dynamicOption;
+struct RuntimeParameters
+{
+    std::vector<std::string> model;
+    std::vector<int> backends;
+    std::vector<int> threads;
+    bool useMmap;
+    std::vector<int> power;
+    std::vector<int> precision;
+    std::vector<int> memory;
+    std::vector<int> dynamicOption;
 };
 
-struct TestParameters {
-    std::vector<int>                 nPrompt;
-    std::vector<int>                 nGenerate;
+struct TestParameters
+{
+    std::vector<int> nPrompt;
+    std::vector<int> nGenerate;
     std::vector<std::pair<int, int>> nPrompGen;
-    std::vector<int>                 nRepeat;
-    std::string                      kvCache;
-    std::string                      loadTime;
+    std::vector<int> nRepeat;
+    std::string kvCache;
+    std::string loadTime;
 };
 
-struct CommandParameters {
-    std::string         model;
-    int                 backend;
-    int                 threads;
-    bool                useMmap;
-    int                 power;
-    int                 precision;
-    int                 memory;
-    int                 dynamicOption;
+struct CommandParameters
+{
+    std::string model;
+    int backend;
+    int threads;
+    bool useMmap;
+    int power;
+    int precision;
+    int memory;
+    int dynamicOption;
 
-    int                 nPrompt;
-    int                 nGenerate;
+    int nPrompt;
+    int nGenerate;
     std::pair<int, int> nPrompGen;
-    int                 nRepeat;
-    std::string         kvCache;
-    std::string         loadingTime;
-
+    int nRepeat;
+    std::string kvCache;
+    std::string loadingTime;
 };
-
 
 static const RuntimeParameters runtimeParamsDefaults = {
-    /* model                */ { "./Qwen2.5-1.5B-Instruct" },
-    /* backends             */ { 0 },
-    /* threads            */ { 4 },
+    /* model                */ {"./Qwen2.5-1.5B-Instruct"},
+    /* backends             */ {0},
+    /* threads            */ {4},
     /* useMmap             */ false,
-    /* power                */ { 0 },
-    /* precision            */ { 2 },
-    /* memory               */ { 2 },
-    /* dynamicOption       */ { 0 }
-};
-
+    /* power                */ {0},
+    /* precision            */ {2},
+    /* memory               */ {2},
+    /* dynamicOption       */ {0}};
 
 static const TestParameters testParamsDefaults = {
-    /* nPrompt             */ { 512 },
-    /* nGenerate           */ { 128 },
+    /* nPrompt             */ {512},
+    /* nGenerate           */ {128},
     /* nPrompGen           */ {std::make_pair(0, 0)},
-    /* nRepeat             */ { 5 },
-    /* kvCache             */ { "false" },
-    /* loadingTime         */ {"false"}
-};
+    /* nRepeat             */ {5},
+    /* kvCache             */ {"false"},
+    /* loadingTime         */ {"false"}};
 
-
-struct commandParametersInstance {
+struct commandParametersInstance
+{
 
     CommandParameters mCmdParam;
 
-    commandParametersInstance(CommandParameters cmdParam) {
-        mCmdParam.model          = cmdParam.model;
-        mCmdParam.backend        = cmdParam.backend;
-        mCmdParam.threads        = cmdParam.threads;
-        mCmdParam.useMmap        = cmdParam.useMmap;
-        mCmdParam.power          = cmdParam.power;
-        mCmdParam.precision      = cmdParam.precision;
-        mCmdParam.memory         = cmdParam.memory;
-        mCmdParam.dynamicOption  = cmdParam.dynamicOption;
+    commandParametersInstance(CommandParameters cmdParam)
+    {
+        mCmdParam.model = cmdParam.model;
+        mCmdParam.backend = cmdParam.backend;
+        mCmdParam.threads = cmdParam.threads;
+        mCmdParam.useMmap = cmdParam.useMmap;
+        mCmdParam.power = cmdParam.power;
+        mCmdParam.precision = cmdParam.precision;
+        mCmdParam.memory = cmdParam.memory;
+        mCmdParam.dynamicOption = cmdParam.dynamicOption;
 
-        mCmdParam.nPrompt        = cmdParam.nPrompt;
-        mCmdParam.nGenerate      = cmdParam.nGenerate;
-        mCmdParam.nPrompGen      = cmdParam.nPrompGen;
-        mCmdParam.nRepeat        = cmdParam.nRepeat;
-        mCmdParam.kvCache        = cmdParam.kvCache;
-        mCmdParam.loadingTime    = cmdParam.loadingTime;
+        mCmdParam.nPrompt = cmdParam.nPrompt;
+        mCmdParam.nGenerate = cmdParam.nGenerate;
+        mCmdParam.nPrompGen = cmdParam.nPrompGen;
+        mCmdParam.nRepeat = cmdParam.nRepeat;
+        mCmdParam.kvCache = cmdParam.kvCache;
+        mCmdParam.loadingTime = cmdParam.loadingTime;
     }
 
-    CommandParameters get_cmd_parameters() const {
+    CommandParameters get_cmd_parameters() const
+    {
         return mCmdParam;
     }
 
-    bool equal_runtime_params(const commandParametersInstance & other) const {
+    bool equal_runtime_params(const commandParametersInstance &other) const
+    {
         return mCmdParam.model == other.mCmdParam.model &&
-        mCmdParam.useMmap == other.mCmdParam.useMmap &&
-        mCmdParam.power == other.mCmdParam.power &&
-        mCmdParam.precision == other.mCmdParam.precision &&
-        mCmdParam.memory == other.mCmdParam.memory &&
-        mCmdParam.dynamicOption == other.mCmdParam.dynamicOption;
+               mCmdParam.useMmap == other.mCmdParam.useMmap &&
+               mCmdParam.power == other.mCmdParam.power &&
+               mCmdParam.precision == other.mCmdParam.precision &&
+               mCmdParam.memory == other.mCmdParam.memory &&
+               mCmdParam.dynamicOption == other.mCmdParam.dynamicOption;
     }
 };
 
-template <typename T> static T avg(const std::vector<T> & v) {
-    if (v.empty()) {
+template <typename T>
+static T avg(const std::vector<T> &v)
+{
+    if (v.empty())
+    {
         return 0;
     }
     T sum = std::accumulate(v.begin(), v.end(), T(0));
-    return sum / (T) v.size();
+    return sum / (T)v.size();
 }
 
-template <typename T> static T stdev(const std::vector<T> & v) {
-    if (v.size() <= 1) {
+template <typename T>
+static T stdev(const std::vector<T> &v)
+{
+    if (v.size() <= 1)
+    {
         return 0;
     }
-    T mean   = avg(v);
+    T mean = avg(v);
     T sq_sum = std::inner_product(v.begin(), v.end(), v.begin(), T(0));
-    T stdev  = std::sqrt(sq_sum / (T) (v.size() - 1) - mean * mean * (T) v.size() / (T) (v.size() - 1));
+    T stdev = std::sqrt(sq_sum / (T)(v.size() - 1) - mean * mean * (T)v.size() / (T)(v.size() - 1));
     return stdev;
 }
 
-template <class T> static std::string join(const std::vector<T> & values, const std::string & delim) {
+template <class T>
+static std::string join(const std::vector<T> &values, const std::string &delim)
+{
     std::ostringstream str;
-    for (size_t i = 0; i < values.size(); i++) {
+    for (size_t i = 0; i < values.size(); i++)
+    {
         str << values[i];
-        if (i < values.size() - 1) {
+        if (i < values.size() - 1)
+        {
             str << delim;
         }
     }
     return str.str();
 }
 
-struct TestInstance {
-//    static const std::string build_commit;
-    std::string              modelConfigFile;
-    std::string              modelType;
-    uint64_t                 modelSize;
-    int                      threads;
-    bool                     useMmap;
-    int                      nPrompt;
-    int                      nGenerate;
-    std::vector<int64_t>     prefillUs;
-    std::vector<int64_t>     decodeUs;
-    std::vector<int64_t>     samplesUs;
-    std::vector<double>      loadingS;
-    int                      backend;
-    int                      precision;
-    int                      power;
-    int                      memory;
-    int                      dynamicOption;
+struct TestInstance
+{
+    //    static const std::string build_commit;
+    std::string modelConfigFile;
+    std::string modelType;
+    uint64_t modelSize;
+    int threads;
+    bool useMmap;
+    int nPrompt;
+    int nGenerate;
+    std::vector<int64_t> prefillUs;
+    std::vector<int64_t> decodeUs;
+    std::vector<int64_t> samplesUs;
+    std::vector<double> loadingS;
+    int backend;
+    int precision;
+    int power;
+    int memory;
+    int dynamicOption;
 
-    TestInstance(const commandParametersInstance & instance) {
+    TestInstance(const commandParametersInstance &instance)
+    {
 
         modelConfigFile = instance.mCmdParam.model;
-        threads         = instance.mCmdParam.threads;
-        useMmap          = instance.mCmdParam.useMmap;
-        nPrompt          = instance.mCmdParam.nPrompt;
-        nGenerate             = instance.mCmdParam.nGenerate;
-        backend           = instance.mCmdParam.backend;
-        precision         = instance.mCmdParam.precision;
-        memory            = instance.mCmdParam.memory;
-        power             = instance.mCmdParam.power;
-        dynamicOption     = instance.mCmdParam.dynamicOption;
+        threads = instance.mCmdParam.threads;
+        useMmap = instance.mCmdParam.useMmap;
+        nPrompt = instance.mCmdParam.nPrompt;
+        nGenerate = instance.mCmdParam.nGenerate;
+        backend = instance.mCmdParam.backend;
+        precision = instance.mCmdParam.precision;
+        memory = instance.mCmdParam.memory;
+        power = instance.mCmdParam.power;
+        dynamicOption = instance.mCmdParam.dynamicOption;
     }
 
-    std::vector<double> getTokensPerSecond(int n_tokens, std::vector<int64_t> cost_us) const {
+    std::vector<double> getTokensPerSecond(int n_tokens, std::vector<int64_t> cost_us) const
+    {
         std::vector<double> ts;
-        std::transform(cost_us.begin(), cost_us.end(), std::back_inserter(ts), [n_tokens](int64_t t) { return 1e6 * n_tokens / t; });
+        std::transform(cost_us.begin(), cost_us.end(), std::back_inserter(ts), [n_tokens](int64_t t)
+                       { return 1e6 * n_tokens / t; });
         return ts;
     }
 
     double getAvgUs(std::vector<double> v) const { return ::avg(v); }
     double getStdevUs(std::vector<double> v) const { return ::stdev(v); }
-    enum fieldType { STRING, BOOL, INT, FLOAT };
+    enum fieldType
+    {
+        STRING,
+        BOOL,
+        INT,
+        FLOAT
+    };
 
-    static fieldType getFieldType(const std::string & field) {
-        if (field == "threads") {
+    static fieldType getFieldType(const std::string &field)
+    {
+        if (field == "threads")
+        {
             return INT;
         }
-        if (field == "useMmap") {
+        if (field == "useMmap")
+        {
             return BOOL;
         }
-        if (field == "t/s" || field == "modelSize" || field == "prefill&decode speed (tok/s)") {
+        if (field == "t/s" || field == "modelSize" || field == "prefill&decode speed (tok/s)")
+        {
             return FLOAT;
         }
         return STRING;
     }
 };
 
-static std::string pairString(const std::pair<int, int> & p) {
+static std::string pairString(const std::pair<int, int> &p)
+{
     static char buf[32];
     snprintf(buf, sizeof(buf), "%d,%d", p.first, p.second);
     return buf;
 }
 
-template <typename T, typename F> static std::vector<std::string> transform2String(const std::vector<T> & values, F f) {
+template <typename T, typename F>
+static std::vector<std::string> transform2String(const std::vector<T> &values, F f)
+{
     std::vector<std::string> str_values;
     std::transform(values.begin(), values.end(), std::back_inserter(str_values), f);
     return str_values;
 }
 
-template<class T>
-static std::vector<T> splitString(const std::string & str, char delim) {
+template <class T>
+static std::vector<T> splitString(const std::string &str, char delim)
+{
     std::vector<T> values;
     std::istringstream str_stream(str);
     std::string token;
-    while (std::getline(str_stream, token, delim)) {
+    while (std::getline(str_stream, token, delim))
+    {
         T value;
         std::istringstream tokenStream(token);
         tokenStream >> value;
@@ -228,166 +265,243 @@ static std::vector<T> splitString(const std::string & str, char delim) {
     return values;
 }
 
-struct Printer {
+struct Printer
+{
     virtual ~Printer() {}
 
-    FILE * fout;
+    FILE *fout;
 
-    virtual void printHeader(const RuntimeParameters & rp, const TestParameters & tp) { (void) rp; (void) tp; }
+    virtual void printHeader(const RuntimeParameters &rp, const TestParameters &tp)
+    {
+        (void)rp;
+        (void)tp;
+    }
 
-    virtual void printPerformance(const TestInstance & t) = 0;
+    virtual void printPerformance(const TestInstance &t) = 0;
 
-//    virtual void print_footer() {}
+    //    virtual void print_footer() {}
 };
 
-struct markdownPrinter : public Printer {
+struct markdownPrinter : public Printer
+{
     std::vector<std::string> fields;
 
-    static int getFieldWidth(const std::string & field) {
-        if (field == "model") {
+    static int getFieldWidth(const std::string &field)
+    {
+        if (field == "model")
+        {
             return -30;
         }
-        if (field == "prefill&decode speed (tok/s)") {
+        if (field == "prefill&decode speed (tok/s)")
+        {
             return 20;
         }
-        if (field == "threads") {
+        if (field == "threads")
+        {
             return 5;
         }
-        if (field == "useMmap") {
+        if (field == "useMmap")
+        {
             return 4;
         }
-        if (field == "test") {
+        if (field == "test")
+        {
             return -13;
         }
 
-        int width = std::max((int) field.length(), 10);
+        int width = std::max((int)field.length(), 10);
 
-        if (TestInstance::getFieldType(field) == TestInstance::STRING) {
+        if (TestInstance::getFieldType(field) == TestInstance::STRING)
+        {
             return -width;
         }
         return width;
     }
 
-    static std::string getFieldDisplayName(const std::string & field) {
-        if (field == "useMmap") {
+    static std::string getFieldDisplayName(const std::string &field)
+    {
+        if (field == "useMmap")
+        {
             return "mmap";
         }
         return field;
     }
 
-    void printHeader(const RuntimeParameters & rp, const TestParameters & tp) override {
+    void printHeader(const RuntimeParameters &rp, const TestParameters &tp) override
+    {
         // select fields to print
         fields.emplace_back("model");
         fields.emplace_back("modelSize");
         fields.emplace_back("backend");
         fields.emplace_back("threads");
 
-        if (rp.precision.size() > 0) {
+        if (rp.precision.size() > 0)
+        {
             fields.emplace_back("precision");
         }
-        if (rp.memory.size() > 1) {
+        if (rp.memory.size() > 1)
+        {
             fields.emplace_back("memory");
         }
-        if (rp.dynamicOption.size() > 1) {
+        if (rp.dynamicOption.size() > 1)
+        {
             fields.emplace_back("dynamicOption");
         }
 
-        if (rp.useMmap) {
+        if (rp.useMmap)
+        {
             fields.emplace_back("useMmap");
         }
-        if (tp.kvCache == "false") {
+        if (tp.kvCache == "false")
+        {
             fields.emplace_back("test");
             fields.emplace_back("t/s");
-        } else {
+        }
+        else
+        {
             fields.emplace_back("llm_demo");
             fields.emplace_back("speed(tok/s)");
         }
-        if (tp.loadTime == "true") {
+        if (tp.loadTime == "true")
+        {
             fields.emplace_back("loadingTime(s)");
         }
 
         fprintf(fout, "|");
-        for (const auto & field : fields) {
+        for (const auto &field : fields)
+        {
             fprintf(fout, " %*s |", getFieldWidth(field), getFieldDisplayName(field).c_str());
         }
         fprintf(fout, "\n");
         fprintf(fout, "|");
-        for (const auto & field : fields) {
+        for (const auto &field : fields)
+        {
             int width = getFieldWidth(field);
             fprintf(fout, " %s%s |", std::string(std::abs(width) - 1, '-').c_str(), width > 0 ? ":" : "-");
         }
         fprintf(fout, "\n");
     }
 
-    void printPerformance(const TestInstance & t) override {
+    void printPerformance(const TestInstance &t) override
+    {
         fprintf(fout, "|");
-        for (const auto & field : fields) {
+        for (const auto &field : fields)
+        {
             std::string value;
-            char        buf[128];
-            if (field == "model") {
+            char buf[128];
+            if (field == "model")
+            {
                 value = t.modelType;
-            } else if (field == "modelSize") {
-                if (t.modelSize < 1024 * 1024 * 1024) {
+            }
+            else if (field == "modelSize")
+            {
+                if (t.modelSize < 1024 * 1024 * 1024)
+                {
                     snprintf(buf, sizeof(buf), "%.2f MiB", t.modelSize / 1024.0 / 1024.0);
-                } else {
+                }
+                else
+                {
                     snprintf(buf, sizeof(buf), "%.2f GiB", t.modelSize / 1024.0 / 1024.0 / 1024.0);
                 }
                 value = buf;
-            }  else if (field == "backend") {
-                if (t.backend == 1) value = "METAL";
-                else if (t.backend == 3) value = "OPENCL";
-                else value = "CPU";
-            } else if (field == "test") {
-                if (t.nPrompt > 0 && t.nGenerate == 0) {
+            }
+            else if (field == "backend")
+            {
+                if (t.backend == 1)
+                    value = "METAL";
+                else if (t.backend == 3)
+                    value = "OPENCL";
+                else
+                    value = "CPU";
+            }
+            else if (field == "test")
+            {
+                if (t.nPrompt > 0 && t.nGenerate == 0)
+                {
                     snprintf(buf, sizeof(buf), "pp%d", t.nPrompt);
-                } else if (t.nGenerate > 0 && t.nPrompt == 0) {
+                }
+                else if (t.nGenerate > 0 && t.nPrompt == 0)
+                {
                     snprintf(buf, sizeof(buf), "tg%d", t.nGenerate);
-                } else {
+                }
+                else
+                {
                     snprintf(buf, sizeof(buf), "pp%d+tg%d", t.nPrompt, t.nGenerate);
                 }
                 value = buf;
-            } else if (field == "llm_demo") {
+            }
+            else if (field == "llm_demo")
+            {
                 snprintf(buf, sizeof(buf), "prompt=%d<br>decode=%d", t.nPrompt, t.nGenerate);
                 value = buf;
-            } else if (field == "t/s") {
+            }
+            else if (field == "t/s")
+            {
                 auto spd = t.getTokensPerSecond(t.nPrompt + t.nGenerate, t.samplesUs);
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f", t.getAvgUs(spd), t.getStdevUs(spd));
                 value = buf;
-            } else if (field == "speed(tok/s)") {
+            }
+            else if (field == "speed(tok/s)")
+            {
                 auto decode_speed = t.getTokensPerSecond(t.nGenerate, t.decodeUs);
                 auto prefill_speed = t.getTokensPerSecond(t.nPrompt, t.prefillUs);
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f<br>%.2f ± %.2f", t.getAvgUs(prefill_speed), t.getStdevUs(prefill_speed), t.getAvgUs(decode_speed), t.getStdevUs(decode_speed));
                 value = buf;
-            } else if (field == "precision") {
-                if (t.precision == 2) value = "Low";
-                else if (t.precision == 0) value = "Normal";
-                else value = "High";
-            } else if (field == "memory") {
-                if (t.memory == 2) value = "Low";
-                else if (t.memory == 0) value = "Normal";
-                else value = "High";
-            } else if (field == "power") {
-                if (t.power == 2) value = "Low";
-                else if (t.power == 0) value = "Normal";
-                else value = "High";
-            } else if (field == "threads") {
+            }
+            else if (field == "precision")
+            {
+                if (t.precision == 2)
+                    value = "Low";
+                else if (t.precision == 0)
+                    value = "Normal";
+                else
+                    value = "High";
+            }
+            else if (field == "memory")
+            {
+                if (t.memory == 2)
+                    value = "Low";
+                else if (t.memory == 0)
+                    value = "Normal";
+                else
+                    value = "High";
+            }
+            else if (field == "power")
+            {
+                if (t.power == 2)
+                    value = "Low";
+                else if (t.power == 0)
+                    value = "Normal";
+                else
+                    value = "High";
+            }
+            else if (field == "threads")
+            {
                 snprintf(buf, sizeof(buf), "%d", t.threads);
                 value = buf;
-            } else if (field == "loadingTime(s)") {
+            }
+            else if (field == "loadingTime(s)")
+            {
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f", t.getAvgUs(t.loadingS), t.getStdevUs(t.loadingS));
                 value = buf;
-            } else if (field == "useMmap") {
-                if (t.useMmap) value = "true";
-                else value = "false";
             }
-            else {
+            else if (field == "useMmap")
+            {
+                if (t.useMmap)
+                    value = "true";
+                else
+                    value = "false";
+            }
+            else
+            {
                 assert(false);
                 MNN_ERROR("llm bench print fields error\n");
                 return;
             }
 
             int width = getFieldWidth(field);
-            if (field == "prefill&decode speed (tok/s)" || field == "t/s") {
+            if (field == "prefill&decode speed (tok/s)" || field == "t/s")
+            {
                 // HACK: the utf-8 character is 2 bytes
                 width += 1;
             }
@@ -397,42 +511,56 @@ struct markdownPrinter : public Printer {
     }
 };
 
-static FILE* openFile(const char* file, bool read) {
+static FILE *openFile(const char *file, bool read)
+{
 #if defined(_MSC_VER)
     wchar_t wFilename[1024];
-    if (0 == MultiByteToWideChar(CP_ACP, 0, file, -1, wFilename, sizeof(wFilename))) {
+    if (0 == MultiByteToWideChar(CP_ACP, 0, file, -1, wFilename, sizeof(wFilename)))
+    {
         return nullptr;
     }
 #if _MSC_VER >= 1400
-    FILE* mFile = nullptr;
-    if (read) {
-        if (0 != _wfopen_s(&mFile, wFilename, L"r")) {
+    FILE *mFile = nullptr;
+    if (read)
+    {
+        if (0 != _wfopen_s(&mFile, wFilename, L"r"))
+        {
             return nullptr;
         }
-    } else {
-        if (0 != _wfopen_s(&mFile, wFilename, L"a")) {
+    }
+    else
+    {
+        if (0 != _wfopen_s(&mFile, wFilename, L"a"))
+        {
             return nullptr;
         }
     }
     return mFile;
 #else
-    if (read) {
+    if (read)
+    {
         return _wfopen(wFilename, L"r");
-    } else {
+    }
+    else
+    {
         return _wfopen(wFilename, L"a");
     }
 #endif
 #else
-    if (read) {
+    if (read)
+    {
         return fopen(file, "r");
-    } else {
+    }
+    else
+    {
         return fopen(file, "a");
     }
 #endif
     return nullptr;
 }
 
-static std::vector<commandParametersInstance> get_cmd_params_instances(const RuntimeParameters & rp, const TestParameters& tp) {
+static std::vector<commandParametersInstance> get_cmd_params_instances(const RuntimeParameters &rp, const TestParameters &tp)
+{
     std::vector<commandParametersInstance> instances;
 
     // this ordering minimizes the number of times that each model needs to be reloaded
@@ -841,6 +969,17 @@ static void tuning_prepare(Llm* llm) {
 }
 
 int main(int argc, char ** argv) {
+    // ---------------------------------------------------------
+    // 4. 添加 Perfetto 系统模式初始化代码
+    // ---------------------------------------------------------
+    perfetto::TracingInitArgs args;
+    // 这是关键：连接到系统追踪服务 (traced)
+    args.backends |= perfetto::kSystemBackend;
+    perfetto::Tracing::Initialize(args);
+
+    // 注册我们上面定义的类别
+    perfetto::TrackEvent::Register();
+    
     RuntimeParameters runtimeParams;
     TestParameters testParams;
     FILE* outfile = stdout;
@@ -873,10 +1012,14 @@ int main(int argc, char ** argv) {
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;
-                llm->load();
+                { // <--- 添加花括号来定义作用域
+                    TRACE_EVENT("llm_load", "llm->load()"); // <--- 添加追踪点
+                    llm->load();
+                } // <--- 事件在此结束
                 t.loadingS.push_back((double)loadingCost.durationInUs() / 1e6);
             }
         } else {
+            TRACE_EVENT("llm_load", "llm->load()"); // <--- 添加追踪点
             llm->load();
         }
         tuning_prepare(llm.get());
@@ -893,10 +1036,16 @@ int main(int argc, char ** argv) {
             std::vector<int> tokens(prompt_tokens, 16);
             
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
-                llm->response(tokens, nullptr, nullptr, decodeTokens);
+                { // <--- 添加作用域
+            // 追踪整个 response 调用
+            TRACE_EVENT("mnn_bench", "llm->response (prefill+decode)"); 
+            llm->response(tokens, nullptr, nullptr, decodeTokens);
+        } // <--- response 事件结束
                 auto prefillTime = context->prefill_us;
                 auto decodeTime = context->decode_us;
                 if (i > 0) { // Exclude the first performance value.
+                    TRACE_EVENT_INSTANT("mnn_bench", "prefillTime (us)", "duration", static_cast<double>(prefillTime));
+                    TRACE_EVENT_INSTANT("mnn_bench", "decodeTime (us)", "duration", static_cast<double>(decodeTime));
                     t.prefillUs.push_back(prefillTime);
                     t.decodeUs.push_back(decodeTime);
                 }
@@ -918,13 +1067,19 @@ int main(int argc, char ** argv) {
             std::vector<int> tokens1(1, tok);
 
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
-                int64_t sampler_us = 0;
+                int64_t sampler_us =   0;
                 if (prompt_tokens) {
-                    llm->response(tokens, nullptr, nullptr, 1);
+                    { // <--- 添加作用域
+                        TRACE_EVENT("mnn_bench", "llm->response (prefill_only)");
+                        llm->response(tokens, nullptr, nullptr, 1);
+                    } // <--- prefill 事件结束
                     sampler_us += context->prefill_us;
                 }
                 if (decodeTokens) {
-                    llm->response(tokens1, nullptr, nullptr, decodeTokens);
+                    { // <--- 添加作用域
+                        TRACE_EVENT("mnn_bench", "llm->response (decode_only)");
+                        llm->response(tokens1, nullptr, nullptr, decodeTokens);
+                    } // <--- decode 事件结束
                     sampler_us += context->decode_us;
                 }
                 if (i > 0) {

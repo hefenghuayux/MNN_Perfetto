@@ -24,11 +24,14 @@
 #include "sampler.hpp"
 #include "omni.hpp"
 #include "speculative_decoding/generate.hpp"
-
+#include <perfetto.h>
 // 0: no debug, 1: test op time, 2: print tensor info, 3: print tensor in output
 #define DEBUG_MODE 0
 //#define DEBUG_IMAGE
-
+// 1. 定义 llm.cpp 会用到的类别
+PERFETTO_DEFINE_CATEGORIES(
+    perfetto::Category("mnn_llm").SetDescription("Llm::forwardRaw")
+);
 namespace MNN {
 using namespace Express;
 namespace Transformer {
@@ -411,6 +414,7 @@ void Llm::setKVCacheInfo(size_t add, size_t remove, int* reserve, int n_reserve)
 }
 
 std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::VARP mask, Express::VARP inputPos, Express::VARPS extraArgs) {
+    TRACE_EVENT("mnn_llm", "Llm::forwardRaw");
     Express::VARP logitsIndex;
     bool inDecode = mContext->gen_seq_len > 0;
     bool isAllLogists = mConfig->all_logits() ? true : (inDecode ? mInSpec : false);
@@ -894,6 +898,7 @@ static inline bool needNewVar(VARP var, int axis, int seq_len, int kv_seq_len = 
 
 VARP Llm::embedding(const std::vector<int>& input_ids) {
     AUTOTIME;
+    TRACE_EVENT("mnn_llm", "Llm::embedding");
     int hidden_size = mConfig->hidden_size();
     int seq_len = static_cast<int>(input_ids.size());
 
