@@ -24,14 +24,31 @@
 #include "sampler.hpp"
 #include "omni.hpp"
 #include "speculative_decoding/generate.hpp"
-#include <perfetto.h>
+#include <android/trace.h> // 核心 ATrace API
 // 0: no debug, 1: test op time, 2: print tensor info, 3: print tensor in output
 #define DEBUG_MODE 0
 //#define DEBUG_IMAGE
-// 1. 定义 llm.cpp 会用到的类别
-PERFETTO_DEFINE_CATEGORIES(
-    perfetto::Category("mnn_llm").SetDescription("Llm::forwardRaw")
-);
+/**
+ * @brief 一个辅助类 (RAII 风格)
+ * 在构造时调用 ATrace_beginSection
+ * 在析构时（离开作用域时）自动调用 ATrace_endSection
+ * 这确保了 begin/end 总是成对出现，非常健壮
+ */
+class ScopedTrace {
+public:
+    inline ScopedTrace(const char* name) {
+        ATrace_beginSection(name);
+    }
+    inline ~ScopedTrace() {
+        ATrace_endSection();
+    }
+};
+
+// 定义一个方便的宏，自动使用当前函数名作为标签
+#define TRACE_CALL() ScopedTrace __tracer {__FUNCTION__}
+// 定义一个宏，可以自定义标签名
+#define TRACE_SCOPE(name) ScopedTrace __tracer {name}
+
 namespace MNN {
 using namespace Express;
 namespace Transformer {
@@ -414,7 +431,7 @@ void Llm::setKVCacheInfo(size_t add, size_t remove, int* reserve, int n_reserve)
 }
 
 std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::VARP mask, Express::VARP inputPos, Express::VARPS extraArgs) {
-    TRACE_EVENT("mnn_llm", "Llm::forwardRaw");
+    TRACE_CALL(); // <--- 修改这里
     Express::VARP logitsIndex;
     bool inDecode = mContext->gen_seq_len > 0;
     bool isAllLogists = mConfig->all_logits() ? true : (inDecode ? mInSpec : false);
@@ -898,7 +915,7 @@ static inline bool needNewVar(VARP var, int axis, int seq_len, int kv_seq_len = 
 
 VARP Llm::embedding(const std::vector<int>& input_ids) {
     AUTOTIME;
-    TRACE_EVENT("mnn_llm", "Llm::embedding");
+    TRACE_CALL(); // <--- 修改这里
     int hidden_size = mConfig->hidden_size();
     int seq_len = static_cast<int>(input_ids.size());
 

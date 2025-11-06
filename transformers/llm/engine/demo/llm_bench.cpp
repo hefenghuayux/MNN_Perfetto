@@ -11,16 +11,11 @@
 #include <thread>
 #include <algorithm>
 #include <numeric>
-#include <perfetto.h>
-
+#include <android/trace.h>
+#define ATRACE_TAG ATRACE_TAG_APP // 确保 ATrace 标记已启用
 #define MNN_OPEN_TIME_TRACE
 
 
-// 1. 定义 llm_bench 会用到的类别
-PERFETTO_DEFINE_CATEGORIES(
-    perfetto::Category("llm_load").SetDescription("Model loading"),
-    perfetto::Category("mnn_bench").SetDescription("High-level LLM benchmarks")
-);    
 
 
 using namespace MNN::Transformer;
@@ -968,18 +963,20 @@ static void tuning_prepare(Llm* llm) {
     llm->tuning(OP_ENCODER_NUMBER, {1, 5, 10, 20, 30, 50, 100});
 }
 
+/* * 【【请确保文件顶部有以下两行】】
+ * #include <android/trace.h>
+ * #define ATRACE_TAG ATRACE_TAG_APP
+ */
+
 int main(int argc, char ** argv) {
     // ---------------------------------------------------------
-    // 4. 添加 Perfetto 系统模式初始化代码
+    // 4. 【已移除】 Perfetto 系统模式初始化代码
     // ---------------------------------------------------------
-    perfetto::TracingInitArgs args;
-    // 这是关键：连接到系统追踪服务 (traced)
-    args.backends |= perfetto::kSystemBackend;
-    perfetto::Tracing::Initialize(args);
-
-    // 注册我们上面定义的类别
-    perfetto::TrackEvent::Register();
-    
+    // perfetto::TracingInitArgs args;
+    // args.backends |= perfetto::kSystemBackend;
+    // perfetto::Tracing::Initialize(args);
+    // perfetto::TrackEvent::Register();
+     
     RuntimeParameters runtimeParams;
     TestParameters testParams;
     FILE* outfile = stdout;
@@ -1009,19 +1006,25 @@ int main(int argc, char ** argv) {
 
         auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap);
         std::unique_ptr<Llm> llm(llmPtr);
+        
+        // --- ATrace 修改 (if 块) ---
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;
-                { // <--- 添加花括号来定义作用域
-                    TRACE_EVENT("llm_load", "llm->load()"); // <--- 添加追踪点
-                    llm->load();
-                } // <--- 事件在此结束
+                
+                ATrace_beginSection("llm->load()"); // <--- ATrace 开始
+                llm->load();
+                ATrace_endSection(); // <--- ATrace 结束
+                
                 t.loadingS.push_back((double)loadingCost.durationInUs() / 1e6);
             }
         } else {
-            TRACE_EVENT("llm_load", "llm->load()"); // <--- 添加追踪点
+        // --- ATrace 修改 (else 块) ---
+            ATrace_beginSection("llm->load()"); // <--- ATrace 开始
             llm->load();
+            ATrace_endSection(); // <--- ATrace 结束
         }
+        
         tuning_prepare(llm.get());
         auto context = llm->getContext();
         if (instance.mCmdParam.nGenerate > 0) {
@@ -1036,16 +1039,21 @@ int main(int argc, char ** argv) {
             std::vector<int> tokens(prompt_tokens, 16);
             
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
-                { // <--- 添加作用域
-            // 追踪整个 response 调用
-            TRACE_EVENT("mnn_bench", "llm->response (prefill+decode)"); 
-            llm->response(tokens, nullptr, nullptr, decodeTokens);
-        } // <--- response 事件结束
+                
+                // --- ATrace 修改 (response 块) ---
+                ATrace_beginSection("llm->response (prefill+decode)"); // <--- ATrace 开始
+                llm->response(tokens, nullptr, nullptr, decodeTokens);
+                ATrace_endSection(); // <--- ATrace 结束
+
                 auto prefillTime = context->prefill_us;
                 auto decodeTime = context->decode_us;
                 if (i > 0) { // Exclude the first performance value.
-                    TRACE_EVENT_INSTANT("mnn_bench", "prefillTime (us)", "duration", static_cast<double>(prefillTime));
-                    TRACE_EVENT_INSTANT("mnn_bench", "decodeTime (us)", "duration", static_cast<double>(decodeTime));
+                
+                    // --- ATrace 修改 (INSTANT 替换为 Counter) ---
+                    // ATrace_setCounter 用于记录数值，是 TRACE_EVENT_INSTANT 记录计量的最佳替代
+                    ATrace_setCounter("prefillTime (us)", prefillTime);
+                    ATrace_setCounter("decodeTime (us)", decodeTime);
+                    
                     t.prefillUs.push_back(prefillTime);
                     t.decodeUs.push_back(decodeTime);
                 }
@@ -1069,17 +1077,21 @@ int main(int argc, char ** argv) {
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
                 int64_t sampler_us =   0;
                 if (prompt_tokens) {
-                    { // <--- 添加作用域
-                        TRACE_EVENT("mnn_bench", "llm->response (prefill_only)");
-                        llm->response(tokens, nullptr, nullptr, 1);
-                    } // <--- prefill 事件结束
+                
+                    // --- ATrace 修改 (prefill_only 块) ---
+                    ATrace_beginSection("llm->response (prefill_only)"); // <--- ATrace 开始
+                    llm->response(tokens, nullptr, nullptr, 1);
+                    ATrace_endSection(); // <--- ATrace 结束
+                    
                     sampler_us += context->prefill_us;
                 }
                 if (decodeTokens) {
-                    { // <--- 添加作用域
-                        TRACE_EVENT("mnn_bench", "llm->response (decode_only)");
-                        llm->response(tokens1, nullptr, nullptr, decodeTokens);
-                    } // <--- decode 事件结束
+                
+                    // --- ATrace 修改 (decode_only 块) ---
+                    ATrace_beginSection("llm->response (decode_only)"); // <--- ATrace 开始
+                    llm->response(tokens1, nullptr, nullptr, decodeTokens);
+                    ATrace_endSection(); // <--- ATrace 结束
+                    
                     sampler_us += context->decode_us;
                 }
                 if (i > 0) {
