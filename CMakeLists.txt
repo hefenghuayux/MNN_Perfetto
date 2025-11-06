@@ -913,7 +913,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Linux")
 # https://stackoverflow.com/questions/23250863/difference-between-pthread-and-lpthread-while-compiling
   target_link_libraries(MNN PUBLIC -pthread dl)
 elseif(CMAKE_SYSTEM_NAME MATCHES "^Android")
-  target_link_libraries(MNN PUBLIC log m)
+  target_link_libraries(MNN PUBLIC log m android)
 else()
 endif()
 if (NOT MNN_BUILD_SHARED_LIBS)

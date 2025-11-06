@@ -11,12 +11,28 @@
 #include <unordered_map>
 #include <MNN/MNNDefine.h>
 #include "ThreadPool.hpp"
-#include <perfetto.h>
-PERFETTO_DEFINE_CATEGORIES(
-    perfetto::Category("mnn_threadpool").SetDescription("MNN threadpool scheduling"),
-    perfetto::Category("enqueueInternal").SetDescription("enqueueInternal function")
-);
+#include <android/trace.h>
 #define MNN_THREAD_POOL_MAX_TASKS 2
+/**
+ * @brief 一个辅助类 (RAII 风格)
+ * 在构造时调用 ATrace_beginSection
+ * 在析构时（离开作用域时）自动调用 ATrace_endSection
+ * 这确保了 begin/end 总是成对出现，非常健壮
+ */
+class ScopedTrace {
+public:
+    inline ScopedTrace(const char* name) {
+        ATrace_beginSection(name);
+    }
+    inline ~ScopedTrace() {
+        ATrace_endSection();
+    }
+};
+
+// 定义一个方便的宏，自动使用当前函数名作为标签
+#define TRACE_CALL() ScopedTrace __tracer {__FUNCTION__}
+// 定义一个宏，可以自定义标签名
+#define TRACE_SCOPE(name) ScopedTrace __tracer {name}
 
 namespace MNN {
 static std::unordered_map<long int, ThreadPool*> gInstances;
@@ -67,7 +83,7 @@ ThreadPool::ThreadPool(int numberThread) {
                         if (*mTasks[i].second[threadIndex]) {
                             { // <--- 添加作用域
                         // "Worker_Work" 追踪实际计算
-                        TRACE_EVENT("mnn_threadpool", "Worker_Work");
+                        TRACE_SCOPE("Worker_Work");
                         mTasks[i].first.first(threadIndex);
                     } // <--- 作用域结束，自动记录 Worker_Work 的时长
                             { *mTasks[i].second[threadIndex] = false; }
@@ -75,14 +91,14 @@ ThreadPool::ThreadPool(int numberThread) {
                     }
                     { // <--- 添加作用域
                     // "Worker_IdleSpin" 追踪空转
-                    TRACE_EVENT("mnn_threadpool", "Worker_IdleSpin");
+                    TRACE_SCOPE("Worker_IdleSpin");
                     std::this_thread::yield();
                 } // <--- 作用域结束
                 }
                 std::unique_lock<std::mutex> _l(mQueueMutex);
                 // 3. 追踪线程的休眠等待
         { // <--- 添加作用域
-            TRACE_EVENT("mnn_threadpool", "Worker_WaitOnCondition");
+            TRACE_SCOPE("Worker_WaitOnCondition");
             mCondition.wait(_l, [this] { return mStop || mActiveCount > 0; });
         } // <--- 作用域结束
             }
@@ -147,7 +163,7 @@ void ThreadPool::enqueue(TASK&& task, int index) {
 void ThreadPool::enqueueInternal(TASK&& task, int index) {
     if (mActiveCount == 0) {
         {
-            TRACE_EVENT("enqueueInternal", "Pool_Inactive_Run_On_Main");
+            TRACE_SCOPE("Pool_Inactive_Run_On_Main");
             for (int i = 0; i < task.second; ++i) {
                 task.first(i);
             }
@@ -170,7 +186,7 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
     {
         {
         // (可选) 追踪任务分发的开销
-        TRACE_EVENT("enqueueInternal", "Task_Setup");
+        TRACE_SCOPE("Task_Setup");
         for (int i = 1; i < workSize; ++i) {
             *mTasks[index].second[i] = true;
         }
@@ -179,12 +195,12 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
     // 1. 追踪主线程（T0）的实际工作时间
     { // <--- 添加作用域
         // 宏放在作用域顶部，它会自动在 '}' 处结束
-        TRACE_EVENT("enqueueInternal", "MainThread_Work");
+        TRACE_SCOPE("MainThread_Work");
         mTasks[index].first.first(0);
     } // <--- 作用域结束，自动记录 MainThread_Work 的时长
 // 2. 追踪主线程的“忙等”同步时间
     { // <--- 添加作用域
-        TRACE_EVENT("enqueueInternal", "MainThread_Wait");
+        TRACE_SCOPE("MainThread_Wait");
         bool complete = true;
         do {
             complete = true;

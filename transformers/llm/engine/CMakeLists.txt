@@ -35,6 +35,7 @@ if (MNN_SEP_BUILD)
         # target_link_libraries(llm ${LLM_DEPS})
         target_link_libraries(llm 
         ${LLM_DEPS}
+        android
         ${CMAKE_THREAD_LIBS_INIT}
         )
     else()
@@ -95,6 +96,7 @@ target_link_libraries(rollback_demo ${LLM_DEPS})
 # 修改为:
 target_link_libraries(llm_bench 
     ${LLM_DEPS}
+    android
     ${CMAKE_THREAD_LIBS_INIT}
 )
 # -----------------------------------------------------
