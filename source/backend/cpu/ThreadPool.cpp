@@ -11,28 +11,10 @@
 #include <unordered_map>
 #include <MNN/MNNDefine.h>
 #include "ThreadPool.hpp"
-#include <android/trace.h>
+#include <android/trace.h> // [保留] 核心 ATrace API
 #define MNN_THREAD_POOL_MAX_TASKS 2
-/**
- * @brief 一个辅助类 (RAII 风格)
- * 在构造时调用 ATrace_beginSection
- * 在析构时（离开作用域时）自动调用 ATrace_endSection
- * 这确保了 begin/end 总是成对出现，非常健壮
- */
-class ScopedTrace {
-public:
-    inline ScopedTrace(const char* name) {
-        ATrace_beginSection(name);
-    }
-    inline ~ScopedTrace() {
-        ATrace_endSection();
-    }
-};
 
-// 定义一个方便的宏，自动使用当前函数名作为标签
-#define TRACE_CALL() ScopedTrace __tracer {__FUNCTION__}
-// 定义一个宏，可以自定义标签名
-#define TRACE_SCOPE(name) ScopedTrace __tracer {name}
+// [移除] ScopedTrace 类和 TRACE_SCOPE 宏的定义已被移除
 
 namespace MNN {
 static std::unordered_map<long int, ThreadPool*> gInstances;
@@ -81,26 +63,28 @@ ThreadPool::ThreadPool(int numberThread) {
                 while (mActiveCount > 0) {
                     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
                         if (*mTasks[i].second[threadIndex]) {
-                            { // <--- 添加作用域
-                        // "Worker_Work" 追踪实际计算
-                        TRACE_SCOPE("Worker_Work");
-                        mTasks[i].first.first(threadIndex);
-                    } // <--- 作用域结束，自动记录 Worker_Work 的时长
+                            // [修改] 替换 TRACE_SCOPE("Worker_Work")
+                            // "Worker_Work" 追踪实际计算
+                            ATrace_beginSection("Worker_Work");
+                            mTasks[i].first.first(threadIndex);
+                            ATrace_endSection();
+                            
                             { *mTasks[i].second[threadIndex] = false; }
                         }
                     }
-                    { // <--- 添加作用域
+                    
+                    // [修改] 替换 TRACE_SCOPE("Worker_IdleSpin")
                     // "Worker_IdleSpin" 追踪空转
-                    TRACE_SCOPE("Worker_IdleSpin");
+                    ATrace_beginSection("Worker_IdleSpin");
                     std::this_thread::yield();
-                } // <--- 作用域结束
+                    ATrace_endSection();
                 }
                 std::unique_lock<std::mutex> _l(mQueueMutex);
                 // 3. 追踪线程的休眠等待
-        { // <--- 添加作用域
-            TRACE_SCOPE("Worker_WaitOnCondition");
-            mCondition.wait(_l, [this] { return mStop || mActiveCount > 0; });
-        } // <--- 作用域结束
+                // [修改] 替换 TRACE_SCOPE("Worker_WaitOnCondition")
+                ATrace_beginSection("Worker_WaitOnCondition");
+                mCondition.wait(_l, [this] { return mStop || mActiveCount > 0; });
+                ATrace_endSection();
             }
         });
     }
@@ -162,12 +146,12 @@ void ThreadPool::enqueue(TASK&& task, int index) {
 }
 void ThreadPool::enqueueInternal(TASK&& task, int index) {
     if (mActiveCount == 0) {
-        {
-            TRACE_SCOPE("Pool_Inactive_Run_On_Main");
-            for (int i = 0; i < task.second; ++i) {
-                task.first(i);
-            }
+        // [修改] 替换 TRACE_SCOPE("Pool_Inactive_Run_On_Main")
+        ATrace_beginSection("Pool_Inactive_Run_On_Main");
+        for (int i = 0; i < task.second; ++i) {
+            task.first(i);
         }
+        ATrace_endSection();
         return;
     }
     int workSize = task.second;
@@ -184,35 +168,35 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         mTasks[index].first = std::move(task);
     }
     {
-        {
         // (可选) 追踪任务分发的开销
-        TRACE_SCOPE("Task_Setup");
+        // [修改] 替换 TRACE_SCOPE("Task_Setup")
+        ATrace_beginSection("Task_Setup");
         for (int i = 1; i < workSize; ++i) {
             *mTasks[index].second[i] = true;
         }
-        }
+        ATrace_endSection();
     }
     // 1. 追踪主线程（T0）的实际工作时间
-    { // <--- 添加作用域
-        // 宏放在作用域顶部，它会自动在 '}' 处结束
-        TRACE_SCOPE("MainThread_Work");
-        mTasks[index].first.first(0);
-    } // <--- 作用域结束，自动记录 MainThread_Work 的时长
-// 2. 追踪主线程的“忙等”同步时间
-    { // <--- 添加作用域
-        TRACE_SCOPE("MainThread_Wait");
-        bool complete = true;
-        do {
-            complete = true;
-            for (int i = 1; i < workSize; ++i) {
-                if (*mTasks[index].second[i]) {
-                    complete = false;
-                    break;
-                }
+    // [修改] 替换 TRACE_SCOPE("MainThread_Work")
+    ATrace_beginSection("MainThread_Work");
+    mTasks[index].first.first(0);
+    ATrace_endSection();
+    
+    // 2. 追踪主线程的“忙等”同步时间
+    // [修改] 替换 TRACE_SCOPE("MainThread_Wait")
+    ATrace_beginSection("MainThread_Wait");
+    bool complete = true;
+    do {
+        complete = true;
+        for (int i = 1; i < workSize; ++i) {
+            if (*mTasks[index].second[i]) {
+                complete = false;
+                break;
             }
-            std::this_thread::yield();
-        } while (!complete);
-    } // <--- 作用域结束，自动记录 MainThread_Wait 的时长
+        }
+        std::this_thread::yield();
+    } while (!complete);
+    ATrace_endSection();
 }
 } // namespace MNN
 #endif
