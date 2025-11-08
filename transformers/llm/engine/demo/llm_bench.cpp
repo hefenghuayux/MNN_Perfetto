@@ -11,8 +11,7 @@
 #include <thread>
 #include <algorithm>
 #include <numeric>
-#include <android/trace.h>
-#define ATRACE_TAG ATRACE_TAG_APP // 确保 ATrace 标记已启用
+#include "trace_marker_helper.h"
 #define MNN_OPEN_TIME_TRACE
 
 
@@ -1011,18 +1010,18 @@ int main(int argc, char ** argv) {
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;
-                
-                ATrace_beginSection("llm->load()"); // <--- ATrace 开始
+
+                begin_trace_marker("llm->load()");
                 llm->load();
-                ATrace_endSection(); // <--- ATrace 结束
-                
+                end_trace_marker();
+
                 t.loadingS.push_back((double)loadingCost.durationInUs() / 1e6);
             }
         } else {
         // --- ATrace 修改 (else 块) ---
-            ATrace_beginSection("llm->load()"); // <--- ATrace 开始
+            begin_trace_marker("llm->load()"); // <--- ATrace 开始
             llm->load();
-            ATrace_endSection(); // <--- ATrace 结束
+            end_trace_marker(); // <--- ATrace 结束
         }
         
         tuning_prepare(llm.get());
@@ -1041,18 +1040,14 @@ int main(int argc, char ** argv) {
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
                 
                 // --- ATrace 修改 (response 块) ---
-                ATrace_beginSection("llm->response (prefill+decode)"); // <--- ATrace 开始
+                begin_trace_marker("llm->response (prefill+decode)"); // <--- ATrace 开始
                 llm->response(tokens, nullptr, nullptr, decodeTokens);
-                ATrace_endSection(); // <--- ATrace 结束
+                end_trace_marker(); // <--- ATrace 结束
 
                 auto prefillTime = context->prefill_us;
                 auto decodeTime = context->decode_us;
                 if (i > 0) { // Exclude the first performance value.
                 
-                    // --- ATrace 修改 (INSTANT 替换为 Counter) ---
-                    // ATrace_setCounter 用于记录数值，是 TRACE_EVENT_INSTANT 记录计量的最佳替代
-                    ATrace_setCounter("prefillTime (us)", prefillTime);
-                    ATrace_setCounter("decodeTime (us)", decodeTime);
                     
                     t.prefillUs.push_back(prefillTime);
                     t.decodeUs.push_back(decodeTime);
@@ -1079,19 +1074,19 @@ int main(int argc, char ** argv) {
                 if (prompt_tokens) {
                 
                     // --- ATrace 修改 (prefill_only 块) ---
-                    ATrace_beginSection("llm->response (prefill_only)"); // <--- ATrace 开始
+                    begin_trace_marker("llm->response (prefill_only)"); // <--- ATrace 开始
                     llm->response(tokens, nullptr, nullptr, 1);
-                    ATrace_endSection(); // <--- ATrace 结束
-                    
+                    end_trace_marker(); // <--- ATrace 结束
+
                     sampler_us += context->prefill_us;
                 }
                 if (decodeTokens) {
                 
                     // --- ATrace 修改 (decode_only 块) ---
-                    ATrace_beginSection("llm->response (decode_only)"); // <--- ATrace 开始
+                    begin_trace_marker("llm->response (decode_only)"); // <--- ATrace 开始
                     llm->response(tokens1, nullptr, nullptr, decodeTokens);
-                    ATrace_endSection(); // <--- ATrace 结束
-                    
+                    end_trace_marker(); // <--- ATrace 结束
+
                     sampler_us += context->decode_us;
                 }
                 if (i > 0) {

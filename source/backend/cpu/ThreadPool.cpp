@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <MNN/MNNDefine.h>
 #include "ThreadPool.hpp"
-#include <android/trace.h> // [保留] 核心 ATrace API
+#include "trace_marker_helper.h" // [保留] 核心 ATrace API
 #define MNN_THREAD_POOL_MAX_TASKS 2
 
 // [移除] ScopedTrace 类和 TRACE_SCOPE 宏的定义已被移除
@@ -63,11 +63,9 @@ ThreadPool::ThreadPool(int numberThread) {
                 while (mActiveCount > 0) {
                     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
                         if (*mTasks[i].second[threadIndex]) {
-                            // [修改] 替换 TRACE_SCOPE("Worker_Work")
-                            // "Worker_Work" 追踪实际计算
-                            ATrace_beginSection("Worker_Work");
+                            begin_trace_marker("Worker_Work");
                             mTasks[i].first.first(threadIndex);
-                            ATrace_endSection();
+                            end_trace_marker();
                             
                             { *mTasks[i].second[threadIndex] = false; }
                         }
@@ -75,16 +73,16 @@ ThreadPool::ThreadPool(int numberThread) {
                     
                     // [修改] 替换 TRACE_SCOPE("Worker_IdleSpin")
                     // "Worker_IdleSpin" 追踪空转
-                    ATrace_beginSection("Worker_IdleSpin");
+                    begin_trace_marker("Worker_IdleSpin");
                     std::this_thread::yield();
-                    ATrace_endSection();
+                    end_trace_marker();
                 }
                 std::unique_lock<std::mutex> _l(mQueueMutex);
                 // 3. 追踪线程的休眠等待
                 // [修改] 替换 TRACE_SCOPE("Worker_WaitOnCondition")
-                ATrace_beginSection("Worker_WaitOnCondition");
+                begin_trace_marker("Worker_WaitOnCondition");
                 mCondition.wait(_l, [this] { return mStop || mActiveCount > 0; });
-                ATrace_endSection();
+                end_trace_marker();
             }
         });
     }
@@ -147,11 +145,11 @@ void ThreadPool::enqueue(TASK&& task, int index) {
 void ThreadPool::enqueueInternal(TASK&& task, int index) {
     if (mActiveCount == 0) {
         // [修改] 替换 TRACE_SCOPE("Pool_Inactive_Run_On_Main")
-        ATrace_beginSection("Pool_Inactive_Run_On_Main");
+        begin_trace_marker("Pool_Inactive_Run_On_Main");
         for (int i = 0; i < task.second; ++i) {
             task.first(i);
         }
-        ATrace_endSection();
+        end_trace_marker();
         return;
     }
     int workSize = task.second;
@@ -170,21 +168,21 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
     {
         // (可选) 追踪任务分发的开销
         // [修改] 替换 TRACE_SCOPE("Task_Setup")
-        ATrace_beginSection("Task_Setup");
+        begin_trace_marker("Task_Setup");
         for (int i = 1; i < workSize; ++i) {
             *mTasks[index].second[i] = true;
         }
-        ATrace_endSection();
+        end_trace_marker();
     }
     // 1. 追踪主线程（T0）的实际工作时间
     // [修改] 替换 TRACE_SCOPE("MainThread_Work")
-    ATrace_beginSection("MainThread_Work");
+    begin_trace_marker("MainThread_Work");
     mTasks[index].first.first(0);
-    ATrace_endSection();
-    
+    end_trace_marker();
+
     // 2. 追踪主线程的“忙等”同步时间
     // [修改] 替换 TRACE_SCOPE("MainThread_Wait")
-    ATrace_beginSection("MainThread_Wait");
+    begin_trace_marker("MainThread_Wait");
     bool complete = true;
     do {
         complete = true;
@@ -196,7 +194,7 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         }
         std::this_thread::yield();
     } while (!complete);
-    ATrace_endSection();
+    end_trace_marker();
 }
 } // namespace MNN
 #endif

@@ -37,6 +37,7 @@ if (MNN_SEP_BUILD)
         ${LLM_DEPS}
         android
         ${CMAKE_THREAD_LIBS_INIT}
+        MNN
         )
     else()
         add_library(llm STATIC ${SRCS})
