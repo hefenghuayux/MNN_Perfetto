@@ -24,30 +24,11 @@
 #include "sampler.hpp"
 #include "omni.hpp"
 #include "speculative_decoding/generate.hpp"
-#include <android/trace.h> // 核心 ATrace API
+#include "trace_marker_helper.h" // 核心 ATrace API
 // 0: no debug, 1: test op time, 2: print tensor info, 3: print tensor in output
 #define DEBUG_MODE 0
 //#define DEBUG_IMAGE
-/**
- * @brief 一个辅助类 (RAII 风格)
- * 在构造时调用 ATrace_beginSection
- * 在析构时（离开作用域时）自动调用 ATrace_endSection
- * 这确保了 begin/end 总是成对出现，非常健壮
- */
-class ScopedTrace {
-public:
-    inline ScopedTrace(const char* name) {
-        ATrace_beginSection(name);
-    }
-    inline ~ScopedTrace() {
-        ATrace_endSection();
-    }
-};
 
-// 定义一个方便的宏，自动使用当前函数名作为标签
-#define TRACE_CALL() ScopedTrace __tracer {__FUNCTION__}
-// 定义一个宏，可以自定义标签名
-#define TRACE_SCOPE(name) ScopedTrace __tracer {name}
 
 namespace MNN {
 using namespace Express;
@@ -431,7 +412,7 @@ void Llm::setKVCacheInfo(size_t add, size_t remove, int* reserve, int n_reserve)
 }
 
 std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::VARP mask, Express::VARP inputPos, Express::VARPS extraArgs) {
-    TRACE_CALL(); // <--- 修改这里
+    begin_trace_marker("MNN::Transformer::Llm::forwardRaw"); // <--- 修改为这一行
     Express::VARP logitsIndex;
     bool inDecode = mContext->gen_seq_len > 0;
     bool isAllLogists = mConfig->all_logits() ? true : (inDecode ? mInSpec : false);
@@ -468,6 +449,7 @@ std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::V
     std::vector<Express::VARP> outputs = selectModule->onForward(inputs);
 
     if (outputs.empty()) {
+        end_trace_marker(); // <--- 在 return 前添加
         return outputs;
     }
     if (!mAsync) {
@@ -530,6 +512,7 @@ std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::V
     }
 #endif
     mMeta->sync();
+    end_trace_marker(); // <--- 在 return 前添加
     return outputs;
 }
 
@@ -915,13 +898,14 @@ static inline bool needNewVar(VARP var, int axis, int seq_len, int kv_seq_len = 
 
 VARP Llm::embedding(const std::vector<int>& input_ids) {
     AUTOTIME;
-    TRACE_CALL(); // <--- 修改这里
+    begin_trace_marker("MNN::Transformer::Llm::embedding"); // <--- 修改为这一行
     int hidden_size = mConfig->hidden_size();
     int seq_len = static_cast<int>(input_ids.size());
 
     VARP res = _Input({seq_len, 1, hidden_size}, NCHW);
     // disk embedding to save memory
     mDiskEmbedding->embedding(input_ids, res->writeMap<float>());
+    end_trace_marker(); // <--- 在 return 前添加
     return res;
 }
 
