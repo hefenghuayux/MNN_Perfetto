@@ -29,6 +29,7 @@ struct RuntimeParameters
     std::vector<int> precision;
     std::vector<int> memory;
     std::vector<int> dynamicOption;
+    std::vector<int> cpuIds;
 };
 
 struct TestParameters
@@ -58,6 +59,7 @@ struct CommandParameters
     int nRepeat;
     std::string kvCache;
     std::string loadingTime;
+    std::vector<int> cpuIds;
 };
 
 static const RuntimeParameters runtimeParamsDefaults = {
@@ -68,7 +70,9 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* power                */ {0},
     /* precision            */ {2},
     /* memory               */ {2},
-    /* dynamicOption       */ {0}};
+    /* dynamicOption       */ {0},
+    /* cpuIds              */ {}
+};
 
 static const TestParameters testParamsDefaults = {
     /* nPrompt             */ {512},
@@ -100,6 +104,7 @@ struct commandParametersInstance
         mCmdParam.nRepeat = cmdParam.nRepeat;
         mCmdParam.kvCache = cmdParam.kvCache;
         mCmdParam.loadingTime = cmdParam.loadingTime;
+        mCmdParam.cpuIds = cmdParam.cpuIds;
     }
 
     CommandParameters get_cmd_parameters() const
@@ -114,7 +119,8 @@ struct commandParametersInstance
                mCmdParam.power == other.mCmdParam.power &&
                mCmdParam.precision == other.mCmdParam.precision &&
                mCmdParam.memory == other.mCmdParam.memory &&
-               mCmdParam.dynamicOption == other.mCmdParam.dynamicOption;
+               mCmdParam.dynamicOption == other.mCmdParam.dynamicOption &&
+               mCmdParam.cpuIds == other.mCmdParam.cpuIds;
     }
 };
 
@@ -176,6 +182,7 @@ struct TestInstance
     int power;
     int memory;
     int dynamicOption;
+    std::vector<int> cpuIds;
 
     TestInstance(const commandParametersInstance &instance)
     {
@@ -190,6 +197,7 @@ struct TestInstance
         memory = instance.mCmdParam.memory;
         power = instance.mCmdParam.power;
         dynamicOption = instance.mCmdParam.dynamicOption;
+        cpuIds = instance.mCmdParam.cpuIds;
     }
 
     std::vector<double> getTokensPerSecond(int n_tokens, std::vector<int64_t> cost_us) const
@@ -589,6 +597,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.nRepeat = tp.nRepeat[0];
                     tmpParam.kvCache = "true";
                     tmpParam.loadingTime = tp.loadTime;
+                    tmpParam.cpuIds = rp.cpuIds;
                     auto instance = commandParametersInstance(tmpParam);
                     instances.push_back(instance);
                 }
@@ -612,6 +621,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nRepeat = tp.nRepeat[0];
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
+                tmpParam.cpuIds = rp.cpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -630,6 +640,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nRepeat = tp.nRepeat[0];
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
+                tmpParam.cpuIds = rp.cpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -651,6 +662,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nRepeat = tp.nRepeat[0];
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
+                tmpParam.cpuIds = rp.cpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -700,6 +712,7 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -kv, --kv-cache <true|false>              (default: %s) | Note: if true: Every time the LLM model generates a new word, it utilizes the cached KV-cache\n", "false");
     printf("  -fp, --file-print <stdout|filename>       (default: %s)\n", "stdout");
     printf("  -load, --loading-time <true|false>        (default: %s)\n", "true");
+    printf("  -ids, --cpu-ids <n,n,n>                 (default: %s) | Note: set cpu core ids for binding, e.g. 4,5,6,7\n", "none");
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
 }
 
@@ -848,6 +861,14 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             auto p = splitString<std::string>(argv[i], splitDelim);
             testParams.loadTime = p[0];
         }
+        else if (arg == "-ids" || arg == "--cpu-ids") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.cpuIds.insert(runtimeParams.cpuIds.end(), p.begin(), p.end());
+        }
         else {
             invalidParam = true;
             break;
@@ -892,6 +913,9 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (runtimeParams.dynamicOption.empty()) {
         runtimeParams.dynamicOption = runtimeParamsDefaults.dynamicOption;
     }
+    if (runtimeParams.cpuIds.empty()) {
+        runtimeParams.cpuIds = runtimeParamsDefaults.cpuIds;
+    }
     if (testParams.nRepeat.empty()) {
         testParams.nRepeat = testParamsDefaults.nRepeat;
     }
@@ -900,7 +924,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
 }
 
 
-static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads, int power, int dynamic_option, bool use_mmap) {
+static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads, int power, int dynamic_option, bool use_mmap, const std::vector<int>& cpu_ids) {
     auto llmPtr = Llm::createLLM(config_path);
     llmPtr->set_config(R"({
         "async":false
@@ -945,6 +969,24 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
         MNN_ERROR("use_mmap for LLM config set error\n");
         return nullptr;
     }
+    // --- 绑核修改 ---
+    if (!cpu_ids.empty()) {
+        std::string ids_json = "[";
+        for (size_t i = 0; i < cpu_ids.size(); ++i) {
+            ids_json += std::to_string(cpu_ids[i]);
+            if (i < cpu_ids.size() - 1) {
+                ids_json += ",";
+            }
+        }
+        ids_json += "]";
+        MNN_PRINT("Binding to CPU Core IDs: %s\n", ids_json.c_str());
+        setSuccess &= llmPtr->set_config("{\"cpu_core_ids\":" + ids_json + "}");
+        if (!setSuccess) {
+            MNN_ERROR("cpu_core_ids for LLM config set error\n");
+            return nullptr;
+        }
+    }
+    // --- 修改结束 ---
     setSuccess &= llmPtr->set_config("{\"tmp_path\":\"tmp\"}");
     if (!setSuccess) {
         MNN_ERROR("tmp_path for LLM config set error\n");
@@ -1003,7 +1045,7 @@ int main(int argc, char ** argv) {
         auto executor = MNN::Express::Executor::newExecutor(MNN_FORWARD_CPU, backendConfig, 1);
         MNN::Express::ExecutorScope scope(executor);
 
-        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap);
+        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, instance.mCmdParam.cpuIds);
         std::unique_ptr<Llm> llm(llmPtr);
         
         // --- ATrace 修改 (if 块) ---
