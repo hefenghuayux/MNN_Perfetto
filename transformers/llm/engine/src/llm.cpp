@@ -151,25 +151,12 @@ void Llm::setRuntimeHint(std::shared_ptr<Express::Executor::RuntimeManager> &rtg
         rtg->setHint(MNN::Interpreter::CPU_SME2_INSTRUCTIONS, 1);
 
     }
-        // --- 绑核修改 (llm.cpp) ---
-    // 解析并设置 cpu_core_ids
-   // 确认 mConfig->config_.document 已包含合并后的JSON
-    if (mConfig->config_.document.HasMember("cpu_core_ids")) {
-       auto& cpu_ids_json = mConfig->config_.document["cpu_core_ids"];
-       if (cpu_ids_json.IsArray()) {
-           std::vector<int> cpu_ids;
-           for (auto iter = cpu_ids_json.GetArray().begin(); iter != cpu_ids_json.GetArray().end(); ++iter) {
-               if (iter->IsInt()) {
-                   cpu_ids.push_back(iter->GetInt());
-               }
-           }
-           if (!cpu_ids.empty()) {
-               MNN_PRINT("Llm::setRuntimeHint: Applying CPU Core IDs hint for %d threads.\n", (int)cpu_ids.size());
-               // 参考MNNV2Basic.cpp中的用法设置绑核Hint
-               rtg->setHint(MNN::Interpreter::HintMode::CPU_CORE_IDS, cpu_ids.data(), cpu_ids.size());
-           }
-       }
-    }
+    
+    // --- [修改] ---
+    // 移除路径 A 的绑核逻辑。路径 B (ThreadPool.cpp) 会在内部自动处理绑核。
+    // 移除了原有的 cpu_core_ids JSON 解析和 setHint(CPU_CORE_IDS, ...) 调用
+    // --- [修改结束] ---
+    
     if (mConfig->config_.value("prefer_decode", false)) {
         dynamicOption = dynamicOption % 8 + 8;
         rtg->setHint(MNN::Interpreter::DYNAMIC_QUANT_OPTIONS, dynamicOption);
@@ -185,12 +172,13 @@ void Llm::initRuntime() {
     ScheduleConfig config;
     BackendConfig cpuBackendConfig;
     config.type = backend_type_convert(mConfig->backend_type());
+    // [新代码] 初始化 cpuMask 为 0 (不绑核)
+    config.cpuMask = 0;
 
-    // --- 绑核修改 - 关键修复 ---
-    // 必须在 createRuntimeManager 之前确定最终的 numThread
-    // 1. 检查是否存在 cpu_core_ids hint
+    // --- 绑核修改 (路径 B) ---
+    // 我们仍然需要解析 llm_bench.cpp 传来的 "cpu_core_ids" JSON
+    // 但这次，我们将它转换为一个 unsigned long cpuMask
     std::vector<int> cpu_ids;
-    // 假设 mConfig->config_.document 已合并 llm_bench 传来的JSON
     if (mConfig->config_.document.HasMember("cpu_core_ids")) {
         auto& cpu_ids_json = mConfig->config_.document["cpu_core_ids"];
         if (cpu_ids_json.IsArray()) {
@@ -203,9 +191,21 @@ void Llm::initRuntime() {
     }
 
     // 2. 如果提供了 cpu_ids，则 numThread 必须与 cpu_ids 的数量一致
+    //    并且，我们将 cpu_ids 转换为 cpuMask
     if (!cpu_ids.empty()) {
         config.numThread = cpu_ids.size(); // 强制线程数 = 绑核数
-        MNN_PRINT("Llm::initRuntime: Found %d CPU Core IDs. Forcing numThread = %d\n", (int)cpu_ids.size(), (int)cpu_ids.size());
+        MNN_PRINT("Llm::initRuntime (Path B): Found %d CPU Core IDs. Forcing numThread = %d\n", (int)cpu_ids.size(), (int)cpu_ids.size());
+        
+        // [新代码] 将 [4, 5, 6, 7] 转换为 0xf0
+        unsigned long mask = 0;
+        for (int core_id : cpu_ids) {
+            if (core_id >= 0 && core_id < (sizeof(mask) * 8)) {
+                mask |= (1UL << core_id);
+            }
+        }
+        config.cpuMask = mask; // 将掩码设置到 ScheduleConfig 中
+        MNN_PRINT("Llm::initRuntime (Path B): Converted Core IDs to cpuMask: 0x%lx\n", config.cpuMask);
+
     } else {
         config.numThread = mConfig->thread_num(); // 否则，使用 -t 参数或 json 文件中的配置
     }
@@ -232,12 +232,12 @@ void Llm::initRuntime() {
     }
     config.backendConfig = &cpuBackendConfig;
 
-    // 3. 现在创建 RuntimeManager，它将使用正确的 config.numThread (例如 8)
+    // 3. 现在创建 RuntimeManager
+    // 它会将 config.numThread 和 config.cpuMask 传递下去
+    // 最终传递给我们修改过的 ThreadPool::init 函数
     mRuntimeManager.reset(Executor::RuntimeManager::createRuntimeManager(config)); 
 
-    // 4. setRuntimeHint 仍然在后面调用，它会再次读取 cpu_ids 并设置 Hint
-    //    (来自 image_a43ada.png 的修改)
-    //    此时 config.numThread (8) 和 hint (size 8) 将匹配，绑核会生效
+    // 4. setRuntimeHint 现在不再负责绑核
     setRuntimeHint(mRuntimeManager); 
 
 #if DEBUG_MODE == 1
