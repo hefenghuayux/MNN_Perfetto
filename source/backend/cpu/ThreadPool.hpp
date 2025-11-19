@@ -39,7 +39,7 @@ public:
 private:
     void enqueueInternal(TASK&& task, int index);
 
-    ThreadPool(int numberThread = 0);
+    ThreadPool(int numberThread, const std::vector<int>& core_ids);
     ~ThreadPool();
 
     std::vector<std::thread> mWorkers;
@@ -50,6 +50,7 @@ private:
     std::condition_variable mCondition;
     std::mutex mQueueMutex;
 
+    std::vector<int> mCoreIDs;
     int mNumberThread            = 0;
     std::atomic_int mActiveCount = {0};
 };

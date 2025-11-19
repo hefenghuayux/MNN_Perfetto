@@ -217,7 +217,10 @@ void CPURuntime::onReset(int numberThread, const BackendConfig* config, bool ful
     mThreadNumber = numberThread;
     mCpuIds = hint().cpuIds;
     _validateCpuIds();
-    mCpuMask = MNNGetCPUMask(mCpuIds);
+    // mCpuMask = MNNGetCPUMask(mCpuIds);
+    if (mCpuMask == 0) {
+        mCpuMask = MNNGetCPUMask(mCpuIds);
+    }
     _resetThreadPool();
 }
 
@@ -229,6 +232,7 @@ CPURuntime::CPURuntime(const Backend::Info& info) {
         buf.root = rawAlloc;
     }
     mThreadNumber = info.numThread;
+    mCpuMask = info.cpuMask;
     mPower   = BackendConfig::Power_Normal;
     mMemory  = BackendConfig::Memory_Normal;
     mPrecision = BackendConfig::Precision_Normal;
