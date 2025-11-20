@@ -50,6 +50,7 @@ static void _set_thread_affinity(int core_id) {
 }
 // [修改结束]
 int ThreadPool::init(int numberThread, unsigned long cpuMask, ThreadPool*& threadPool) {
+    MNN_PRINT("DEBUG: ThreadPool::init called. numberThread=%d, cpuMask=%lu (Hex: 0x%lx)\n", numberThread, cpuMask, cpuMask);
     if (1 >= numberThread) {
         numberThread = 1;
     }
