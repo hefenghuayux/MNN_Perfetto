@@ -233,6 +233,7 @@ CPURuntime::CPURuntime(const Backend::Info& info) {
     }
     mThreadNumber = info.numThread;
     mCpuMask = info.cpuMask;
+    MNN_PRINT("DEBUG: CPURuntime::CPURuntime called. cpuMask=%lu (Hex: 0x%lx)\n", mCpuMask, mCpuMask);
     mPower   = BackendConfig::Power_Normal;
     mMemory  = BackendConfig::Memory_Normal;
     mPrecision = BackendConfig::Precision_Normal;
@@ -274,7 +275,14 @@ Backend* CPURuntime::onCreate(const BackendConfig* config, Backend* origin) cons
     {
         mCpuIds = hint().cpuIds;
         _validateCpuIds();
-        mCpuMask = MNNGetCPUMask(mCpuIds);
+        // 【修改前】
+        // mCpuMask = MNNGetCPUMask(mCpuIds);
+
+        // 【修改后】同样的逻辑，保护 mCpuMask
+        if (mCpuMask == 0) {
+            mCpuMask = MNNGetCPUMask(mCpuIds);
+        }
+        MNN_PRINT("DEBUG: CPURuntime::onCreate called. cpuMask=%lu (Hex: 0x%lx)\n", mCpuMask, mCpuMask);
         _resetThreadPool();
     }
     if (hint().midMemoryPath.size() > 0) {
