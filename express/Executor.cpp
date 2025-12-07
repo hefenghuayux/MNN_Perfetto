@@ -356,8 +356,9 @@ Executor::RuntimeManager* Executor::RuntimeManager::createRuntimeManager(const S
             rt.reset(cre->onCreate(info));
             
             // 只有在非强制新建模式下，才加入全局缓存，避免污染
-            if (!forceNewRuntime && nullptr != rt) {
-                glo->mRuntimeInfo.first.insert(std::make_pair(type, rt));
+            // if (!forceNewRuntime && nullptr != rt) {
+            if(nullptr != rt){
+                glo->mRuntimeInfo.first[type] = rt;
             }
         }
     }
