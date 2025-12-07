@@ -59,9 +59,9 @@ int ThreadPool::init(int numberThread, unsigned long cpuMask, ThreadPool*& threa
     // 1. 解析 cpuMask (如 0xf0)，将其转换为核心ID列表 (如 [4, 5, 6, 7])
     std::vector<int> core_ids;
     if (cpuMask != 0) {
-        for (int i = 0; i < (sizeof(cpuMask) * 8); ++i) {
-            if ((cpuMask >> i) & 1) { // 如果掩码的第 i 位被设置
-                core_ids.push_back(i); // 就将核心 i 添加到列表中
+        for (int i = (sizeof(cpuMask) * 8) - 1; i >= 0; --i) {
+            if ((cpuMask >> i) & 1) { // 逻辑不变：检查第 i 位是否为 1
+                core_ids.push_back(i); // 先放入的是大号核心 (例如 7)
             }
         }
     }
@@ -147,7 +147,9 @@ ThreadPool::ThreadPool(int numberThread, const std::vector<int>& core_ids) {
                     std::this_thread::yield();
                     end_trace_marker();
                 }
+                begin_trace_marker("Wait_Idle_Lock");
                 std::unique_lock<std::mutex> _l(mQueueMutex);
+                end_trace_marker();
                 // 3. 追踪线程的休眠等待
                 // [修改] 替换 TRACE_SCOPE("Worker_WaitOnCondition")
                 begin_trace_marker("Worker_WaitOnCondition");
@@ -194,10 +196,14 @@ void ThreadPool::releaseWorkIndex(int index) {
 
 void ThreadPool::active() {
     {
+        begin_trace_marker("Wait_Main_Active_Lock");
         std::lock_guard<std::mutex> _l(mQueueMutex);
         mActiveCount++;
+        end_trace_marker();
     }
+    begin_trace_marker("Main_Notify_All");
     mCondition.notify_all();
+    end_trace_marker();
 }
 void ThreadPool::deactive() {
     mActiveCount--;
