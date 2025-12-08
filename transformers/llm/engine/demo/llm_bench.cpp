@@ -1157,26 +1157,36 @@ int main(int argc, char ** argv) {
 
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
                 int64_t sampler_us =   0;
-                if (prompt_tokens) {
                 
-                    // --- ATrace 修改 (prefill_only 块) ---
-                    begin_trace_marker("llm->response (prefill_only)"); // <--- ATrace 开始
-                    llm->response(tokens, nullptr, nullptr, 1);
-                    end_trace_marker(); // <--- ATrace 结束
+                MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
+                if (prompt_tokens) {
+                    begin_trace_marker("llm->response (prefill_only)");
+                    llm->response(tokens, nullptr, nullptr, 1);
+                    end_trace_marker();
                     sampler_us += context->prefill_us;
                 }
+
+                // --- [修改 2] Prefill 结束后 ---
+                MNN_PRINT("\n==================== [MARKER] PREFILL END ====================\n");
+
+
                 if (i == 0 && decodeTokens > 0) {
                     wait_for_perf_trigger(); 
                 }
+
                 if (decodeTokens) {
-                
-                    // --- ATrace 修改 (decode_only 块) ---
-                    begin_trace_marker("llm->response (decode_only)"); // <--- ATrace 开始
+                    // --- [修改 3] Decode 开始前 ---
+                    MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
+                    
+                    begin_trace_marker("llm->response (decode_only)");
                     llm->response(tokens1, nullptr, nullptr, decodeTokens);
-                    end_trace_marker(); // <--- ATrace 结束
+                    end_trace_marker();
 
                     sampler_us += context->decode_us;
+                    
+                    // --- [修改 4] Decode 结束后 ---
+                    MNN_PRINT("\n==================== [MARKER] DECODE END ====================\n");
                 }
                 if (i > 0) {
                     t.samplesUs.push_back(sampler_us);
