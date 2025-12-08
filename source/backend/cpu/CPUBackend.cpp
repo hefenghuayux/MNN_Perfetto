@@ -51,9 +51,14 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
     CPUCastCreator::cast(inputs[0], outputs[0], cpuBackend, convertType);
     return NO_ERROR;
 }
+static std::atomic<int> g_small_task_count(0);
+static std::atomic<int> g_task_count(0);
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
+    g_task_count++;
+    // MNN_PRINT("[TASK_STAT] Size=%d\n", size);
     if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
         // Avg divide
+        
         // TRACE_EVENT("mnn_CPUBackend","CPUBackend::computeDivideSizes avg divide");
         int length = UP_DIV(size, mThreadNumber);
         int cur = length;
@@ -62,6 +67,24 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
             cur = cur + length;
             cur = ALIMIN(cur, size);
         }
+        // // ================== 【新增调试代码 START】 ==================
+        // // 为了避免刷屏，可以限制打印条件，或者只打印一次
+        // // 这里简单粗暴直接打印，建议配合 grep 使用
+        
+        //     MNN_PRINT("[DIV_DEBUG] TotalSize=%d, Threads=%d, Mode=Uniform\n", size, mThreadNumber);
+            int last = 0;
+            for (int i = 0; i < mThreadNumber; ++i) {
+                int current_workload = dst[i] - last;
+                g_small_task_count++;
+                if (g_task_count % 1000 == 0) {
+                 MNN_PRINT("[STAT_REPORT] Total: %d, Small: %d\n", 
+                           (int)g_task_count, (int)g_small_task_count );
+                }
+                // MNN_PRINT("  Thread-%d: workload=%d (range %d-%d)\n", i, current_workload, last, dst[i]);
+                last = dst[i];
+            }
+           
+        // ================== 【新增调试代码 END】 ==================
         return;
     }
 
