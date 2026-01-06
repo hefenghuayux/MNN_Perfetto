@@ -15,7 +15,13 @@
 #include "geometry/GeometryComputerUtils.hpp"
 #include "shape/SizeComputer.hpp"
 #include "core/OpCommonUtils.hpp"
-
+// 引入你的插桩辅助头文件
+#include "utils/trace_marker_helper.h" 
+// 引入 MNN 的 OpType 枚举转字符串工具（通常 MNN 内部已有，如果没有则需要引入生成的头文件）
+#include "MNN_generated.h"
+#include <typeinfo> // 用于 typeid
+#include <cxxabi.h> // 用于将乱码的类名转换回人类可读的名字 (Demangle)
+#include <memory>   // 用于 free
 // TODO: Find better way for debug
 //#define MNN_OP_SEPERATE
 //#define MNN_PIPELINE_DEBUG
@@ -1143,7 +1149,35 @@ ErrorCode Pipeline::execute() {
                 MNN_PRINT("Group: %d, %s - %d, type=%s, inputs: %s, devices: %s - %s\n", info.group, info.op->name()->c_str(), cmdIndex, EnumNameOpType(cmd.op->type()), groupOfInput.c_str(), deviceOfInput.c_str(), deviceOfOutput.c_str());
             }
 #endif
+            
+            // 1. 获取基础 OpType (如 "Convolution")
+            const char* opTypeStr = MNN::EnumNameOpType(cmd.op->type());
+
+            // 2. [新增] 获取 C++ 具体的类名 (如 "MNN::DenseConvolutionTiledExecutor")
+            const std::type_info& ti = typeid(*cmd.execution); // 获取运行时类型信息
+            int status;
+            // abi::__cxa_demangle 用于将编译器生成的符号（如 N3MNN29DenseConvolutionTiledExecutorE）
+            // 转换为可读形式 (MNN::DenseConvolutionTiledExecutor)
+            char* realname = abi::__cxa_demangle(ti.name(), 0, 0, &status);
+            std::string className = (status == 0) ? realname : ti.name();
+            free(realname); // 必须释放内存
+
+            // 3. 拼接 Trace 字符串
+            std::string traceName = "MNN_";
+            if (opTypeStr) {
+                traceName += opTypeStr;
+            }
+            // 将具体的 C++ 类名加进去！
+            traceName += " [" + className + "]"; 
+
+            if (cmd.op->name()) {
+                traceName += ":";
+                traceName += cmd.op->name()->c_str();
+}
+            // +++ [新增] 2. 开始插桩 +++
+            begin_trace_marker(traceName.c_str());
             auto code = cmd.execution->onExecute(cmd.workInputs, cmd.workOutputs);
+            end_trace_marker(); // +++ 结束插桩 +++
             if (NO_ERROR != code) {
                 _exitExecute();
                 return code;

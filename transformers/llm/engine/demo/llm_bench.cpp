@@ -16,11 +16,13 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
+#include <atomic>
 #define MNN_OPEN_TIME_TRACE
 
 
 
-
+extern std::atomic<int> g_small_task_count;
+extern std::atomic<int> g_task_count;
 using namespace MNN::Transformer;
 
 struct RuntimeParameters
@@ -1053,6 +1055,28 @@ static void wait_for_perf_trigger() {
  * #define ATRACE_TAG ATRACE_TAG_APP
  */
 
+void print_task_stats(const char* phase_name, int start_total, int end_total, int start_small, int end_small) {
+    int delta_total = end_total - start_total;
+    int delta_small_raw = end_small - start_small;
+    
+
+    int delta_small_ops = delta_small_raw ;
+
+    float ratio = 0.0f;
+    if (delta_total > 0) {
+        ratio = (float)delta_small_ops / delta_total * 100.0f;
+    }
+
+    MNN_PRINT("\n[Analyz] === %s Phase Statistics ===\n", phase_name);
+    MNN_PRINT("[Analyz] Total Ops: %d\n", delta_total);
+    MNN_PRINT("[Analyz] Small Ops (Hit Uniform): %d (Raw: %d)\n", delta_small_ops, delta_small_raw);
+    MNN_PRINT("[Analyz] Small Task Ratio: %.2f%%\n", ratio);
+    
+    if (ratio > 90.0f) {
+         MNN_PRINT("[Analyz] [!!CRITICAL!!] %s 阶段绝大多数算子被判定为小任务，多线程收益极低！\n", phase_name);
+    }
+    MNN_PRINT("[Analyz] =================================\n\n");
+}
 int main(int argc, char ** argv) {
     // ---------------------------------------------------------
     // 4. 【已移除】 Perfetto 系统模式初始化代码
@@ -1161,10 +1185,15 @@ int main(int argc, char ** argv) {
                 MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
                 if (prompt_tokens) {
+                    int p_start_total = g_task_count.load();
+                    int p_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (prefill_only)");
                     llm->response(tokens, nullptr, nullptr, 1);
                     end_trace_marker();
                     sampler_us += context->prefill_us;
+                    int p_end_total = g_task_count.load();
+                    int p_end_small = g_small_task_count.load();
+                    print_task_stats("PREFILL", p_start_total, p_end_total, p_start_small, p_end_small);
                 }
 
                 // --- [修改 2] Prefill 结束后 ---
@@ -1178,13 +1207,16 @@ int main(int argc, char ** argv) {
                 if (decodeTokens) {
                     // --- [修改 3] Decode 开始前 ---
                     MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
-                    
+                    int d_start_total = g_task_count.load();
+                    int d_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (decode_only)");
                     llm->response(tokens1, nullptr, nullptr, decodeTokens);
                     end_trace_marker();
 
                     sampler_us += context->decode_us;
-                    
+                    int d_end_total = g_task_count.load();
+                    int d_end_small = g_small_task_count.load();
+                    print_task_stats("DECODE", d_start_total, d_end_total, d_start_small, d_end_small);
                     // --- [修改 4] Decode 结束后 ---
                     MNN_PRINT("\n==================== [MARKER] DECODE END ====================\n");
                 }

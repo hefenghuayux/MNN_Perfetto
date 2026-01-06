@@ -18,7 +18,7 @@ if(POLICY CMP0091)
   cmake_policy(SET CMP0091 NEW)
 endif()
 project(MNN VERSION ${MNN_VERSION} LANGUAGES C CXX ASM)
-
+add_compile_options(-frtti)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/3rd_party/sdk)
 
 
@@ -613,7 +613,8 @@ if ((NOT MSVC) AND MNN_HIDDEN)
     endif()
 endif()
 if (NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstrict-aliasing -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions ")
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstrict-aliasing -ffunction-sections -fdata-sections -fno-rtti -fno-exceptions ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstrict-aliasing -ffunction-sections -fdata-sections -frtti -fno-exceptions ")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstrict-aliasing -ffunction-sections -fdata-sections ")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:precise")
