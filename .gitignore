@@ -379,3 +379,14 @@ apps/mnncli/.cursorrules
 apps/mnncli/model_market_json_data.inc
 #kledi
 _deps
+
+# 忽略所有 MNN 权重文件（不管在哪个目录下）
+*.mnn.weight
+*.weight
+
+# 忽略所有压缩包
+*.zip
+*.tar.gz
+
+# 忽略特定的 NDK 文件夹
+android-ndk-*
