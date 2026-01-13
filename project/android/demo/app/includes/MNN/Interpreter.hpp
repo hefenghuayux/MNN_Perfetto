@@ -26,7 +26,7 @@ struct ScheduleConfig {
     MNNForwardType type = MNN_FORWARD_CPU;
     /** number of threads in parallel */
     int numThread = 4;
-
+    unsigned long cpuMask = 0;
     /** subpath to run */
     struct Path {
         std::vector<std::string> inputs;

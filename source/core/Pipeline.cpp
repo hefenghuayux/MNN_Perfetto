@@ -47,27 +47,6 @@ static std::set<OpType> _getQuantPropagateOp(Runtime::CompilerType type) {
     return propagateOpTypes;
 }
 
-static std::set<OpType> _getQuantPropagateOp(Runtime::CompilerType type) {
-    std::set<OpType> propagateOpTypes = { OpType_Raster, OpType_ReLU, OpType_ReLU6, OpType_Pooling,
-                                          OpType_Interp, OpType_CropAndResize, OpType_ROIPooling};
-    if (type == Runtime::CompilerType::Compiler_Origin) {
-        propagateOpTypes.insert(OpType_ConvertTensor);
-        propagateOpTypes.insert(OpType_Concat);
-        propagateOpTypes.insert(OpType_Flatten);
-        propagateOpTypes.insert(OpType_Identity);
-        propagateOpTypes.insert(OpType_Transpose);
-        propagateOpTypes.insert(OpType_Pack);
-        propagateOpTypes.insert(OpType_Permute);
-        propagateOpTypes.insert(OpType_Reshape);
-        propagateOpTypes.insert(OpType_Slice);
-        propagateOpTypes.insert(OpType_StridedSlice);
-        propagateOpTypes.insert(OpType_Squeeze);
-        propagateOpTypes.insert(OpType_Unpack);
-        propagateOpTypes.insert(OpType_Unsqueeze);
-    }
-    return propagateOpTypes;
-}
-
 OperatorInfo::OperatorInfo() {
     mContent = new Info;
     MNN_ASSERT(nullptr != mContent);

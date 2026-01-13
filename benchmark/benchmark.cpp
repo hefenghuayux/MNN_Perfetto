@@ -117,7 +117,7 @@ static inline uint64_t getTimeInUs() {
 }
 
 std::vector<float> doBench(Model& model, int loop, int warmup = 10, int forward = MNN_FORWARD_CPU, bool only_inference = true,
-                           int numberThread = 4, int precision = 2, float sparsity = 0.0f, int sparseBlockOC = 1, bool testQuantModel=false, bool enableKleidiAI=false) {
+                           int numberThread = 4, int precision = 2, float sparsity = 0.0f, int sparseBlockOC = 1, bool testQuantModel=false, bool enableKleidiAI=false, unsigned long cpuMask = 0) {
     auto revertor = std::unique_ptr<Revert>(new Revert(model.model_file.c_str()));
     if (testQuantModel) {
         revertor->initialize(0, sparseBlockOC, false, true);
@@ -134,6 +134,7 @@ std::vector<float> doBench(Model& model, int loop, int warmup = 10, int forward 
     MNN::ScheduleConfig config;
     config.numThread = numberThread;
     config.type      = static_cast<MNNForwardType>(forward);
+    config.cpuMask = cpuMask;
     MNN::BackendConfig backendConfig;
     backendConfig.precision = (MNN::BackendConfig::PrecisionMode)precision;
     backendConfig.power = MNN::BackendConfig::Power_High;
@@ -326,41 +327,34 @@ static int sortCPUIDByMaxFrequency(std::vector<int>& cpuIDs, int* littleClusterO
 
 #endif
 
-void set_cpu_affinity()
-{
-#ifdef __ANDROID__
-    int cpu_core_num = sysconf(_SC_NPROCESSORS_CONF);
-    //LOG_MCNN_CL_INF("cpu core num = %d\n", cpu_core_num);
-    int cpu_id = 0;
+// [修改] 替换原有的 set_cpu_affinity 函数
+void set_process_affinity(unsigned long cpuMask) {
+#if defined(__ANDROID__) || defined(__linux__)
+    if (cpuMask == 0) return;
+
     cpu_set_t mask;
     CPU_ZERO(&mask);
-
-    auto numberOfCPUs = getNumberOfCPU();
-    static std::vector<int> sortedCPUIDs;
-    static int littleClusterOffset = 0;
-    if (sortedCPUIDs.empty()) {
-        sortedCPUIDs.resize(numberOfCPUs);
-        for (int i = 0; i < numberOfCPUs; ++i) {
-            sortedCPUIDs[i] = i;
+    
+    int set_core_count = 0;
+    // 将 unsigned long 的 mask 转换为 CPU_SET
+    for (int i = 0; i < sizeof(cpuMask) * 8; ++i) {
+        if ((cpuMask >> i) & 1) {
+            CPU_SET(i, &mask);
+            set_core_count++;
         }
-        sortCPUIDByMaxFrequency(sortedCPUIDs, &littleClusterOffset);
     }
 
-    printf("max core:");
-    for (cpu_id = 0; cpu_id < littleClusterOffset; cpu_id++)
-    {
-        printf("%d ", sortedCPUIDs[cpu_id]);
-        CPU_SET(sortedCPUIDs[cpu_id], &mask);
+    // 0 代表当前进程/线程
+    // 这一步会将【主线程】以及【未来创建的所有子线程】都限制在这个 mask 范围内
+    int sys_call_res = syscall(__NR_sched_setaffinity, 0, sizeof(mask), &mask);
+    
+    if (sys_call_res == 0) {
+        MNN_PRINT("[-INFO-]: Success binding process to %d cores (Mask: 0x%lx)\n", set_core_count, cpuMask);
+    } else {
+        MNN_PRINT("[-ERROR-]: Failed to bind process, errno = %d\n", errno);
     }
-    printf("\n");
-
-
-    int sys_call_res = syscall(__NR_sched_setaffinity, gettid(), sizeof(mask), &mask);
-    //LOG_MCNN_CL_INF("sys call res = %d\n", sys_call_res);
-    if (sys_call_res)
-    {
-        printf("set_cpu_affinity errno = %d\n", (int)errno);
-    }
+#else
+    MNN_PRINT("[-WARN-]: Process affinity not supported on this platform.\n");
 #endif
 }
 
@@ -425,7 +419,17 @@ int main(int argc, const char* argv[]) {
     if (argc >= 11) {
         enableKleidiAI = atoi(argv[10]) > 0 ? true : false;
     }
+    // ... 之前的参数解析 ...
+    unsigned long cpuMask = 0; // 默认为 0，不绑核
 
+    // 假设我们把它加在参数列表最后，作为第 12 个参数
+    // Usage: ... [enableKleidiAI] [cpuMaskHex]
+    if (argc >= 12) {
+        // 能够接收十六进制字符串，例如 "f0" 代表 11110000 (绑大核)
+        cpuMask = strtoul(argv[11], NULL, 16); 
+        MNN_PRINT("[-INFO-]: Set CPU Affinity Mask to 0x%lx\n", cpuMask);
+    }
+    set_process_affinity(cpuMask);
     std::cout << "Forward type: " << forwardType(forward) << " thread=" << numberThread << " precision=" <<precision << " sparsity=" <<sparsity << " sparseBlockOC=" << sparseBlockOC << " testQuantizedModel=" << testQuantizedModel << " enableKleidiAI=" << enableKleidiAI << std::endl;
     std::vector<Model> models = findModelFiles(argv[1]);
 
@@ -446,10 +450,10 @@ int main(int argc, const char* argv[]) {
     }
 
     for (auto& m : models) {
-        std::vector<float> costs = doBench(m, loop, warmup, forward, false, numberThread, precision, sparsity, sparseBlockOC, false, enableKleidiAI);
+        std::vector<float> costs = doBench(m, loop, warmup, forward, false, numberThread, precision, sparsity, sparseBlockOC, false, enableKleidiAI, cpuMask);
         displayStats(m.name.c_str(), costs, false);
         if (testQuantizedModel) {
-            costs = doBench(m, loop, warmup, forward, false, numberThread, precision, sparsity, sparseBlockOC, true, enableKleidiAI);
+            costs = doBench(m, loop, warmup, forward, false, numberThread, precision, sparsity, sparseBlockOC, true, enableKleidiAI, cpuMask);
             displayStats(m.name, costs, 1);
         }
     }
