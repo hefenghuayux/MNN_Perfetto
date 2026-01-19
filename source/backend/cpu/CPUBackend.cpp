@@ -23,6 +23,7 @@
 #include "core/MNNFileUtils.h"
 #include "core/WorkerThread.hpp"
 #include <atomic>
+#include "trace_marker_helper.h" // [保留] 核心 ATrace API
 #ifdef _OPENMP
 #include <omp.h>
 #endif // _OPENMP
@@ -46,7 +47,7 @@
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
 extern "C" { //以此防止C++ name mangling，虽然是atomic但作为全局符号导出更稳妥（可选，如果报错去掉extern "C"）
     __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
-    __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
+    // __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
 }
 namespace MNN {
 void registerCPUOps();
@@ -57,11 +58,7 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
     return NO_ERROR;
 }
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
-    g_task_count++;
-    if (g_task_count % 1000 == 0) {
-        MNN_PRINT("[STAT_REPORT] Total: %d, Small: %d\n", 
-        (int)g_task_count, (int)g_small_task_count );
-    }
+    begin_trace_marker("CPUBackend::computeDivideSizes");
     if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
         
         int length = UP_DIV(size, mThreadNumber);
@@ -78,7 +75,7 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
                 
                 last = dst[i];
             }
-           
+        end_trace_marker();
         return;
     }
 
@@ -94,6 +91,7 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
         }
         curPos += group.second;
     }
+    end_trace_marker();
 }
 
 void CPURuntime::_bindCPUCore() const {
@@ -242,6 +240,7 @@ void CPURuntime::onReset(int numberThread, const BackendConfig* config, bool ful
 }
 
 CPURuntime::CPURuntime(const Backend::Info& info) {
+    begin_trace_marker("CPURuntime::CPURuntime");
     auto rawAlloc = BufferAllocator::Allocator::createDefault();
     mStaticAllocator.reset(new EagerBufferAllocator(rawAlloc));
     mDynamic.resize(MNN_CPU_MAX_BUFFER_INDEX);
@@ -264,6 +263,7 @@ CPURuntime::CPURuntime(const Backend::Info& info) {
 #ifdef LOG_VERBOSE
     MNN_PRINT("create CPURuntime:%p\n", this);
 #endif
+    end_trace_marker();
 }
 
 CPURuntime:: ~ CPURuntime() {

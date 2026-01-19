@@ -25,6 +25,10 @@
 // TODO: Find better way for debug
 //#define MNN_OP_SEPERATE
 //#define MNN_PIPELINE_DEBUG
+extern "C" { //以此防止C++ name mangling，虽然是atomic但作为全局符号导出更稳妥（可选，如果报错去掉extern "C"）
+
+    __attribute__((visibility("default"))) std::atomic<int> g_total_task_count(0);
+}
 namespace MNN {
 static std::set<OpType> _getQuantPropagateOp(Runtime::CompilerType type) {
     std::set<OpType> propagateOpTypes = { OpType_Raster, OpType_ReLU, OpType_ReLU6, OpType_Pooling,
@@ -1114,6 +1118,7 @@ void Pipeline::_copyInputs() {
         std::get<3>(tensorCache) = false;
     }
 }
+extern std::atomic<int> g_task_count;
 ErrorCode Pipeline::execute() {
     _copyInputs();
     auto enterCode = _enterExecute();
@@ -1176,6 +1181,8 @@ ErrorCode Pipeline::execute() {
 }
             // +++ [新增] 2. 开始插桩 +++
             begin_trace_marker(traceName.c_str());
+            // g_task_count++;
+            g_total_task_count++;
             auto code = cmd.execution->onExecute(cmd.workInputs, cmd.workOutputs);
             end_trace_marker(); // +++ 结束插桩 +++
             if (NO_ERROR != code) {

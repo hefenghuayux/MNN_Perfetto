@@ -1,6 +1,6 @@
 #!/bin/bash
 cmake ../../../ \
--G "MinGW Makefiles" \
+-G Ninja \
 -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
 -DCMAKE_BUILD_TYPE=Release \
 -DANDROID_ABI="arm64-v8a" \
@@ -13,4 +13,4 @@ cmake ../../../ \
 -DMNN_BUILD_FOR_ANDROID_COMMAND=true \
 -DNATIVE_LIBRARY_OUTPUT=. -DNATIVE_INCLUDE_OUTPUT=. $*
 
-make -j4
+cmake --build . -- -j8
