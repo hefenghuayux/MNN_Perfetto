@@ -8,7 +8,7 @@
 LOCAL_PKG="android_demo_package"
 REMOTE_DIR="/data/local/tmp/android_demo_package"
 TRACE_FILE_REMOTE="/data/misc/perfetto-traces/llm_bench_atrace1.perfetto-trace" 
-CONFIG_FILE="/data/misc/perfetto-configs/normal_config_30.pbtxt" 
+CONFIG_FILE="/data/misc/perfetto-configs/normal_config_60.pbtxt" 
 
 # 2. 目标归档路径 (Windows 格式在 Bash 中建议使用正斜杠)
 DEST_BASE="../perfetto_traces"
@@ -32,10 +32,12 @@ echo ">>> [3/6] 后台启动 Perfetto 追踪..."
 adb shell "perfetto -o $TRACE_FILE_REMOTE -c $CONFIG_FILE --txt" > /dev/null 2>&1 &
 
 echo ">>> [4/6] 执行 LLM Benchmark (线程: 4, 核心: 4,5,6,7)..."
-adb shell "cd $REMOTE_DIR && LD_LIBRARY_PATH=./ ./llm_bench -m ./model_dir/config.json -a cpu -t 4 -ids 4,5,6,7" 
+adb shell "cd $REMOTE_DIR && LD_LIBRARY_PATH=./ ./llm_bench -m ./model_dir/config.json -a cpu -t 3 -ids 5,6,7" 
+
 
 echo ">>> [5/6] 等待数据写入并拉取文件..."
-sleep 10
+sleep 5
+
 adb pull "$TRACE_FILE_REMOTE" "./$LOCAL_TRACE_NAME" 
 
 echo ">>> [6/6] 移动文件到日期文件夹..."

@@ -7,6 +7,7 @@
 //
 
 #include "backend/cpu/CPUBackend.hpp"
+#include "AutoTuner.hpp"
 #include <cmath>
 #include <mutex>
 #include <unordered_map>
@@ -100,6 +101,115 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
     }
     end_trace_marker();
 }
+
+// ===================== Phase 1: 混合调度实现 =====================
+
+void CPUBackend::computeDivideSizesHybrid(int size, int* dst, bool is_prefill, float avgDiv) const {
+    begin_trace_marker("CPUBackend::computeDivideSizesHybrid");
+    g_task_count++;
+    g_divide_size_total += size;
+    g_divide_size_count++;
+    
+    // 1. 从 AutoTuner 获取当前阶段的调优参数
+    auto tuner = AutoTuner::getInstance();
+    TuningParams params = tuner->getTuningParams(is_prefill);
+    
+    // 2. 如果是小任务或只有单线程，回退到均匀分配
+    if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI) || mThreadNumber <= 1) {
+        int length = UP_DIV(size, mThreadNumber);
+        int cur = length;
+        for (int i = 0; i < mThreadNumber; ++i) {
+            dst[i] = cur;
+            cur = cur + length;
+            cur = ALIMIN(cur, size);
+        }
+        // 小任务不启用动态调度
+        initDynamicTaskState(size, size, 1);
+        g_small_task_count++;
+        end_trace_marker();
+        return;
+    }
+    
+    // 3. 计算静态部分的任务数
+    int total_static = (int)(size * params.static_ratio);
+    
+    // 4. 关键约束：将静态边界对齐到 Cache Line，避免 False Sharing
+    // 对于 float (4字节)，Cache Line = 64字节 = 16个元素
+    total_static = alignToCacheLine(total_static, 4);
+    
+    // 确保静态部分不超过总任务数
+    if (total_static > size) {
+        total_static = size;
+    }
+    
+    // 5. 静态部分按 mGroupWithComputeRate 性能比分配
+    if (total_static > 0) {
+        int cur = 0;
+        int curPos = 0;
+        for (auto& group : mGroupWithComputeRate) {
+            // 该组承担的静态任务数
+            int currentGroupTotal = (int)(ceilf((float)total_static * group.first));
+            int length = UP_DIV(currentGroupTotal, group.second);
+            for (int i = 0; i < group.second; ++i) {
+                cur = cur + length;
+                cur = ALIMIN(cur, total_static);
+                dst[curPos + i] = cur;
+            }
+            curPos += group.second;
+        }
+        // 确保最后一个线程的边界不超过静态部分
+        if (curPos > 0) {
+            dst[curPos - 1] = ALIMIN(dst[curPos - 1], total_static);
+        }
+    } else {
+        // 全动态调度：所有线程的静态部分为空
+        for (int i = 0; i < mThreadNumber; ++i) {
+            dst[i] = 0;
+        }
+    }
+    
+    // 6. 初始化动态任务状态
+    int dynamic_size = size - total_static;
+    int step = 1;
+    if (dynamic_size > 0 && params.step_size > 0) {
+        // step_size 是任务块数，计算每块的实际任务数
+        step = UP_DIV(dynamic_size, params.step_size);
+        // 对齐到 Cache Line
+        step = alignToCacheLineUp(step, 4);
+        if (step < 1) step = 1;
+    }
+    initDynamicTaskState(total_static, size, step);
+    
+    end_trace_marker();
+}
+
+void CPUBackend::initDynamicTaskState(int static_end, int total_size, int step_size) const {
+    mDynamicState.cursor.store(static_end, std::memory_order_release);
+    mDynamicState.end = total_size;
+    mDynamicState.step_size = step_size;
+}
+
+std::pair<int, int> CPUBackend::fetchDynamicChunk() const {
+    // 原子抢占下一个任务块
+    int start = mDynamicState.cursor.fetch_add(mDynamicState.step_size, std::memory_order_acq_rel);
+    int end = start + mDynamicState.step_size;
+    
+    // 边界检查
+    if (start >= mDynamicState.end) {
+        return {0, 0};  // 任务已耗尽
+    }
+    if (end > mDynamicState.end) {
+        end = mDynamicState.end;
+    }
+    
+    return {start, end};
+}
+
+bool CPUBackend::hasDynamicTasks() const {
+    return mDynamicState.cursor.load(std::memory_order_acquire) < mDynamicState.end;
+}
+
+// ===================== Phase 1 实现结束 =====================
 
 void CPURuntime::_bindCPUCore() const {
     if (mCpuIds.empty()) {

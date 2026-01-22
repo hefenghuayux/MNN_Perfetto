@@ -20,6 +20,7 @@
 #ifdef MNN_USE_THREAD_POOL
 #include "ThreadPool.hpp"
 #endif
+#include "AutoTuner.hpp"
 
 namespace MNN {
 class WorkerThread;
@@ -113,6 +114,39 @@ public:
     virtual bool onSelectDynamicAllocator(int index, int maxIndex) override;
     // dividedSize's length should be larger than threadNumber
     void computeDivideSizes(int size, int* dst, float computeI = 0.f) const;
+    
+    /**
+     * @brief [Phase 1] 混合调度版本的任务划分
+     * @param size 总任务数
+     * @param dst 输出数组，存储每个线程的任务边界（累积形式）
+     * @param is_prefill 是否为 Prefill 阶段
+     * @param computeI 用于判断是否启用异构分配的阈值
+     * 
+     * 逻辑：
+     * 1. 从 AutoTuner 获取 static_ratio 和 step_size
+     * 2. 静态部分按 mGroupWithComputeRate 性能比分配
+     * 3. 动态部分通过原子计数器竞争获取
+     */
+    void computeDivideSizesHybrid(int size, int* dst, bool is_prefill, float computeI = 0.f) const;
+    
+    /**
+     * @brief 初始化动态任务调度状态
+     * @param static_end 静态任务结束边界
+     * @param total_size 总任务数
+     * @param step_size 每次抢占的步长
+     */
+    void initDynamicTaskState(int static_end, int total_size, int step_size) const;
+    
+    /**
+     * @brief 抢占下一个动态任务块
+     * @return pair<start, end> 任务区间，若 start >= end 表示任务已耗尽
+     */
+    std::pair<int, int> fetchDynamicChunk() const;
+    
+    /**
+     * @brief 检查是否还有剩余动态任务
+     */
+    bool hasDynamicTasks() const;
 
 public:
     virtual MemObj* onAcquire(const Tensor* nativeTensor, StorageType storageType) override;
@@ -193,6 +227,9 @@ private:
     mutable int mThreadNumber = 1;
     std::vector<std::pair<float, int>> mGroupWithComputeRate;
     float mComputeI = 0.f;
+    
+    // ===== 动态调度相关成员（Cache Line 对齐避免 False Sharing）=====
+    mutable DynamicTaskState mDynamicState;
 
     std::shared_ptr<CPURuntime::DynamicAllocator> mDmaInfo;
     CPURuntime* mRuntime;
