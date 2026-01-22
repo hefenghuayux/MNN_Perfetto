@@ -22,12 +22,16 @@
 #include <typeinfo> // 用于 typeid
 #include <cxxabi.h> // 用于将乱码的类名转换回人类可读的名字 (Demangle)
 #include <memory>   // 用于 free
+#include<atomic>
 // TODO: Find better way for debug
 //#define MNN_OP_SEPERATE
 //#define MNN_PIPELINE_DEBUG
 extern "C" { //以此防止C++ name mangling，虽然是atomic但作为全局符号导出更稳妥（可选，如果报错去掉extern "C"）
 
     __attribute__((visibility("default"))) std::atomic<int> g_total_task_count(0);
+    // 统计 Pipeline 任务的平均大小（这里用工作输入输出张量总数作为任务大小的指标）
+    __attribute__((visibility("default"))) std::atomic<long long> g_pipeline_task_size_total(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_pipeline_task_count(0);
 }
 namespace MNN {
 static std::set<OpType> _getQuantPropagateOp(Runtime::CompilerType type) {
@@ -1183,6 +1187,10 @@ ErrorCode Pipeline::execute() {
             begin_trace_marker(traceName.c_str());
             // g_task_count++;
             g_total_task_count++;
+            // 统计任务大小（使用工作输入输出张量数量作为任务大小指标）
+            int taskSize = cmd.workInputs.size() + cmd.workOutputs.size();
+            g_pipeline_task_size_total += taskSize;
+            g_pipeline_task_count++;
             auto code = cmd.execution->onExecute(cmd.workInputs, cmd.workOutputs);
             end_trace_marker(); // +++ 结束插桩 +++
             if (NO_ERROR != code) {

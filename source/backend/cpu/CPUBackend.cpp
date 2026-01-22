@@ -47,7 +47,10 @@
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
 extern "C" { //以此防止C++ name mangling，虽然是atomic但作为全局符号导出更稳妥（可选，如果报错去掉extern "C"）
     __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
-    // __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
+    // 统计 computeDivideSizes 的任务平均大小
+    __attribute__((visibility("default"))) std::atomic<long long> g_divide_size_total(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_divide_size_count(0);
 }
 namespace MNN {
 void registerCPUOps();
@@ -59,6 +62,10 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
 }
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
     begin_trace_marker("CPUBackend::computeDivideSizes");
+    g_task_count++;
+    // 统计任务大小
+    g_divide_size_total += size;
+    g_divide_size_count++;
     if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
         
         int length = UP_DIV(size, mThreadNumber);

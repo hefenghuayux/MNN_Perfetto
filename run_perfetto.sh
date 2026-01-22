@@ -8,7 +8,7 @@
 LOCAL_PKG="android_demo_package"
 REMOTE_DIR="/data/local/tmp/android_demo_package"
 TRACE_FILE_REMOTE="/data/misc/perfetto-traces/llm_bench_atrace1.perfetto-trace" 
-CONFIG_FILE="/data/misc/perfetto-configs/normal_config.pbtxt" 
+CONFIG_FILE="/data/misc/perfetto-configs/normal_config_30.pbtxt" 
 
 # 2. 目标归档路径 (Windows 格式在 Bash 中建议使用正斜杠)
 DEST_BASE="../perfetto_traces"
