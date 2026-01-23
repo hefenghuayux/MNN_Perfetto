@@ -38,7 +38,7 @@ fi
 
 echo ">>> [3/6] 后台启动 Perfetto 追踪..."
 # 【修改】使用 nohup 防止 adb 断开后进程被杀，并去掉 > /dev/null 以便调试（如果稳定了可以加回）
-adb shell "nohup perfetto -o $TRACE_FILE_REMOTE -c $CONFIG_FILE --txt  2>&1 &"
+adb shell "perfetto -o $TRACE_FILE_REMOTE -c $CONFIG_FILE --txt  2>&1 &"
 
 # 等待一秒确保 Perfetto 启动成功
 sleep 2
@@ -49,7 +49,7 @@ adb shell "cd $REMOTE_DIR && LD_LIBRARY_PATH=./ ./llm_bench -m ./model_dir/confi
 
 echo ">>> [5/6] 等待数据写入..."
 # 确保等待时间 > Config文件里的 duration_ms
-sleep 65
+sleep 5
 
 echo ">>> [Step 4] 拉取 Trace 文件..."
 adb pull "$TRACE_FILE_REMOTE" "$FINAL_DEST_DIR/$LOCAL_TRACE_NAME" 

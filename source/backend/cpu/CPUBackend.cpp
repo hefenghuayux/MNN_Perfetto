@@ -104,15 +104,15 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
 
 // ===================== Phase 1: 混合调度实现 =====================
 
-void CPUBackend::computeDivideSizesHybrid(int size, int* dst, bool is_prefill, float avgDiv) const {
+void CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) const {
     begin_trace_marker("CPUBackend::computeDivideSizesHybrid");
     g_task_count++;
     g_divide_size_total += size;
     g_divide_size_count++;
     
-    // 1. 从 AutoTuner 获取当前阶段的调优参数
+    // 1. 从 AutoTuner 获取当前阶段的调优参数（自动根据内部状态返回）
     auto tuner = AutoTuner::getInstance();
-    TuningParams params = tuner->getTuningParams(is_prefill);
+    TuningParams params = tuner->getTuningParams();  // 不再需要传递参数
     
     // 2. 如果是小任务或只有单线程，回退到均匀分配
     if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI) || mThreadNumber <= 1) {

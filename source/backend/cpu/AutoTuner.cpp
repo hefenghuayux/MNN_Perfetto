@@ -36,6 +36,7 @@ void AutoTuner::destroy() {
 AutoTuner::AutoTuner()
     : mPrefillParams(0.8f, 4)    // Prefill: 80% 静态，步长4
     , mDecodeParams(0.0f, 1)     // Decode: 全动态，步长1
+    , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
     , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1
     , mPanicMode(false) {
     MNN_PRINT("[AutoTuner] Initialized with default params:\n");
@@ -45,14 +46,41 @@ AutoTuner::AutoTuner()
               mDecodeParams.static_ratio, mDecodeParams.step_size);
 }
 
-TuningParams AutoTuner::getTuningParams(bool is_prefill) const {
+void AutoTuner::setPhase(InferencePhase phase) {
+    InferencePhase oldPhase = mCurrentPhase.exchange(phase, std::memory_order_release);
+    if (oldPhase != phase) {
+        const char* oldName = (oldPhase == InferencePhase::PREFILL) ? "PREFILL" : 
+                              (oldPhase == InferencePhase::DECODE) ? "DECODE" : "UNKNOWN";
+        const char* newName = (phase == InferencePhase::PREFILL) ? "PREFILL" : 
+                              (phase == InferencePhase::DECODE) ? "DECODE" : "UNKNOWN";
+        MNN_PRINT("[AutoTuner] Phase changed: %s -> %s\n", oldName, newName);
+    }
+}
+
+InferencePhase AutoTuner::getPhase() const {
+    return mCurrentPhase.load(std::memory_order_acquire);
+}
+
+TuningParams AutoTuner::getTuningParams() const {
     // Phase 2 预留: 急停模式下返回保守参数
     if (mPanicMode.load(std::memory_order_relaxed)) {
         // 急停模式：全静态均匀分配，禁用动态调度
         return TuningParams(1.0f, 0);
     }
     
-    return is_prefill ? mPrefillParams : mDecodeParams;
+    InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
+    
+    // 根据当前阶段返回对应参数
+    switch (phase) {
+        case InferencePhase::PREFILL:
+            return mPrefillParams;
+        case InferencePhase::DECODE:
+            return mDecodeParams;
+        case InferencePhase::UNKNOWN:
+        default:
+            // 未知阶段默认使用 Prefill 参数（保守策略）
+            return mPrefillParams;
+    }
 }
 
 void AutoTuner::setPrefillParams(float static_ratio, int step_size) {
@@ -97,7 +125,7 @@ const std::vector<int>& AutoTuner::getCoreRatios() const {
 
 // ===================== Phase 2 预留接口实现 =====================
 
-void AutoTuner::feedback(float cost_time, bool is_prefill) {
+void AutoTuner::feedback(float cost_time) {
     // Phase 1: 空实现
     // Phase 2 TODO: 
     // 1. 将 cost_time 添加到历史队列
@@ -105,16 +133,16 @@ void AutoTuner::feedback(float cost_time, bool is_prefill) {
     // 3. 使用 Hill Climbing 微调 static_ratio
     //
     // 示例伪代码:
-    // auto& history = is_prefill ? mPrefillHistory : mDecodeHistory;
+    // InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
+    // auto& history = (phase == InferencePhase::PREFILL) ? mPrefillHistory : mDecodeHistory;
     // history.push_back(cost_time);
     // if (history.size() >= WINDOW_SIZE) {
     //     float gradient = computeGradient(history);
-    //     adjustStaticRatio(is_prefill, gradient);
+    //     adjustStaticRatio(phase, gradient);
     //     history.pop_front();
     // }
     
     (void)cost_time;
-    (void)is_prefill;
 }
 
 void AutoTuner::setPanicMode(bool enable) {

@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <atomic>
+#include "backend/cpu/AutoTuner.hpp"  // 添加 AutoTuner 头文件
 #define MNN_OPEN_TIME_TRACE
 
 
@@ -1187,6 +1188,8 @@ int main(int argc, char ** argv) {
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
                 int64_t sampler_us =   0;
                 
+                // ============ 设置 Prefill 阶段 ============
+                MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
                 MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
                 if (prompt_tokens) {
@@ -1210,6 +1213,8 @@ int main(int argc, char ** argv) {
                 }
 
                 if (decodeTokens) {
+                    // ============ 设置 Decode 阶段 ============
+                    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
                     // --- [修改 3] Decode 开始前 ---
                     MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
                     int d_start_total = g_task_count.load();

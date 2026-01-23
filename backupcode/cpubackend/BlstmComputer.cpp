@@ -246,7 +246,7 @@ ErrorCode BlstmComputer::onExecute(Tensor *input,
 
   // pre-calculate all input related matrix across all timesteps and store
   // results in mGateInputs
-  MNN_CONCURRENCY_BEGIN(i, (mBidirectional ? 8 : 4)) {
+  (i, (mBidirectional ? 8 : 4)) {
     int weightIndex = i < 4 ? i : i + 8;
     Math::Matrix::multi(mGateInputs[i].get(), reshaped_input.get(),
                         mWeights[weightIndex].get());

@@ -5,7 +5,7 @@
 //  Created for MNN Heterogeneous Scheduling Optimization
 //  Copyright © 2024, Alibaba Group Holding Limited
 //
-
+#include <MNN/MNNDefine.h>
 #ifndef AutoTuner_hpp
 #define AutoTuner_hpp
 
@@ -18,6 +18,15 @@
 #define MNN_CACHE_LINE_SIZE 64
 
 namespace MNN {
+
+/**
+ * @brief 推理阶段枚举
+ */
+enum class InferencePhase {
+    PREFILL = 0,  // Prefill 阶段（首次处理 prompt）
+    DECODE = 1,   // Decode 阶段（逐 token 生成）
+    UNKNOWN = -1  // 未知阶段（默认使用 Prefill 参数）
+};
 
 /**
  * @brief 任务划分的调优参数
@@ -48,7 +57,7 @@ struct alignas(MNN_CACHE_LINE_SIZE) DynamicTaskState {
  * Phase 1: 静态比例 + 动态缓冲的固定逻辑
  * Phase 2 (预留): 运行时自动调优（Hill Climbing）和急停开关（Panic Switch）
  */
-class AutoTuner {
+class MNN_PUBLIC AutoTuner {
 public:
     /**
      * @brief 获取单例实例
@@ -61,11 +70,23 @@ public:
     static void destroy();
 
     /**
-     * @brief 获取当前阶段的任务划分参数
-     * @param is_prefill true=Prefill阶段, false=Decode阶段
-     * @return TuningParams 包含 static_ratio 和 step_size
+     * @brief 设置当前推理阶段
+     * @param phase 推理阶段（PREFILL/DECODE）
      */
-    TuningParams getTuningParams(bool is_prefill) const;
+    void setPhase(InferencePhase phase);
+    
+    /**
+     * @brief 获取当前阶段
+     */
+    InferencePhase getPhase() const;
+
+    /**
+     * @brief 获取当前阶段的任务划分参数
+     * @return TuningParams 包含 static_ratio 和 step_size
+     * 
+     * 根据内部状态 mCurrentPhase 自动返回对应参数
+     */
+    TuningParams getTuningParams() const;
     
     /**
      * @brief 设置 Prefill 阶段的调优参数
@@ -93,14 +114,15 @@ public:
     /**
      * @brief [Phase 2 预留] 反馈接口 - 接收上一次推理的耗时
      * @param cost_time 上一次推理的耗时（毫秒）
-     * @param is_prefill 是否为 Prefill 阶段
      * 
      * 用于未来实现梯度微调（Hill Climbing）:
      * - 记录历史耗时
      * - 计算性能梯度
      * - 自动调整 static_ratio
+     * 
+     * 使用内部 mCurrentPhase 判断阶段
      */
-    void feedback(float cost_time, bool is_prefill);
+    void feedback(float cost_time);
     
     /**
      * @brief [Phase 2 预留] 急停开关 - 紧急切换调度策略
@@ -143,6 +165,9 @@ private:
     
     // Decode 阶段参数（默认：全动态调度）
     TuningParams mDecodeParams;
+    
+    // 当前推理阶段状态
+    std::atomic<InferencePhase> mCurrentPhase;
     
     // 核心性能比（从大核到小核）
     std::vector<int> mCoreRatios;

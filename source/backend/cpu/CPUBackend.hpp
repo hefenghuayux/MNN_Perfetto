@@ -119,15 +119,15 @@ public:
      * @brief [Phase 1] 混合调度版本的任务划分
      * @param size 总任务数
      * @param dst 输出数组，存储每个线程的任务边界（累积形式）
-     * @param is_prefill 是否为 Prefill 阶段
      * @param computeI 用于判断是否启用异构分配的阈值
      * 
+     * 从 AutoTuner 获取当前阶段参数（不再需要传递 is_prefill）
      * 逻辑：
      * 1. 从 AutoTuner 获取 static_ratio 和 step_size
      * 2. 静态部分按 mGroupWithComputeRate 性能比分配
      * 3. 动态部分通过原子计数器竞争获取
      */
-    void computeDivideSizesHybrid(int size, int* dst, bool is_prefill, float computeI = 0.f) const;
+    void computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
     
     /**
      * @brief 初始化动态任务调度状态
