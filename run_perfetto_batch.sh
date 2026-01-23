@@ -10,7 +10,7 @@ REMOTE_DIR="/data/local/tmp/android_demo_package"
 # 远程 Trace 临时文件路径
 TRACE_FILE_REMOTE="/data/misc/perfetto-traces/temp_trace.perfetto-trace" 
 # 请确保此 Config 文件设置了合理的时长 (例如 duration_ms: 10000 或更长)
-CONFIG_FILE="/data/misc/perfetto-configs/normal_config_60.pbtxt" 
+CONFIG_FILE="/data/misc/perfetto-configs/normal_config_30.pbtxt" 
 
 # 2. 目标归档路径
 DEST_BASE="../perfetto_traces"
@@ -32,13 +32,14 @@ adb shell "chmod +x $REMOTE_DIR/llm_bench"
 # 逻辑: 从 2 线程(绑6,7) 逐步增加到 8 线程(绑0-7)
 # ============================================================
 TEST_CASES=(
-    "2:6,7"
-    "3:5,6,7"
-    "4:4,5,6,7"
-    "5:3,4,5,6,7"
-    "6:2,3,4,5,6,7"
-    "7:1,2,3,4,5,6,7"
-    "8:0,1,2,3,4,5,6,7"
+    "1:1"
+    # "2:6,7"
+    # "3:5,6,7"
+    # "4:4,5,6,7"
+    # "5:3,4,5,6,7"
+    # "6:2,3,4,5,6,7"
+    # "7:1,2,3,4,5,6,7"
+    # "8:0,1,2,3,4,5,6,7"
 )
 
 # ============================================================
@@ -61,7 +62,7 @@ for case in "${TEST_CASES[@]}"; do
     # 1. 后台启动 Perfetto
     echo ">>> [Step 1] 启动 Perfetto..."
     # 使用 nohup 或后台运行，确保不阻塞脚本
-    adb shell "perfetto -o $TRACE_FILE_REMOTE -c $CONFIG_FILE --txt" > /dev/null 2>&1 &
+    adb shell "perfetto -o $TRACE_FILE_REMOTE -c $CONFIG_FILE --txt"  2>&1 &
     
     # 2. 稍微等待 Perfetto 初始化 (防止 benchmark 先于 trace 跑完)
     sleep 1
@@ -70,17 +71,21 @@ for case in "${TEST_CASES[@]}"; do
     echo ">>> [Step 2] 运行 llm_bench..."
     adb shell "cd $REMOTE_DIR && LD_LIBRARY_PATH=./ ./llm_bench -m ./model_dir/config.json -a cpu -t $threads -ids $core_ids"
 
-    # 4. 等待数据写入 (根据 Config 文件的 duration，可能需要调整这里的 sleep)
-    # 建议：如果 Config 是固定时长模式(如30s)，这里 sleep 时间应与 Config 时长接近
-    echo ">>> [Step 3] 等待 Trace 数据落盘..."
-   sleep 5
+
+    # 给一点时间让 Perfetto 完成文件写入操作
+    sleep 3
     
     # 5. 拉取文件
     echo ">>> [Step 4] 拉取 Trace 文件: $LOCAL_TRACE_NAME"
     adb pull "$TRACE_FILE_REMOTE" "$FINAL_DEST_DIR/$LOCAL_TRACE_NAME" 
-
-    # 6. (可选) 清理远程临时 trace，防止空间占满
-    adb shell "rm $TRACE_FILE_REMOTE"
+    
+    # 检查文件是否拉取成功再删除远程文件 (安全性优化)
+    if [ -f "$FINAL_DEST_DIR/$LOCAL_TRACE_NAME" ]; then
+        echo ">>> 拉取成功，清理远程文件"
+        adb shell "rm $TRACE_FILE_REMOTE"
+    else
+        echo ">>> [警告] 文件拉取失败，跳过清理！"
+    fi
     
     echo ">>> [Done] 本轮测试完成。"
     echo ""
