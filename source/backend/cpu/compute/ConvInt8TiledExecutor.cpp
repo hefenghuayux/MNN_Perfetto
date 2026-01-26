@@ -682,7 +682,7 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
 
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        static_cast<CPUBackend *>(backend())->computeDivideSizes(totalWork, mDivides.data() + 1, flop / ios);
+        static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(totalWork, mDivides.data() + 1, flop / ios);
         for (int i = 0; i < mDivides.size(); ++i) {
             mDivides[i] *= part;
         }
@@ -692,7 +692,7 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
         mThreadNums = ALIMIN(threads, mTileCount);
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        static_cast<CPUBackend *>(backend())->computeDivideSizes(mTileCount, mDivides.data() + 1, flop / ios);
+        static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(mTileCount, mDivides.data() + 1, flop / ios);
     }
     int ocUp4 = ROUND_UP(outC, gcore->pack);
     int k = mThreadNums;
@@ -1551,13 +1551,19 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
 
     };
     const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
+    auto cpuBn = static_cast<CPUBackend*>(backend());
     if (!mSplitByOc) {
-        MNN_CONCURRENCY_BEGIN(tId, threads) {
-            if (mDivides[tId + 1] - mDivides[tId] > 0) {
-                tileSplitFunction((int)tId, mDivides[tId], mDivides[tId + 1], 1);
-            }
+        // Phase 1: 混合调度 - 静态区间 + 动态抢占
+        auto processTile = [&](int tileIdx) {
+            tileSplitFunction(0, tileIdx, tileIdx + 1, 1);
+        };
+        MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), true) {
+            // 静态阶段：执行私有区间
+            MNN_HYBRID_EXECUTE_STATIC(tId, mDivides.data(), processTile);
+            // 动态阶段：抢占剩余任务
+            MNN_HYBRID_EXECUTE_DYNAMIC(cpuBn, processTile);
         }
-        MNN_CONCURRENCY_END();
+        MNN_CONCURRENCY_HYBRID_END();
     } else {
         ocSplitFunction(threads);
     }

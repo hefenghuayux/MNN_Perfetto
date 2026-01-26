@@ -72,12 +72,12 @@
 
 // 辅助宏: 执行静态+动态两阶段任务
 // __task_func__: 任务函数，接收单个任务索引
-// __divides__: 任务边界数组
+// __divides__: 任务边界数组，布局为 [0, end1, end2, ...], 即 thread i 处理 [divides[i], divides[i+1])
 #define MNN_HYBRID_EXECUTE_STATIC(__iter__, __divides__, __task_func__)       \
     {                                                                          \
         begin_trace_marker("Worker_StaticPhase");                              \
-        int __static_start__ = ((__iter__) == 0) ? 0 : (__divides__)[(__iter__) - 1]; \
-        int __static_end__ = (__divides__)[__iter__];                          \
+        int __static_start__ = (__divides__)[__iter__];                        \
+        int __static_end__ = (__divides__)[(__iter__) + 1];                    \
         for (int __x__ = __static_start__; __x__ < __static_end__; ++__x__) {  \
             __task_func__(__x__);                                              \
         }                                                                      \
@@ -100,7 +100,27 @@
 // ===================== 混合调度宏结束 =====================
 
 #else
-// iOS / OSX
+// iOS / OSX / Windows / Other: 非线程池模式的后备混合调度宏
+// 在这些平台上，混合调度退化为普通的静态分配
+
+#define MNN_CONCURRENCY_HYBRID_BEGIN(__iter__, __num__, __divides__, __is_prefill__) \
+    for (int __iter__ = 0; __iter__ < __num__; __iter__++) {
+
+#define MNN_CONCURRENCY_HYBRID_END() }
+
+// 后备实现：仅执行静态部分，无动态抢占
+#define MNN_HYBRID_EXECUTE_STATIC(__iter__, __divides__, __task_func__)       \
+    {                                                                          \
+        int __static_start__ = (__divides__)[__iter__];                        \
+        int __static_end__ = (__divides__)[(__iter__) + 1];                    \
+        for (int __x__ = __static_start__; __x__ < __static_end__; ++__x__) {  \
+            __task_func__(__x__);                                              \
+        }                                                                      \
+    }
+
+#define MNN_HYBRID_EXECUTE_DYNAMIC(__cpuBn__, __task_func__) \
+    { /* 非线程池模式下不支持动态抢占 */ }
+
 #if defined(__APPLE__)
 #include <dispatch/dispatch.h>
 #include <stddef.h>

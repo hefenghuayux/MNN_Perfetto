@@ -49,11 +49,10 @@ adb shell "cd $REMOTE_DIR && LD_LIBRARY_PATH=./ ./llm_bench -m ./model_dir/confi
 
 echo ">>> [5/6] 等待数据写入..."
 # 确保等待时间 > Config文件里的 duration_ms
-sleep 5
+sleep 15
 
 echo ">>> [Step 4] 拉取 Trace 文件..."
 adb pull "$TRACE_FILE_REMOTE" "$FINAL_DEST_DIR/$LOCAL_TRACE_NAME" 
-sleep 10
 # 只有文件存在才清理
 if [ -f "$FINAL_DEST_DIR/$LOCAL_TRACE_NAME" ]; then
     echo ">>> [6/6] 清理远程文件..."
