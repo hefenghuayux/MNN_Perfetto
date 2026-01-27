@@ -76,6 +76,10 @@ private:
     // for 4Bit Ptq model
     MemChunk mTempOutput;
     std::vector<int32_t> mDivides;
+    
+    // Phase 1: 混合调度参数
+    int mTotalTasks = 0;       // 总任务数
+    int mDynamicStepSize = 1;  // 动态任务步长
 
     int mGemmUnits[3];
     int mThreadNums;

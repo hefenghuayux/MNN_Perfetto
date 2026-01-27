@@ -34,7 +34,7 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(0.8f, 4)    // Prefill: 80% 静态，步长4
+    : mPrefillParams(1.0f, 8)    // Prefill: 100% 静态，动态部分分成8块（每线程可抢约2块）
     , mDecodeParams(0.0f, 1)     // Decode: 全动态，步长1
     , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
     , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1
@@ -162,7 +162,7 @@ bool AutoTuner::isPanicMode() const {
 
 void AutoTuner::reset() {
     // 恢复默认参数
-    mPrefillParams = TuningParams(0.8f, 4);
+    mPrefillParams = TuningParams(0.8f, 8);
     mDecodeParams = TuningParams(0.0f, 1);
     mPanicMode.store(false, std::memory_order_release);
     

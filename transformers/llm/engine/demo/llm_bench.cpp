@@ -1121,7 +1121,19 @@ int main(int argc, char ** argv) {
 
         auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, instance.mCmdParam.cpuIds);
         std::unique_ptr<Llm> llm(llmPtr);
-        
+    
+    // 1. 获取当前测试的线程数
+    int current_threads = t.threads; 
+
+    // 2. 根据你的想法设置 AutoTuner
+    //    将 step_size 设置为 current_threads
+    
+    // // Prefill: 静态 0.8，步长 = 线程数 (例如 4 或 8)
+    // MNN::AutoTuner::getInstance()->setPrefillParams(0.8f, current_threads);
+    
+    // // Decode: 静态 0.0 (或 0.2)，步长 = 线程数 (!!! 风险操作，建议改为 1)
+    // // 如果你坚持要试：
+    // MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads);
         // --- ATrace 修改 (if 块) ---
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {

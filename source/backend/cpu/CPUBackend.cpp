@@ -104,7 +104,7 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
 
 // ===================== Phase 1: 混合调度实现 =====================
 
-void CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) const {
+std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) const {
     begin_trace_marker("CPUBackend::computeDivideSizesHybrid");
     g_task_count++;
     g_divide_size_total += size;
@@ -114,6 +114,8 @@ void CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) cons
     auto tuner = AutoTuner::getInstance();
     TuningParams params = tuner->getTuningParams();  // 不再需要传递参数
     
+    MNN_PRINT("HybridSplit Input - Total Tasks: %d, Threads: %d, Core Groups: %zu, Static Ratio: %.2f\n", 
+              size, mThreadNumber, mGroupWithComputeRate.size(), params.static_ratio);
     // 2. 如果是小任务或只有单线程，回退到均匀分配
     if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI) || mThreadNumber <= 1) {
         int length = UP_DIV(size, mThreadNumber);
@@ -124,10 +126,9 @@ void CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) cons
             cur = ALIMIN(cur, size);
         }
         // 小任务不启用动态调度
-        initDynamicTaskState(size, size, 1);
         g_small_task_count++;
         end_trace_marker();
-        return;
+        return {size, 1};  // 全静态，无动态任务
     }
     
     // 3. 计算静态部分的任务数
@@ -135,7 +136,8 @@ void CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) cons
     
     // 4. 关键约束：将静态边界对齐到 Cache Line，避免 False Sharing
     // 对于 float (4字节)，Cache Line = 64字节 = 16个元素
-    total_static = alignToCacheLine(total_static, 4);
+    // 使用向上取整，确保静态部分足够大，动态部分不会膨胀
+    total_static = alignToCacheLineUp(total_static, 4);
     
     // 确保静态部分不超过总任务数
     if (total_static > size) {
@@ -168,19 +170,31 @@ void CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) cons
         }
     }
     
-    // 6. 初始化动态任务状态
+    // 6. 计算动态任务步长（不在这里初始化状态，在执行时初始化）
     int dynamic_size = size - total_static;
     int step = 1;
     if (dynamic_size > 0 && params.step_size > 0) {
-        // step_size 是任务块数，计算每块的实际任务数
+        // step_size 是期望的任务块数，计算每块的实际任务数
+        // 目标是将动态任务分成 step_size 个块，让所有线程有机会抢占
         step = UP_DIV(dynamic_size, params.step_size);
-        // 对齐到 Cache Line
-        step = alignToCacheLineUp(step, 4);
+        
+        // 注意：动态任务的步长不需要 Cache Line 对齐！
+        // False Sharing 只在静态/动态边界处需要考虑（已在 total_static 处理）
+        // 动态抢占时，每个线程处理不同的任务索引，输出到不同内存位置
+        
+        // 确保步长不会太大，至少给每个线程一个抢占机会
+        int max_step = UP_DIV(dynamic_size, mThreadNumber);
+        if (step > max_step && max_step > 0) {
+            step = max_step;
+        }
         if (step < 1) step = 1;
     }
-    initDynamicTaskState(total_static, size, step);
+    
+    MNN_PRINT("HybridSplit Result - Static End: %d, Dynamic Size: %d, Step: %d, Threads: %d\n",
+              total_static, dynamic_size, step, mThreadNumber);
     
     end_trace_marker();
+    return {size, step};  // 返回总任务数和步长，供执行时使用
 }
 
 void CPUBackend::initDynamicTaskState(int static_end, int total_size, int step_size) const {

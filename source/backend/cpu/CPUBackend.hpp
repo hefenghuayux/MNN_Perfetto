@@ -126,8 +126,10 @@ public:
      * 1. 从 AutoTuner 获取 static_ratio 和 step_size
      * 2. 静态部分按 mGroupWithComputeRate 性能比分配
      * 3. 动态部分通过原子计数器竞争获取
+     * 
+     * @return pair<total_size, step_size> 用于执行时初始化动态状态
      */
-    void computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
+    std::pair<int, int> computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
     
     /**
      * @brief 初始化动态任务调度状态
