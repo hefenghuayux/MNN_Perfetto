@@ -34,7 +34,7 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(1.0f, 8)    // Prefill: 100% 静态，动态部分分成8块（每线程可抢约2块）
+    : mPrefillParams(0.8f, 8)    // Prefill: 100% 静态，动态部分分成8块（每线程可抢约2块）
     , mDecodeParams(0.0f, 1)     // Decode: 全动态，步长1
     , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
     , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1

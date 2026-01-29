@@ -80,6 +80,7 @@ private:
     // Phase 1: 混合调度参数
     int mTotalTasks = 0;       // 总任务数
     int mDynamicStepSize = 1;  // 动态任务步长
+    bool mUseStaticOnly = false; // 旁路标志：true 时使用原版静态调度，跳过混合调度开销
 
     int mGemmUnits[3];
     int mThreadNums;
