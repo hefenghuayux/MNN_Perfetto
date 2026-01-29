@@ -1481,18 +1481,22 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             memset(xKernelSumPtr, 0, mTileCount * mBlockNum * DST_XUNIT * mIm2ColCount * QUANT_INFO_BYTES);
         }
 
-        // ================== 修改后的混合调度并发块 ==================
+        // ================== 混合调度并发块 (批量处理版本) ==================
+        // 使用 MNN_HYBRID_STATIC_RANGE / DYNAMIC_RANGE 宏，保持 Kernel 批量处理优化
         
         auto cpuBnOc = static_cast<CPUBackend*>(backend());
         MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
             
-            // [定义处理函数] 捕获 tId 以确保线程安全
-            auto processOcBlock = [&](int ocBlockIdx) {
-                int ocIndex = PackUnit * ocBlockIdx;
-                // 混合调度粒度为 1 个 Block，所以 DivThread 设为 1
-                auto ocDivThread = 1; 
+            // [批量处理函数] 处理区间 [ocBlockStart, ocBlockEnd) 内的所有 OC blocks
+            // 关键优化：ocDivThread = end - start，一次 mGemmKernel 调用处理整个区间
+            auto processOcRange = [&](int ocBlockStart, int ocBlockEnd) {
+                int count = ocBlockEnd - ocBlockStart;
+                if (count <= 0) return;
 
-                if (ocIndex < ocUp4) {
+                int ocIndex = PackUnit * ocBlockStart;
+                auto ocDivThread = ALIMIN(ocBlockEnd - ocBlockStart, ocDiv4 - ocBlockStart);
+
+                if (ocIndex < ocUp4 && ocDivThread > 0) {
                     auto im2colDstThread = im2colDst;
                     float* ptrY = nullptr;
                     if (dstBytes != 1) {
@@ -1532,7 +1536,7 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                         inputScale = (uint8_t*)fakeInputScales.data();
                     }
                     
-                    // [关键修正]：使用 tId 索引 accumBuffer，确保线程安全
+                    // 1. 修复 accumBuffer 索引 (你已经改对了这个)
                     if (mBlockNum > 1) {
                         accumbuff = reinterpret_cast<float*>(mAccumBuffer->host<int8_t>() + tId * mAccumBuffer->stride(0) * sizeof(int32_t));
                     }
@@ -1540,7 +1544,10 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                     auto outputInTilePtr = outputDataPtr + ocIndex * plane * dstBytes;
                     const auto weightPtrTid = weightDataPtr + static_cast<int32_t>(ocIndex * mBlockNum * blockL * SRC_UNIT * weightBytes + ocIndex * 2 * mBlockNum * QUANT_INFO_BYTES);
                     int realDstCount = plane;
-                    auto ptrX = xKernelSumPtr;
+                    
+                    // 2. 【关键修复】修复 ptrX 索引，基于 tId 偏移，避免 false sharing
+                    size_t threadSumOffset = mBlockNum * DST_XUNIT * mIm2ColCount * QUANT_INFO_BYTES;
+                    auto ptrX = reinterpret_cast<float*>((int8_t*)mTempSrcSum.ptr() + tId * threadSumOffset);
                     
                     do {
                         int step = ALIMIN(DST_XUNIT, realDstCount);
@@ -1562,11 +1569,11 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                 }
             };
 
-            // 1. 静态阶段
-            MNN_HYBRID_EXECUTE_STATIC(tId, mDivides.data(), processOcBlock);
+            // 1. 静态阶段 - 批量处理私有区间
+            MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), processOcRange);
             
-            // 2. 动态阶段
-            MNN_HYBRID_EXECUTE_DYNAMIC(cpuBnOc, processOcBlock);
+            // 2. 动态阶段 - 批量处理抢占到的区间
+            MNN_HYBRID_DYNAMIC_RANGE(cpuBnOc, processOcRange);
 
         }
         MNN_CONCURRENCY_HYBRID_END();
@@ -1575,15 +1582,16 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
     const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
     auto cpuBn = static_cast<CPUBackend*>(backend());
     if (!mSplitByOc) {
-        // Phase 1: 混合调度 - 静态区间 + 动态抢占
-        auto processTile = [&](int tileIdx) {
-            tileSplitFunction(0, tileIdx, tileIdx + 1, 1);
+        // 混合调度 - 批量处理版本
+        // tileSplitFunction 本身已经支持区间 [eStartIndex, eEndIndex)，直接使用批量宏
+        auto processTileRange = [&](int tileStart, int tileEnd) {
+            tileSplitFunction(0, tileStart, tileEnd, 1);
         };
         MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
-            // 静态阶段：执行私有区间
-            MNN_HYBRID_EXECUTE_STATIC(tId, mDivides.data(), processTile);
-            // 动态阶段：抢占剩余任务
-            MNN_HYBRID_EXECUTE_DYNAMIC(cpuBn, processTile);
+            // 静态阶段：批量处理私有区间
+            MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), processTileRange);
+            // 动态阶段：批量处理抢占到的区间
+            MNN_HYBRID_DYNAMIC_RANGE(cpuBn, processTileRange);
         }
         MNN_CONCURRENCY_HYBRID_END();
     } else {

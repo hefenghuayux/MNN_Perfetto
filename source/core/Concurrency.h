@@ -76,7 +76,7 @@
     }
 
 // 辅助宏: 执行静态+动态两阶段任务
-// __task_func__: 任务函数，接收单个任务索引
+// __task_func__: 任务函数，接收单个任务索引 (已废弃，性能差)
 // __divides__: 任务边界数组，布局为 [0, end1, end2, ...], 即 thread i 处理 [divides[i], divides[i+1])
 #define MNN_HYBRID_EXECUTE_STATIC(__iter__, __divides__, __task_func__)       \
     {                                                                          \
@@ -102,6 +102,40 @@
         end_trace_marker();                                                    \
     }
 
+// ===================== 批量处理版本 (推荐使用) =====================
+// 这些宏传递区间 [start, end)，让 Kernel 保持批量处理优化
+// __range_func__: 区间处理函数，签名为 void(int start, int end)
+//
+// 使用示例:
+// auto processRange = [&](int start, int end) {
+//     int count = end - start;  // 批量处理 count 个任务
+//     mGemmKernel(..., count, ...);
+// };
+// MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), processRange);
+// MNN_HYBRID_DYNAMIC_RANGE(cpuBn, processRange);
+
+#define MNN_HYBRID_STATIC_RANGE(__iter__, __divides__, __range_func__)        \
+    {                                                                          \
+        begin_trace_marker("Worker_StaticPhase");                              \
+        int __static_start__ = (__divides__)[__iter__];                        \
+        int __static_end__ = (__divides__)[(__iter__) + 1];                    \
+        if (__static_start__ < __static_end__) {                               \
+            __range_func__(__static_start__, __static_end__);                  \
+        }                                                                      \
+        end_trace_marker();                                                    \
+    }
+
+#define MNN_HYBRID_DYNAMIC_RANGE(__cpuBn__, __range_func__)                   \
+    {                                                                          \
+        begin_trace_marker("Worker_DynamicPhase");                             \
+        while ((__cpuBn__)->hasDynamicTasks()) {                               \
+            auto __chunk__ = (__cpuBn__)->fetchDynamicChunk();                 \
+            if (__chunk__.first >= __chunk__.second) break;                    \
+            __range_func__(__chunk__.first, __chunk__.second);                 \
+        }                                                                      \
+        end_trace_marker();                                                    \
+    }
+
 // ===================== 混合调度宏结束 =====================
 
 #else
@@ -113,7 +147,7 @@
 
 #define MNN_CONCURRENCY_HYBRID_END() }
 
-// 后备实现：仅执行静态部分，无动态抢占
+// 后备实现：仅执行静态部分，无动态抢占 (单任务版本)
 #define MNN_HYBRID_EXECUTE_STATIC(__iter__, __divides__, __task_func__)       \
     {                                                                          \
         int __static_start__ = (__divides__)[__iter__];                        \
@@ -124,6 +158,19 @@
     }
 
 #define MNN_HYBRID_EXECUTE_DYNAMIC(__cpuBn__, __task_func__) \
+    { /* 非线程池模式下不支持动态抢占 */ }
+
+// 后备实现：批量处理版本 (推荐)
+#define MNN_HYBRID_STATIC_RANGE(__iter__, __divides__, __range_func__)        \
+    {                                                                          \
+        int __static_start__ = (__divides__)[__iter__];                        \
+        int __static_end__ = (__divides__)[(__iter__) + 1];                    \
+        if (__static_start__ < __static_end__) {                               \
+            __range_func__(__static_start__, __static_end__);                  \
+        }                                                                      \
+    }
+
+#define MNN_HYBRID_DYNAMIC_RANGE(__cpuBn__, __range_func__) \
     { /* 非线程池模式下不支持动态抢占 */ }
 
 #if defined(__APPLE__)
