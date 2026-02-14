@@ -45,195 +45,124 @@ ErrorCode ConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& inputs, co
     ConvolutionTiledExecutor::setIm2ColParameter(mIm2ColParamter, mCommon, inputs[0], outputs[0], mPadX, mPadY, static_cast<CPUBackend*>(backend())->functions(), static_cast<CPUBackend*>(backend())->int8Functions());
     return NO_ERROR;
 }
+void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
+    if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
+        // Avg divide
+        int length = UP_DIV(size, mThreadNumber);
+        int cur = length;
+        for (int i=0; i<mThreadNumber; ++i) {
+            dst[i] = cur;
+            cur = cur + length;
+            cur = ALIMIN(cur, size);
+        }
+        return;
+    }
 
-void ConvInt8TiledExecutor::initializeConvInt8QuantInfo(std::shared_ptr<CPUConvolution::ResourceInt8> &resourceInt8, const Convolution2D *conv2D, std::shared_ptr<ConvolutionCommon::Int8Common> quanCommon) {
-    // input/output scale&zeorpoint
-    if (conv2D->symmetricQuan()) {
-        resourceInt8->mWeightBits = conv2D->symmetricQuan()->nbits();
-    }
-    if (conv2D->bias() && (conv2D->quanParameter()->alpha() || quanCommon->alpha.get())) {
-        resourceInt8->mUseConvQuan = false;
-    }
-    resourceInt8->mInputZeroPoint = 0;
-    resourceInt8->mOutputZeroPoint = 0;
-    resourceInt8->mClampMin = -128;
-    resourceInt8->mClampMax = 127;
-    if (conv2D->symmetricQuan()) {
-        resourceInt8->mInputZeroPoint = conv2D->symmetricQuan()->zeroPoint();
-        resourceInt8->mOutputZeroPoint = conv2D->symmetricQuan()->outputZeroPoint();
-        resourceInt8->mClampMin = conv2D->symmetricQuan()->clampMin();
-        resourceInt8->mClampMax = conv2D->symmetricQuan()->clampMax();
-    }
-    if (conv2D->quanParameter() != nullptr) {
-        resourceInt8->mInputScale = conv2D->quanParameter()->scaleIn();
-        resourceInt8->mOutputScale = conv2D->quanParameter()->scaleOut();
-    }
-    resourceInt8->mRelu = conv2D->common()->relu() || conv2D->common()->relu6();
-    if (conv2D->symmetricQuan() && conv2D->symmetricQuan()->outputDataType() == MNN::DataType_DT_FLOAT) {
-        resourceInt8->mOutputZeroPoint = 0;
-        resourceInt8->mOutputScale = 1.0f;
+    int cur = 0;
+    int curPos = 0;
+    for (auto& group : mGroupWithComputeRate) {
+        int currentGroupTotal = (int)(ceilf((float)size*group.first));
+        int length = UP_DIV(currentGroupTotal, group.second);
+        for (int i=0; i<group.second; ++i) {
+            cur = cur + length;
+            cur = ALIMIN(cur, size);
+            dst[curPos+i] = cur;
+        }
+        curPos += group.second;
     }
 }
 
-void ConvInt8TiledExecutor::reorderWeight(uint8_t* dst, const uint8_t* src, int32_t* info, int32_t initval, float* kernelsum, weightSummerFuncion summerFunc) {
-    // weight shape = {UP_DIV(oc, UNIT), blockNum, kernelCount* UP_DIV(ic / blockNum, SRC_UNIT), UNIT, SRC_UNIT};
-    MNN_ASSERT(dst != nullptr && src != nullptr);
-
-    int blockNum = info[0];
-    int oc = info[1];
-    int ic = info[2];
-    int kernelCount = info[3];
-    int UNIT = info[4];
-    int SRC_UNIT = info[5];
-
-    int blockL  = UP_DIV(ic / blockNum, SRC_UNIT) * kernelCount;
-    int stride0 = blockNum * SRC_UNIT * blockL * UNIT;    // weight->stride(0)
-    int stride1 = blockL * SRC_UNIT * UNIT;               // weight->stride(1)
-    int stride2 = UNIT * SRC_UNIT;                        // weight->stride(2)
-    int weightlen = stride0 * UP_DIV(oc, UNIT);
-    memset(dst, initval, weightlen);
-
-    auto hU = UP_DIV(oc, UNIT);
-    auto lU = UP_DIV(ic / blockNum, SRC_UNIT) * kernelCount;
-    bool fast = (kernelCount == 1 && ROUND_UP(oc, UNIT) == oc && ROUND_UP(ic, SRC_UNIT) == ic);
-    if (fast) {
-        for (int i = 0; i < hU; ++i) {
-            for (int k = 0; k < UNIT; ++k) {
-                for (int bl = 0; bl < blockNum; ++bl) {
-                    for (int j = 0; j < blockL; ++j) {
-                        int srcindex = (i * UNIT + k) * ic + bl * (lU * SRC_UNIT) + j * SRC_UNIT;
-                        int dstindex = i * stride0 + bl * stride1 + j * stride2 + k * SRC_UNIT;
-                        memcpy(dst + dstindex, src + srcindex, SRC_UNIT);
-                    }
-                }
-            }
-        }
-    } else {
-        AutoStorage<uint8_t> tmpBuffer(ic * kernelCount * ROUND_UP(oc, UNIT));
-        memset(tmpBuffer.get(), 0, tmpBuffer.size());
-
-        auto area = ic * kernelCount;
-        // [oc, ic, k2] -> [hU, ic, k2, hP]
-        for (int i = 0; i < oc; ++i) {
-            auto outId = i / UNIT;
-            auto inId  = i % UNIT;
-            for (int j = 0; j < area; ++j) {
-                tmpBuffer.get()[outId * area * UNIT + j * UNIT + inId] = src[i * area + j];
-            }
-        }
-        // [hU, ic, (k2, hP)] -> [hU, blocknum, lU, (k2, hP), lP]
-        AutoStorage<uint8_t> packedBuffer(weightlen);
-        memset(packedBuffer.get(), 0, weightlen);
-        area = kernelCount * UNIT;
-        auto blockic = ic / blockNum;
-        for (int i = 0; i < hU; ++i) {
-            for (int j = 0; j < ic; ++j) {
-                int bk = j / blockic;
-                int blu = (j % blockic) / SRC_UNIT;
-                int blp = (j % blockic) % SRC_UNIT;
-                for (int k = 0; k < area; ++k) {
-                    int dstindex = i * stride0 + bk * stride1 + blu * kernelCount * stride2 + k * SRC_UNIT + blp;
-                    int srcindex = i * ic * area + j * area + k;
-                    packedBuffer.get()[dstindex] = tmpBuffer.get()[srcindex];
-                }
-            }
-        }
-        // [(hU, blocknum), lU, k2, (hP, lP)] -> [(hU, blocknum), k2, lU, (hP, lP)]
-        area = UNIT * SRC_UNIT;
-        auto bklU = UP_DIV(ic, SRC_UNIT) / blockNum;
-        for (int bk = 0; bk < blockNum * hU; ++bk) {
-            for (int i = 0; i < kernelCount; ++i) {
-                for (int j = 0; j < bklU; ++j) {
-                    memcpy(dst + bk * stride1 + i * bklU * area + j * area, packedBuffer.get() + bk * stride1 + i * area + j * kernelCount * area, area);
-                }
-            }
-        }
-    } // not fast
-
-
-    if (summerFunc != nullptr && kernelsum != nullptr) {
-        summerFunc(kernelsum, (int8_t*)dst, blockNum * hU, blockL, UNIT, SRC_UNIT);
+void CPURuntime::_bindCPUCore() const {
+    if (mCpuIds.empty()) {
+        return;
     }
+    auto tid = MNNGetCurrentPid();
+    if (tid == mCurrentTID) {
+        return;
+    }
+    mCurrentTID = tid;
+    // Bind CPU Core
+    std::vector<std::pair<const int*, int>> lockCPUIndexes(mThreadNumber);
+    for (int v=0; v<mThreadNumber; ++v) {
+        lockCPUIndexes[v] = std::make_pair(mCpuIds.data(), mCpuIds.size());
+    }
+    // Set CPU Affinity
+#ifdef _OPENMP
+    auto threadsNumber = mThreadNumber;
+    std::vector<int> result(threadsNumber, 0);
+#pragma omp parallel for
+    for (int i = 0; i < threadsNumber; ++i) {
+        result[i] = MNNSetSchedAffinity(lockCPUIndexes[i].first, lockCPUIndexes[i].second);
+    }
+#endif
+#ifdef MNN_USE_THREAD_POOL
+    if (nullptr != mThreadPool) {
+        mThreadPool->active();
+        ThreadPool::TASK task = std::make_pair([&](int i) {
+            MNNSetSchedAffinity(lockCPUIndexes[i].first, lockCPUIndexes[i].second);
+        }, mThreadNumber);
+        mThreadPool->enqueue(&task, mTaskIndex);
+        mThreadPool->deactive();
+    }
+#endif
 }
-
-void ConvInt8TiledExecutor::packWeightAndQuantInfo(int8_t* dstbuffer, const int8_t* weight, const int8_t* quantInfo, int32_t* info, int infoBytes) {
-    int blockNum    = info[0];
-    int ocDiv       = info[1];
-    int blockL      = info[2];
-    int UNIT        = info[3];
-    int SRC_UNIT    = info[4];
-    auto ocUp4      = info[5];
-    auto src0 = weight;              // int8 weight: [oc/hp, blocknum, ic/lp*(kx*ky)/blocknum, hp, lp]
-    auto src1 = quantInfo;           // dequant scale: [blocknum, ocUp4]
-    auto src2 = src1 + infoBytes * ocUp4 * blockNum; // dequant bias: [blocknum, ocUp4]
-    int stride0 = info[0] * info[2] * info[3] * info[4];
-    int stride1 = info[2] * info[3] * info[4];
-
-    // dst: [oc/hp, blocknum, packedUnit]
-    // packedUnit: [ic/lp*(kx*ky)/blocknum, hp, lp] + [hp] + [hp]
-
-    for (int hU = 0; hU < ocDiv; ++hU) {
-        auto huPtr = dstbuffer + hU * blockNum * (stride1 + 2 * UNIT * infoBytes);
-        int scaleCount = ALIMIN(ocUp4 - hU * UNIT, UNIT);
-        for (int bl = 0; bl < blockNum; ++bl) {
-            auto blockPtr = huPtr + bl * (stride1 + 2 * UNIT * infoBytes);
-            memcpy(blockPtr, src0 + bl * stride1 + hU * stride0, stride1);
-            memcpy(blockPtr + stride1, src1 + (bl * ocUp4 + hU * UNIT) * infoBytes, scaleCount * infoBytes);
-            memcpy(blockPtr + stride1 + UNIT * infoBytes, src2 + (bl * ocUp4 + hU * UNIT) * infoBytes, scaleCount * infoBytes);
-        }
+void CPURuntime::_resetThreadPool() const {
+    mThreadNumber = std::max(1, mThreadNumber);
+    mThreadNumber = std::min(mThreadNumber, MAX_THREAD_NUMBER);
+#ifdef MNN_USE_THREAD_POOL
+    if (mThreadNumber > 1) {
+        mThreadNumber = ALIMIN(ThreadPool::init(mThreadNumber, mCpuMask, mThreadPool), mThreadNumber);
     }
+#endif
+    // Reset tid to rebind cpu if necessary
+    mCurrentTID = 0;
 }
+void CPURuntime::_validateCpuIds() const{
+    bool valid = true;
 
-static void _computeReorderQuantInfo(float* weightKernelSum, int32_t* paramsKernelSum, bool blockQuantInput, bool canUseInt4, bool asyQuantWeight, float* quanInfoPtr, int outputCount, int kernelCount, int pack, AutoStorage<int8_t>& reorderedQuantInfo, float* ikernelSum, int HP, bool realInt4OrInt8) {
-    // Only used for dynamic quant:
-    // copy gemm bias
-    // copy/compute real dequant bias/scale
-    // dequant weight kernel sum
-    int ocUp4 = ROUND_UP(outputCount, pack);
-    int ocUpHp = ROUND_UP(outputCount, HP);
+    do {
+        if (mCpuIds.empty()) {
+            valid = false;
+            break;
+        }
 
-    int blockNum = paramsKernelSum[0];
-    int kernelSumSize = paramsKernelSum[1];
-    int scaleSize = blockNum * ocUp4; // pack size.
-    int blockSize = kernelCount / blockNum;
-    int originOffset = 0;
-    if (canUseInt4) {
-        originOffset = -8;
-    }
-    // Save weight quant alpha and zero: wf=alpha*wi+zero
-    auto alphaPtr = reinterpret_cast<float*>(reorderedQuantInfo.get());
-    auto biasPtr = reinterpret_cast<float*>(reinterpret_cast<uint8_t*>(alphaPtr) + scaleSize * QUANT_INFO_BYTES);
-    if (outputCount % pack != 0) {
-        ::memset(alphaPtr, 0, scaleSize * QUANT_INFO_BYTES);
-        ::memset(biasPtr, 0, scaleSize * QUANT_INFO_BYTES);
-    }
-    ::memset(weightKernelSum, 0, kernelSumSize * QUANT_INFO_BYTES);
+        auto cpuInfo = MNNGetCPUInfo();
+        if (cpuInfo->groups.empty()) {
+            valid = false;
+            break;
+        }
 
-    int ocDiv4 = UP_DIV(outputCount, pack);
-    // resource->mWeightKernelSum: [hU,blocknum,hP]
-    if (asyQuantWeight) {
-        for (int i = 0; i < outputCount; ++i) {
-            float accum = 0.f;
-            auto ocOutside = i / HP;
-            auto ocInside = i % HP;
-            for (int j = 0; j < blockNum; ++j) {
-                int index = i * blockNum + j;
-                int srcSumIndex = ocOutside * blockNum * HP + j * HP + ocInside; // ikernelsum: [hU,blocknum,hP]
-                alphaPtr[j * ocUp4 + i] = quanInfoPtr[2 * index + 1];
-                biasPtr[j * ocUp4 + i] = quanInfoPtr[2 * index] + (float)originOffset * quanInfoPtr[2 * index + 1];
-                if (realInt4OrInt8) {
-                    accum += (ikernelSum[srcSumIndex] * quanInfoPtr[2 * index + 1] + blockSize * biasPtr[j * ocUp4 + i]);
-                } else {
-                    accum += ((ikernelSum[srcSumIndex]  - blockSize * 8)* quanInfoPtr[2 * index + 1] + blockSize * quanInfoPtr[2 * index]);
-                }
-                if (blockQuantInput) {
-                    int dstSumIndex = ocOutside * blockNum * HP + j * HP + ocInside;
-                    weightKernelSum[dstSumIndex] = accum;
-                    accum = 0;
-                }
+        std::unordered_map<int, bool> cpuLittleMap;
+        for (auto id : cpuInfo->groups[0].ids) {
+            cpuLittleMap[id] = true;
+        }
+        for (size_t i = 1; i < cpuInfo->groups.size(); i++) {
+            for (auto id : cpuInfo->groups[i].ids) {
+                cpuLittleMap[id] = false;
             }
-            if (!blockQuantInput) {
-                weightKernelSum[i] = accum;
+        }
+
+        if (cpuLittleMap.find(mCpuIds[0]) == cpuLittleMap.end()) {
+            MNN_ERROR("CPU ID %d is not valid. CpuIds will not be used.\n", mCpuIds[0]);
+            valid = false;
+            break;
+        }
+
+        auto cpuLittle = cpuLittleMap[mCpuIds[0]];
+        for (size_t i = 1; i < mCpuIds.size(); i++) {
+            if (cpuLittleMap.find(mCpuIds[i]) == cpuLittleMap.end()) {
+                MNN_ERROR("CPU ID %d is not valid. CpuIds will not be used.\n", mCpuIds[i]);
+                valid = false;
+                break;
+            }
+            // Using the same group of CPU cores helps maximize multi thread performance.
+            // Mixing little cores with others can lead to significant performance degradation, so it is strictly prohibited.
+            // Even on architectures with more than two clusters, when little cores are not involved,
+            // it's still strongly recommended to avoid cross-cluster usage between different big core groups.
+            if (cpuLittleMap[mCpuIds[i]] != cpuLittle) {
+                MNN_ERROR("CPU ID %d and %d are not from the same group. CpuIds will not be used.\n", mCpuIds[0], mCpuIds[i]);
+                valid = false;
+                break;
             }
         }
     } else {
@@ -378,170 +307,76 @@ DenseConvInt8TiledExecutor::DenseConvInt8TiledExecutor(Backend* backend, const O
     if (mArm82Functions.MNNGetGemmUnit != nullptr) { // exclude cpu does not support arm82
         mArm82Functions.MNNGetGemmUnit(&UNITBranch, &SRC_UNITBranch, &DST_XUNITBranch);
     }
-
-    // prefer to maximum decode performance & the machine supports 'sme2' & the runtime backend is 'sme2' -> mOnlineReorderWeightSme=true
-    mOnlineReorderWeightSme = (weightOnlineReorderOption > 0 && DST_XUNITMain == GEMM_INT8_DST_XUNIT_SME2);
-    if (isDynamicQuant == false) {
-        mOnlineReorderWeightSme = false;
-    }
-    _updateMixedKernelFlag(mMixedKernel, mOnlineReorderWeightSme, threads, DST_XUNITMain, isDynamicQuant, mRatioDecode&&mRatioPrefill);
-
-    if (mMixedKernel) {
-        // total work: UP_DIV(oc, pack)
-        // (sme's work / neon's work) = divisionRatio
-        auto workUnit = UP_DIV(UP_DIV(oc, pack), mRatioDecode * mSmeCores + 1 * (threads - mSmeCores));
-        mOcMain = ALIMIN(ROUND_UP(workUnit * pack * mSmeCores * mRatioDecode, GEMM_INT8_UNIT_SME2_128), oc);;
-        mOcBranch = oc - mOcMain;
-    }
-    if (mOnlineReorderWeightSme) {
-        UNITMain = GEMM_INT8_UNIT_SME2_128;
-    }
-
-    // compute info
-    int ocUp4Main = ROUND_UP(mOcMain, pack);
-    int ocUpHpMain = ROUND_UP(mOcMain, UNITMain);
-    int lUMain = UP_DIV(ic / blockNum, SRC_UNITMain) * kernelCount;
-    int scaleSizeMain = ocUp4Main * blockNum;
-
-    int ocUp4Branch = ROUND_UP(mOcBranch, pack);
-    int ocUpHpBranch = UNITBranch != 0 ? ROUND_UP(mOcBranch, UNITBranch) : 0;
-    int ocDivHpBranch = UNITBranch != 0 ? UP_DIV(mOcBranch, UNITBranch) : 0;
-    int lUBranch = UNITBranch != 0 ? UP_DIV(ic / blockNum, SRC_UNITBranch) * kernelCount : 0;
-    int scaleSizeBranch = ocUp4Branch * blockNum;
-
-    std::vector<int> shapeMain = {blockNum, UP_DIV(mOcMain, UNITMain), lUMain, UNITMain, SRC_UNITMain};
-    std::vector<int> shapeBranch = {blockNum, ocDivHpBranch, lUBranch, UNITBranch, SRC_UNITBranch};
-    mResourceInt8.reset(new CPUConvolution::ResourceInt8);
-    mResourceInt8->mWeightAsymmetricQuant = asyWeight;
-    mResourceInt8->mWeightBits = 8;
-    mResourceInt8->mBlockNum = blockNum;
-    if (quanCommon && quanCommon->canUseInt4) {
-        shapeMain[4] = SRC_UNITMain / 2;
-        shapeBranch[4] = SRC_UNITBranch / 2;
-        mResourceInt8->mWeightBits = 4;
-        mResourceInt8->mWeightAsymmetricQuant = true; // offset: 8 from uint8_t
-    }
-    mResourceInt8->mDynamicQuant = isDynamicQuant ? true : false;
-
-    // Relu/Relu6 post parameters
-    auto postPtr = getPostParameters();
-    mResourceInt8->mReluThreshold.resize(2);
-    mResourceInt8->mReluThreshold[0] = postPtr[2];
-    mResourceInt8->mReluThreshold[1] = postPtr[3];
-    if (gcore->bytes == 2) {
-        gcore->MNNFp32ToLowp(mResourceInt8->mReluThreshold.data(), reinterpret_cast<int16_t*>(mResourceInt8->mReluThreshold.data()), 2);
-    }
-    // buffer allocate
-    auto quantlenMain = 2 * blockNum * ROUND_UP(mOcMain, UNITMain) * QUANT_INFO_BYTES;
-    auto weightlenMain = shapeMain[0] * shapeMain[1] * shapeMain[2] * shapeMain[3] * shapeMain[4];
-    auto quantlenBranch = 2 * blockNum * ocUpHpBranch * QUANT_INFO_BYTES;
-    auto weightlenBranch = shapeBranch[0] * shapeBranch[1] * shapeBranch[2] * shapeBranch[3] * shapeBranch[4];
-
-    mResourceInt8->mWeightInt8.reset(Tensor::createDevice<uint8_t>({weightlenMain + quantlenMain + weightlenBranch + quantlenBranch}));
-    mResourceInt8->mOriginBias.reset(Tensor::createDevice<int32_t>({ocUp4Main + ocUpHpBranch})); // float
-    mResourceInt8->mWeightKernelSum.reset(Tensor::createDevice<uint8_t>({inputBlockNum * QUANT_INFO_BYTES * (ocUpHpMain + ocUpHpBranch)}));
-
-    auto res = backend->onAcquireBuffer(mResourceInt8->mOriginBias.get(), Backend::STATIC);
-    res &= backend->onAcquireBuffer(mResourceInt8->mWeightKernelSum.get(), Backend::STATIC);
-    res &= backend->onAcquireBuffer(mResourceInt8->mWeightInt8.get(), Backend::STATIC);
-
-    if (!res) {
-        MNN_ERROR("weight acquire buffer error\n");
-        return;
-    }
-    bool useCachedMmap = backend->getRuntime()->hint().useCachedMmap > 1;
-    if (useCachedMmap) {
-        return;
-    }
-
-    // read weight, weight's scale&bias, convolution bias
-    ::memset(mResourceInt8->mOriginBias->host<float>(), 0, mResourceInt8->mOriginBias->size());
-
-    // dynamic quant
-    bool directReadInt4weight = (kernelCount == 1 && ROUND_UP(mOcMain, UNITMain) == mOcMain && ROUND_UP(ic, SRC_UNITMain) == ic); // TODO:fix this
-    auto ocMain = mOcMain;
-    auto ocBranch = mOcBranch;
-    auto target = mResourceInt8;
-    auto funcsMain = mRelatedFunctions;
-    auto funcsBranch = mArm82Functions;
-    auto needToReorderWeightOnline4Sme = mOnlineReorderWeightSme;
-    // Save bias
-    if (convOp->bias()) {
-        ::memcpy(mResourceInt8->mOriginBias->host<float>(), convOp->bias()->data(), convOp->bias()->size() * sizeof(float));
-    }
-
-    auto reorderFunc = [=](decltype(mRelatedFunctions) funcs, std::vector<int> shape, int UNIT, int SRC_UNIT, int DST_XUNIT, int weightlen, int scaleSize, int oc, int offsetTg, bool fastReadWeight, int8_t** addressPtr, weightSummerFuncion sumFunc) -> int {
-        auto sh = shape;
-        AutoStorage<int8_t> weightReordered(weightlen);
-        AutoStorage<int8_t> reorderedQuantInfo(2 * scaleSize * QUANT_INFO_BYTES);
-        AutoStorage<int8_t> kernelsum(blockNum * ROUND_UP(oc, UNIT) * QUANT_INFO_BYTES);
-        if (weightReordered.get() == nullptr || reorderedQuantInfo.get() == nullptr || kernelsum.get() == nullptr) {
-            MNN_ERROR("Memory not enough\n");
-            return -1;
-        }
-        memset(kernelsum.get(), 0, blockNum * ROUND_UP(oc, UNIT) * QUANT_INFO_BYTES);
-
-        /* 1. reorder weight */
-        auto srcPtr = (uint8_t*)addressPtr[0];
-        if (target->mWeightBits == 4 && fastReadWeight) {
-            auto dstPtr = (uint8_t*)weightReordered.get();
-            ::memset(dstPtr, 0, weightlen);
-            funcs.MNNReorderWeightInt4(dstPtr, srcPtr, sh.data(), sh.size(), (float*)kernelsum.get());
-        } else { // int4 weight but oc/ic not packed
-            int blocksize = ic * kernelCount / blockNum;
-            int originOffset = 0;
-            int32_t info[6] = {blockNum, oc, ic, kernelCount, UNIT, SRC_UNIT};
-            if (target->mWeightBits == 4) {
-                originOffset = -8;
-                std::vector<uint8_t> tmpWeight(oc * ic * kernelCount);
-                for (int j = 0; j < oc; ++j) {
-                    for (int k = 0; k < blockNum; ++k) {
-                        for (int i = 0; i < blocksize; ++i) {
-                            int index = j * blockNum * blocksize + k * blocksize + i;
-                            uint8_t w_ = srcPtr[index / 2];
-                            int truew = index % 2 ? (w_ & 0x0f) : (w_ >> 4);
-                            tmpWeight[index] = truew;
-                        }
-                    }
-                }
-                AutoStorage<uint8_t> packedInt8weight(weightlen * 2);
-                if (packedInt8weight.get() == nullptr) {
-                    MNN_ERROR("Weight reorder memory not enough!\n");
-                    return -1;
-                }
-
-                reorderWeight(packedInt8weight.get(), (uint8_t*)tmpWeight.data(), info, 0, (float*)kernelsum.get(), sumFunc);
-
-                // pack two int4 to int8
-                int leng = weightlen * 2;
-                auto srcint4Ptr = (uint8_t*)packedInt8weight.get();
-                auto dstint4Ptr = (uint8_t*)weightReordered.get();
-                int permuteUnit = UNIT * SRC_UNIT;
-                int halfPermuteStride = static_cast<int32_t>(permuteUnit / 2);
-                for (int i = 0; i < leng / permuteUnit; ++i) {
-                    auto src0 = srcint4Ptr + i * permuteUnit;
-                    auto dst0 = dstint4Ptr + i * halfPermuteStride;
-                    for (int j = 0; j < halfPermuteStride; ++j) {
-                        int s0, s1, d;
-                        if (DST_XUNIT == GEMM_INT8_DST_XUNIT_SME2) { // SME2
-                            s0 = src0[2 * j + 0];
-                            s1 = src0[2 * j + 1];
-                            d = s0 + (s1) * 16;
-                        } else {
-                            s0 = src0[j];
-                            s1 = src0[j + halfPermuteStride];
-                            d = (s0) * 16 + (s1);
-                        }
-                        dst0[j] = d;
-                    }
-                }
-            } else { // int8 weight
-                reorderWeight((uint8_t*)weightReordered.get(), srcPtr, info, 0, (float*)kernelsum.get(), sumFunc);
+    if (hint().midMemoryPath.size() > 0) {
+        if (mDynamicMmap.empty()) {
+            // Only support set featuremap dir once
+            mDynamicMmap.resize(2);
+            auto mmapMem = BufferAllocator::Allocator::createMmap(hint().midMemoryPath.c_str(), "", "dynamic");
+            for (auto& buf : mDynamicMmap) {
+                buf.root = mmapMem;
             }
         }
-        if (convOp->symmetricQuan() && convOp->symmetricQuan()->bias()) {
-            // Compability for old model
-            ::memcpy(target->mOriginBias->host<float>(), convOp->symmetricQuan()->bias()->data(), oc * sizeof(int32_t));
+    }
+    if (hint().weightMemoryPath.size() > 0) {
+        // forward_type, precision_type, memory_type, power_type
+        std::string prefix = "0_0_0_0_";
+        prefix[2] += mPrecision;
+        prefix[4] += mMemory;
+        prefix[6] += mPower;
+        // prefix += hint().modelUUID + "_";
+        bool autoRemove = true;
+        if (hint().useCachedMmap) {
+            autoRemove = false;
+            std::string fileName = MNNFilePathConcat(hint().weightMemoryPath, prefix + "sync.static");
+            const_cast<RuntimeHint&>(hint()).useCachedMmap += MNNFileExist(fileName.c_str());
+        }
+        if (nullptr == mStaticAllocatorMMap.get()) {
+            // Only support set weightmap dir once
+            mStaticAllocatorRaw = mStaticAllocator;
+            auto mmapMem = BufferAllocator::Allocator::createMmap(hint().weightMemoryPath.c_str(), prefix.c_str(), "static", autoRemove);
+            size_t mmapSize = static_cast<size_t>(hint().mmapFileSize) * 1024 * 1024;
+            mStaticAllocator.reset(new EagerBufferAllocator(mmapMem, 32, mmapSize));
+            mStaticAllocatorMMap = mStaticAllocator;
+        }
+    }
+    auto precision = mPrecision;
+    auto memory = mMemory;
+    size_t flags = mFlags;
+    if (nullptr != origin) {
+        auto cpuBn = static_cast<CPUBackend*>(origin);
+        mSharedDmaInfo = cpuBn->mDmaInfo;
+    }
+    if (nullptr != config) {
+        precision = config->precision;
+        flags = config->flags;
+        memory = config->memory;
+    }
+#ifdef LOG_VERBOSE
+    MNN_PRINT("cpu backend was created by runtime:%p\n", this);
+#endif
+    CPUBackend* res = nullptr;
+    auto initThreadNumber = hint().initThreadNumber;
+    do {
+#ifdef MNN_USE_ARMV82
+        auto core = MNNGetCoreFunctions();
+        if (core->supportFp16arith && precision == BackendConfig::Precision_Low) {
+            res = new Arm82Backend(this, memory);
+            res->mRelatedFunctions = &(res->functions()->int8MatmulRelatedFunctions);
+            break;
+        }
+#endif
+#ifdef MNN_SUPPORT_BF16
+        if (precision == BackendConfig::Precision_Low_BF16 && BF16Functions::get()) {
+            res = new CPUBackend(this, precision, memory, MNN_FORWARD_CPU_EXTENSION);
+            res->mCoreFunctions = BF16Functions::get();
+            break;
+        }
+#endif
+        if (flags == MNN_CPU_USE_DEFAULT_BACKEND) {
+            // Default don't use multi-thread init
+            res = new CPUBackend(this, precision, memory, MNN_FORWARD_CPU);
+            break;
+        }
 #ifdef MNN_USE_SSE
             if (target->mUseConvQuan) {
                 for (int ks = 0; ks < oc; ++ks) {
@@ -594,253 +429,105 @@ DenseConvInt8TiledExecutor::DenseConvInt8TiledExecutor(Backend* backend, const O
             fastReadWeight = (kernelCount == 1 && ROUND_UP(ocBranch, UNITMain) == ocBranch && ROUND_UP(ic, SRC_UNITMain) == ic);
             reorderFunc(funcsBranch, shapeBranch, UNITBranch, SRC_UNITBranch, DST_XUNITBranch, weightlenBranch, scaleSizeBranch, ocBranch, 1, fastReadWeight, addressPtr, sumFunc);
         }
-        return 0;
-    };
+    }
 
-    static_cast<CPUBackend*>(backend)->enqueueTask(std::move(function));
+    return 0;
+}
 
-    if (!isDynamicQuant) {
-        mResourceInt8->mDynamicQuant = false;
-
-        std::shared_ptr<float> scaleAndBias(new float[ocUpHpMain * 2 * mBlockNum], [](void* ptr) {
-            delete [] (float*)ptr;
-        });
-        memset(scaleAndBias.get(), 0, ocUpHpMain * 2 * mBlockNum * sizeof(float));
-        int weightSize;
-
-        bool weightAsy = false;
-        if (quanCommon && quanCommon->asymmetric) {
-            weightAsy = true;
+void CPURuntime::onGabageCollect(int level) {
+    mStaticAllocator->release(false);
+    if (nullptr != mStaticAllocatorMMap) {
+        mStaticAllocatorMMap->release(false);
+    }
+    if (level >= 100) {
+        for (auto& buf : mDynamic) {
+            buf.release();
         }
+    }
+}
 
-        if (convOp->symmetricQuan() && convOp->symmetricQuan()->bias() && convOp->symmetricQuan()->scale()) {
-            // Compability for old model
-            MNN_ASSERT(convOp->symmetricQuan()->bias()->size() == oc && convOp->symmetricQuan()->scale()->size() == oc);
-            ::memcpy(scaleAndBias.get(), convOp->symmetricQuan()->scale()->data(), oc * sizeof(float));
-        }
-        if ((convOp->quanParameter() && convOp->quanParameter()->alpha()) || (quanCommon && quanCommon->alpha.get())) {
-            int quantCount;
-            if (convOp->quanParameter() && convOp->quanParameter()->alpha()) {
-                quantCount    = convOp->quanParameter()->alpha()->size();
-            } else {
-                quantCount   = quanCommon->alpha.size();
-            }
 
-            if (false == weightAsy) { // symmetric quant
-                if (convOp->quanParameter() && convOp->quanParameter()->alpha()) {
-                    ::memcpy(scaleAndBias.get(), convOp->quanParameter()->alpha()->data(), quantCount * sizeof(float));
-                } else {
-                    ::memcpy(scaleAndBias.get(), quanCommon->alpha.get(), quanCommon->alpha.size() * sizeof(float));
-                }
-            } else if (true == weightAsy) { // asymmetric
-                int scaleSize = quantCount / 2;
-                for (int i = 0; i < scaleSize; ++i) {
-                    ((float*)scaleAndBias.get())[i] = quanCommon->alpha.get()[2 * i + 1];
-                    ((float*)scaleAndBias.get())[i + ocUpHpMain] = quanCommon->alpha.get()[2 * i];
-                }
-            }
+void CPURuntime::onConcurrencyBegin() const {
+#ifdef MNN_USE_THREAD_POOL
+    if (mTaskIndex < 0 && nullptr != mThreadPool) {
+        mTaskIndex = mThreadPool->acquireWorkIndex();
+    }
+    if (mTaskIndex >= 0) {
+        // mThreadOpen 0 -> 1, active ThreadPool
+        // For next onConcurrencyBegin, will only add mThreadOpen
+        if (0 == mThreadOpen) {
+            mThreadPool->active();
         }
-        initializeConvInt8QuantInfo(mResourceInt8, convOp, quanCommon);
-        mMutableResource.reset(new MutableResourceInt8(mResourceInt8, backend, scaleAndBias.get()));
-
-        // gemmInt8 kernel
-        mGemmKernel = mRelatedFunctions.Int8GemmKernel;
-#ifdef MNN_USE_SSE
-        if (convOp->symmetricQuan()) {
-            int actBits = convOp->symmetricQuan()->nbits();
-            if (actBits <= 7) {
-                mGemmKernel = mRelatedFunctions.Int8GemmKernelFast;
-            }
-        }
+        mThreadOpen++;
+    }
 #else
-        if(convOp->symmetricQuan() && convOp->symmetricQuan()->method() == QuantizeAlgo_OVERFLOW_AWARE){
-            mGemmKernel = mRelatedFunctions.Int8GemmKernelFast;
-        }
-        if (mResourceInt8->mWeightBits == 4) {
-            mGemmKernel = mRelatedFunctions.Int8GemmKernel_W4;
-        }
+#ifdef _OPENMP
+    omp_set_dynamic(0);
+    omp_set_num_threads(mThreadNumber);
 #endif
+#endif
+    _bindCPUCore();
+}
+
+void CPURuntime::onConcurrencyEnd() const {
+#ifdef MNN_USE_THREAD_POOL
+    if (mTaskIndex >= 0) {
+        mThreadOpen--;
+        mThreadOpen = mThreadOpen < 0 ? 0 : mThreadOpen;
+        if (0 == mThreadOpen) {
+            mThreadPool->releaseWorkIndex(mTaskIndex);
+            mThreadPool->deactive();
+            mTaskIndex = -1;
+        }
     }
+#endif
 }
 
-DenseConvInt8TiledExecutor::DenseConvInt8TiledExecutor(Backend* backend, const Op* op, const DenseConvInt8TiledExecutor& exe)
-    : ConvInt8TiledExecutor(backend, op, exe.mResourceInt8), mGemmKernel(exe.mGemmKernel) {
+std::map<OpType, CPUBackend::Creator*>* CPUBackend::gCreator = nullptr;
+void CPUBackend::initCreatorMap() {
+    gCreator = new std::map<OpType, CPUBackend::Creator*>;
 }
 
-DenseConvInt8TiledExecutor::~DenseConvInt8TiledExecutor() {
-    // Do nothing
-}
-
-bool DenseConvInt8TiledExecutor::onClone(Backend* bn, const Op* op, Execution** dst) {
-    if (nullptr == dst) {
-        return true;
-    }
-    auto exe = new DenseConvInt8TiledExecutor(bn, op, *this);
-    if (!exe->valid()) {
+bool CPUBackend::addCreator(OpType t, Creator* c) {
+    auto map = gCreator;
+    if (map->find(t) != map->end()) {
+        MNN_PRINT("Error: %d type has be added\n", t);
         return false;
     }
-    *dst = exe;
+    map->insert(std::make_pair(t, c));
     return true;
 }
-
-
-ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs) {
-    // Initialize.
-    mUseBatchQuan = false;
-    mIm2ColBasedInt8 = true;
-    m4BitPtq = false;
-    if (mResourceInt8->mDynamicQuant == false && mResourceInt8->mWeightBits == 4) {
-        m4BitPtq = true;
+BufferAllocator* CPURuntime::createDynamicBufferAlloctor(int index) const {
+    if (hint().memoryAllocatorType == Runtime::Allocator_Defer) {
+        return new DeferBufferAllocator(buffer(index));
     }
-
-    // backend info
-    auto core = static_cast<CPUBackend*>(backend())->int8Functions();
-    auto gcore =static_cast<CPUBackend*>(backend())->functions();
-    const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
-    mRelatedFunctions = *(static_cast<CPUBackend*>(backend())->int8GemmFunctions());
-    mArm82Functions = gcore->arm82MatmulRelatedFunctions;
-
-    // runtime hint
-    auto option = static_cast<CPUBackend*>(backend())->getRuntime()->hint().dynamicQuantOption;
-    mSmeCores = gcore->smeCoreNumber;
-    auto inputBlockQuantOption = option % WEIGHT_ONLINE_REORDER;
-    auto weightOnlineReorderOption = WEIGHT_ONLINE_REORDER & option;
-
-    _getProportions(static_cast<CPUBackend*>(backend())->getRuntime()->hint().divisionRatio, mRatioPrefill, mRatioDecode);
-
-    // feature map info
-    int batch = inputs[0]->batch();
-    int inC   = inputs[0]->channel();
-    auto output = outputs[0];
-    int kernelCount = mCommon->kernelY() * mCommon->kernelX();
-    int inputPlane  = batch * inputs[0]->width() * inputs[0]->height();
-    auto planeSize = output->width() * output->height() * output->batch();
-
-    int UNIT, SRC_UNIT, DST_XUNIT;
-    mRelatedFunctions.MNNGetGemmUnit(&UNIT, &SRC_UNIT, &DST_XUNIT);
-
-    mOnlineReorderWeightSme = (weightOnlineReorderOption > 0 && DST_XUNIT == GEMM_INT8_DST_XUNIT_SME2);
-    if (mResourceInt8->mDynamicQuant == false) {
-        mOnlineReorderWeightSme = false;
+    if (nullptr != mStaticAllocatorRaw.get()) {
+        return new EagerBufferAllocator(BufferAllocator::Allocator::createRecurse(mStaticAllocatorRaw.get()));
     }
+    return new EagerBufferAllocator(BufferAllocator::Allocator::createRecurse(mStaticAllocator.get()));
+}
+CPUBackend::CPUBackend(const CPURuntime* runtime, BackendConfig::PrecisionMode precision, BackendConfig::MemoryMode memory, MNNForwardType type, size_t flags) : Backend(type) {
+#ifdef LOG_VERBOSE
+    MNN_PRINT("cpu backend create\n");
+#endif
+    mMemory = memory;
+    mRuntime = const_cast<CPURuntime*>(runtime);
+    auto core = MNNGetCoreFunctions();
+    mThreadNumber = mRuntime->mThreadNumber;
+    mRelatedFunctions = &core->int8MatmulRelatedFunctions;
 
-    _updateMixedKernelFlag(mMixedKernel, mOnlineReorderWeightSme, threads, DST_XUNIT, mResourceInt8->mDynamicQuant, mRatioDecode&&mRatioPrefill);
-
-    if (mOnlineReorderWeightSme && planeSize == 1) { // Decode, set runtime unit
-        UNIT = GEMM_INT8_UNIT_SME2_128;
-    }
-
-    mGemmUnits[0] = UNIT;
-    mGemmUnits[1] = SRC_UNIT;
-    mGemmUnits[2] = DST_XUNIT;
-
-    bool fastway = (kernelCount == 1) && (output->width() == inputs[0]->width()) && (output->height() == inputs[0]->height()) && (mCommon->strideX() * mCommon->strideY()) == 1;
-    if (inputPlane > 1) {
-        mUseBatchQuan = true;
-    }
-    if (!fastway) { // general conv
-        mIm2ColBasedInt8 = false;
-        if (planeSize > 1) {
-            mUseBatchQuan = true;
+    // Compute Group Rate
+    do {
+        if (mThreadNumber <= 1 || mRuntime->mPower == BackendConfig::Power_Low) {
+            break;
         }
-        if (inputBlockQuantOption == 1) { // lowest level.
-            mIm2ColBasedInt8 = true;
-            mUseBatchQuan = false;
+        auto rate = mRuntime->hint().cpuDecreaseRate;
+        if (rate >= 100 || rate <= 0) {
+            break;
         }
-    }
-
-    float weightBytes = mResourceInt8->mWeightBits == 4 ? 0.5 : 1;
-    mBlockNum = mResourceInt8->mBlockNum;
-
-    CPUConvolution::onResize(inputs, outputs);
-    if (mResourceInt8->mDynamicQuant == false) {
-        mMutableResource->updateInputOutputScale(TensorUtils::getQuantInfo(inputs[0]), TensorUtils::getQuantInfo(outputs[0]));
-        if (!mMutableResource->mResource->mUseConvQuan) {
-            // In some previous quantized models, input's scale already fused with weight's scale and output's scale.
-            // So there is no need to read input's scale additionally.
-            mBatchQuantInfo.reset(Tensor::createDevice<int8_t>({1, DST_XUNIT * QUANT_INFO_BYTES}));
-            auto success = backend()->onAcquireBuffer(mBatchQuantInfo.get(), Backend::DYNAMIC);
-            if (!success) {
-                return OUT_OF_MEMORY;
-            }
-        }
-        mIm2ColBasedInt8 = true;
-        mUseBatchQuan = false;
-    }
-    int matmulUnits[3] = {UNIT, SRC_UNIT, DST_XUNIT};
-    ConvolutionTiledExecutor::setIm2ColParameter(mIm2ColParamter, mCommon, inputs[0], outputs[0], mPadX, mPadY, gcore, core, gcore->pack, matmulUnits);
-
-    // Im2col info
-    int im2colBytes = 1;
-    const int L2Size = 2048;
-    int tileLimitByC = UP_DIV(L2Size, mIm2ColParamter.kernelCountUnit * SRC_UNIT);
-
-    if (mIm2ColBasedInt8 == false) {
-        im2colBytes = gcore->bytes;
-        tileLimitByC = 1;
-    }
-    int ic = inputs[0]->channel();
-    int tileLimit = 0;
-    int outC    = output->channel();
-    int outC4 = UP_DIV(outC, gcore->pack);
-    mOcMain = outC;
-    mOcBranch = 0;
-    const int pack = gcore->pack;
-    auto kernelCountUnit = mIm2ColParamter.kernelCountUnit;
-    mSplitByOc = true;
-
-    // flop and io
-    float flop = gcore->bytes * planeSize * (ROUND_UP(output->channel(), gcore->pack) * kernelCountUnit * SRC_UNIT / 1024.0 / 1024.0 / 1024.0);
-    float ios  = (((CPUBackend*)backend())->getTensorSize(outputs[0], true) + ((CPUBackend*)backend())->getTensorSize(inputs[0], true) + ((CPUBackend*)backend())->getTensorSize(mResourceInt8->mWeightInt8.get()) * weightBytes) / (1024.0 * 1024.0 * 1024.0);
-
-    if ((threads < planeSize || mOnlineReorderWeightSme) && !mMixedKernel) { // Thread split by output nhw.
-        tileLimit = ALIMIN(tileLimitByC, UP_DIV(planeSize, threads));
-        mIm2ColCount = UP_DIV(tileLimit, DST_XUNIT);
-        auto DynamicDestUnit = DST_XUNIT * mIm2ColCount;
-        mTileCount        = UP_DIV(planeSize, DynamicDestUnit);
-        if (mTileCount > threads || (mOnlineReorderWeightSme && planeSize > 1)) {
-            mSplitByOc = false;
-       }
-    }
-
-    if (mSplitByOc) {
-        tileLimit = ALIMIN(tileLimitByC, planeSize);
-        mIm2ColCount = UP_DIV(tileLimit, DST_XUNIT);
-        auto DynamicDestUnit = DST_XUNIT * mIm2ColCount;
-        mTileCount        = UP_DIV(planeSize, DynamicDestUnit);
-        mDivides.resize(threads+1);
-        mDivides[0] = 0;
-        // output channel divided by threads
-        if (!mMixedKernel) {
-            auto ocPerThread = UP_DIV(outC4, threads);
-            auto threadNeed = UP_DIV(outC4, ocPerThread);
-            int totalWork = outC4;
-            int part = 1;
-            if (UNIT > gcore->pack) { // AVX512:UNIT=64,pack=16
-                MNN_ASSERT(UNIT % gcore->pack == 0);
-                int ocDivUnit = UP_DIV(outC4 * gcore->pack, UNIT);
-                ocPerThread = UP_DIV(ocDivUnit, threads);
-                threadNeed  = UP_DIV(ocDivUnit, ocPerThread);
-                totalWork = ocDivUnit;
-                part = UNIT / gcore->pack;
-            }
-            mThreadNums = ALIMIN(threads, threadNeed);
-
-            if (threads >= 4 && DST_XUNIT == GEMM_INT8_DST_XUNIT_SME2 && mResourceInt8->mDynamicQuant) {
-                _computeDivides4Sme(mDivides, threads, mSmeCores, totalWork);
-            } else {
-                mDivides.resize(threads+1);
-                mDivides[0] = 0;
-                static_cast<CPUBackend *>(backend())->computeDivideSizes(totalWork, mDivides.data() + 1, flop / ios);
-            }
-            for (int i = 0; i < mDivides.size(); ++i) {
-                mDivides[i] *= part;
-            }
-        } else {
-            // workload
-            mOcMain = 0; // initialize for mixed kernel, before calculate
-            calculateSmeNeonWorkDivision(mOcMain, mOcBranch, mDivides, outC, threads, pack, planeSize, mRatioDecode, mSmeCores);
-            mThreadNums = threads;
+        auto cpuInfo = MNNGetCPUInfo();
+        if (cpuInfo->groups.size() < 2) {
+            break;
         }
     }
 
@@ -849,33 +536,38 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
         if (threads >= 4&&DST_XUNIT==GEMM_INT8_DST_XUNIT_SME2&&mResourceInt8->mDynamicQuant&&!mMixedKernel) {
             _computeDivides4Sme(mDivides, threads, mSmeCores, mTileCount);
         } else {
-            mDivides.resize(threads+1);
-            mDivides[0] = 0;
-            static_cast<CPUBackend *>(backend())->computeDivideSizes(mTileCount, mDivides.data() + 1, flop / ios);
+            mComputeI = 7.f;
         }
-    }
-    mDividesTmp.resize(threads + 1);
-    if (mMixedKernel) {
-        mOriginSmeWork = mDivides[mSmeCores];
-    }
-    int ocUp4 = ROUND_UP(outC, gcore->pack);
-    int k = mThreadNums;
-    int workPT = DST_XUNIT * mIm2ColCount;
-    if (mSplitByOc) {
-        k = 1; // Use one thread to finish im2col.
-        workPT = mTileCount * DST_XUNIT * mIm2ColCount;
-    }
-
-    auto bufferAlloc = static_cast<CPUBackend*>(backend())->getBufferAllocator();
-    auto blitInfoSize = ConvolutionTiledExecutor::computeBlitInfoSize(workPT, mIm2ColParamter.ow, mIm2ColParamter.kernelX * mIm2ColParamter.kernelY, k);
-    mBlitInfoStride = blitInfoSize.second;
-    mBlitInfo = bufferAlloc->alloc(blitInfoSize.first);
-    const int unitColBufferSize  = kernelCountUnit * DST_XUNIT * SRC_UNIT * sizeof(int8_t);
-    const int colBufferSize       = unitColBufferSize * mIm2ColCount;
-
-    if (!mSplitByOc) {
-        mTempIm2ColBuffer.reset(Tensor::createDevice<int8_t>({threads, colBufferSize * im2colBytes}));
-        mTempSrcSum = bufferAlloc->alloc(threads * mBlockNum * DST_XUNIT * mIm2ColCount * QUANT_INFO_BYTES);
+        mGroupWithComputeRate.clear();
+        float decreaseRate = (float)(rate) / 100.0f;
+        int validCpuSize = (int)(cpuInfo->groups[cpuInfo->groups.size()-1].ids.size());
+        int groupIndex = (int)cpuInfo->groups.size()-2;
+        validCpuSize = ALIMIN(validCpuSize, mThreadNumber);
+        float totalComputeRate = 1.0f * validCpuSize;
+        mGroupWithComputeRate.emplace_back(std::make_pair(totalComputeRate, validCpuSize));
+        float currentRate = 1.0f;
+        while (validCpuSize < mThreadNumber && groupIndex >= 0) {
+            auto& group = cpuInfo->groups[groupIndex];
+            int selectSize = ALIMIN(mThreadNumber - validCpuSize, (int)group.ids.size());
+            validCpuSize += group.ids.size();
+            currentRate *= decreaseRate;
+            totalComputeRate += currentRate * selectSize;
+            mGroupWithComputeRate.emplace_back(std::make_pair(currentRate * selectSize, selectSize));
+            groupIndex--;
+        }
+        for (auto& g : mGroupWithComputeRate) {
+            g.first = g.first / totalComputeRate;
+        }
+    } while (false);
+    auto dynamicAlloc = mRuntime->mSharedDmaInfo;
+    if (nullptr == dynamicAlloc.get()) {
+        mDmaInfo.reset(new CPURuntime::DynamicAllocator);
+        mDmaInfo->mDynamicAllocator.reset(mRuntime->createDynamicBufferAlloctor(0));
+        mDmaInfo->mCurrentDynamicAllocator = mDmaInfo->mDynamicAllocator.get();
+        mDmaInfo->mCacheGroup.resize(MNN_CPU_MAX_BUFFER_INDEX);
+        for (int i=0; i<mDmaInfo->mCacheGroup.size(); ++i) {
+            mDmaInfo->mCacheGroup[i].reset(new CPUResizeCache);
+        }
     } else {
         mTempIm2ColBuffer.reset(Tensor::createDevice<int8_t>({mTileCount, colBufferSize * im2colBytes}));
         mTempSrcSum = bufferAlloc->alloc(mTileCount * mBlockNum * DST_XUNIT * mIm2ColCount * QUANT_INFO_BYTES);
@@ -1075,451 +767,203 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
         }
     }
 
-    if (mBlockNum > 1 && kernelCount > 1) {
-        if (mSplitByOc) {
-            mReorderBuffer = bufferAlloc->alloc(UP_DIV(planeSize, DST_XUNIT) * unitColBufferSize);
-        } else {
-            mReorderBuffer = bufferAlloc->alloc(threads * colBufferSize);
+void CPUBackend::enqueueTask(std::function<int()>&& task) {
+    if (mInitWorkQueue != nullptr) {
+        mInitWorkQueue->postTask(std::move(task));
+    } else {
+        task();
+    }
+}
+
+Backend::MemObj* CPUBackend::onAcquire(const MNN::Tensor* nativeTensorConst, StorageType storageType) {
+    if (nativeTensorConst == nullptr) {
+        return nullptr;
+    }
+    //FUNC_PRINT_ALL(nativeTensorConst, p);
+    auto nativeTensor = (Tensor*)nativeTensorConst;
+    auto size = getTensorSize(nativeTensor, true);
+    return allocBuffer(size, nativeTensor, storageType);
+}
+
+static OpType _getRealOpType(OpType opType) {
+    switch (opType) {
+        case OpType_Convolution:
+            return OpType_ConvInt8;
+        case OpType_ConvolutionDepthwise:
+            return OpType_DepthwiseConvInt8;
+        default:
+            return opType;
+    }
+}
+void* CPUBackend::onMapTensor(Tensor::MapType mtype, Tensor::DimensionType dtype, const Tensor* srcTensor) {
+    if (static_cast<int>(getBytes(this, srcTensor)) != srcTensor->getType().bytes()) {
+        return nullptr;
+    }
+    if (OpCommonUtils:: convertDimType(TensorUtils::getDescribe(srcTensor)->dimensionFormat) != dtype) {
+        return nullptr;
+    }
+    _resetDynamicMemory();
+    if (mRuntime->pCurrentStatus != NO_ERROR) {
+        // Out of memory
+        return nullptr;
+    }
+    return srcTensor->host<void>();
+}
+
+bool CPUBackend::onUnmapTensor(Tensor::MapType mtype, Tensor::DimensionType dtype, const Tensor* dstTensor, void* mapPtr) {
+    if (static_cast<int>(getBytes(this, dstTensor)) != dstTensor->getType().bytes()) {
+        return false;
+    }
+    if (OpCommonUtils:: convertDimType(TensorUtils::getDescribe(dstTensor)->dimensionFormat) != dtype) {
+        return false;
+    }
+    return true;
+}
+
+size_t CPUBackend::getTensorSize(const Tensor* tensor, bool multiBytes) const {
+    auto core = mCoreFunctions;
+    size_t dataSize = 1;
+    auto des = TensorUtils::getDescribe(tensor);
+    for (int i = 0; i < tensor->dimensions(); i++) {
+        size_t currentDimSize = tensor->length(i);
+        if (des->dimensionFormat == MNN_DATA_FORMAT_NC4HW4 && 1 == i) {
+            currentDimSize = UP_DIV(currentDimSize, core->pack) * core->pack;
         }
-        if (mReorderBuffer.invalid()) {
-            return OUT_OF_MEMORY;
+        dataSize *= currentDimSize;
+    }
+    if (multiBytes) {
+        size_t bytes = getBytes(this, tensor);
+        return dataSize * bytes;
+    }
+    return dataSize;
+}
+
+size_t CPUBackend::getBytes(const Backend* backend, const Tensor* output) {
+    size_t bytes = output->getType().bytes();
+    auto core = static_cast<const CPUBackend*>(backend)->functions();
+    auto quant = TensorUtils::getDescribe(output)->quantAttr.get();
+    if (output->getType().code == halide_type_float) {
+        bytes = core->bytes;
+    }
+    if (nullptr != quant && TensorUtils::getDescribe(output)->applyQuant) {
+        bytes = 1;
+    }
+    return bytes;
+}
+
+DataType CPUBackend::getDataType(const Tensor* tensor) {
+    auto des = TensorUtils::getDescribe(tensor);
+    if (nullptr == des->quantAttr.get() || (!des->applyQuant)) {
+        return DataType_DT_FLOAT;
+    }
+    return des->quantAttr->type;
+}
+
+/// get execution
+Execution* CPUBackend::onCreate(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs,
+                                const MNN::Op* op) {
+    /**
+     BatchNorm it will be converted to scale
+     for model convert, don't print error log
+     */
+    if (op->type() == OpType_BatchNorm) {
+        return nullptr;
+    }
+    auto opType = op->type();
+    if (outputs.size() > 0 && inputs.size() > 0) {
+        bool outputQuant = TensorUtils::getDescribe(outputs[0])->quantAttr != nullptr && TensorUtils::getDescribe(outputs[0])->quantAttr->type == DataType_DT_INT8;
+        bool inputQuant = TensorUtils::getDescribe(inputs[0])->quantAttr != nullptr && TensorUtils::getDescribe(inputs[0])->quantAttr->type == DataType_DT_INT8;
+        if (inputQuant && outputQuant) {
+            opType = _getRealOpType(opType);
         }
     }
 
-    if (!success || mTempMaxMinValueBuffer.invalid()) {
-        return OUT_OF_MEMORY;
+    // TODO: rm this convert when merge diff datatyoe of op
+    auto map  = gCreator;
+    auto iter = map->find(opType);
+    if (iter == map->end() ) {
+        MNN_PRINT("Don't support type [%s]\n", MNN::EnumNameOpType(op->type()));
+        return nullptr;
     }
-    bufferAlloc->free(mBlitInfo);
-    bufferAlloc->free(mTempSrcSum);
-    bufferAlloc->free(mTempMaxMinValueBuffer);
-    bufferAlloc->free(mQScaleZero);
-    if (mOnlineReorderWeightSme && planeSize > 1) {
-        bufferAlloc->free(mWeight4Prefill);
-        if (mInputBlockNum > 1) {
-            bufferAlloc->free(mWeightKernelSum4Prefill);
+    Execution* exe = nullptr;
+    bool needCast = false;
+    if (exe == nullptr) {
+        exe = iter->second->onCreate(inputs, outputs, op, this);
+    }
+    return exe;
+}
+const Runtime* CPUBackend::getRuntime() {
+    return mRuntime;
+}
+
+bool CPUBackend::onClearBuffer() {
+    if (nullptr != mRuntime->mStaticAllocatorRaw.get()) {
+        mRuntime->mStaticAllocator->sync();
+        mRuntime->mStaticAllocator = mRuntime->mStaticAllocatorRaw;
+        mRuntime->mStaticAllocatorRaw = nullptr;
+    }
+    mCache->reset();
+    mDmaInfo->mCurrentDynamicAllocator->release(true);
+    return true;
+}
+
+std::pair<int, int> CPUBackend::multiThreadDivide(int size) const {
+    int sizeDivide = size / threadNumber();
+    sizeDivide = UP_DIV(sizeDivide, mCoreFunctions->pack) * mCoreFunctions->pack;
+    int scheduleNumber = 1;
+    if (sizeDivide > 0) {
+        scheduleNumber = UP_DIV(size, sizeDivide);
+    }
+    return std::make_pair(sizeDivide, scheduleNumber);
+}
+void CPUBackend::onCopyBuffer(const Tensor* srcTensor, const Tensor* dstTensor) const {
+    _resetDynamicMemory();
+    if (mRuntime->pCurrentStatus != NO_ERROR) {
+        // Out of memory
+        return;
+    }
+    auto& srcBuffer = srcTensor->buffer();
+    auto& dstBuffer = dstTensor->buffer();
+    if (srcBuffer.dimensions != dstBuffer.dimensions ) {
+        if (srcBuffer.dim[srcBuffer.dimensions - 1].extent != 1 && dstBuffer.dim[dstBuffer.dimensions - 1].extent != 1) {
+            MNN_ERROR("srcBuffer dimension not equal to dstBuffer, can't copy buffer\n");
         }
     }
-    if (mBlockNum >1 && kernelCount > 1) {
-        bufferAlloc->free(mReorderBuffer);
-    }
-    if (mToFuseInputbias2Bias) {
-        bufferAlloc->free(mBiasBufferFusedInputzero);
-    }
-
-    // Additional Adjustments
-    if (m4BitPtq) {
-        mTempOutput = bufferAlloc->alloc(ocUp4 * planeSize * gcore->bytes);
-        if (mTempOutput.invalid()) {
-            return OUT_OF_MEMORY;
+    if (srcTensor->getDimensionType() == dstTensor->getDimensionType()) {
+        for (int i = 0; i < srcBuffer.dimensions; ++i) {
+            MNN_ASSERT(srcBuffer.dim[i].extent <= dstBuffer.dim[i].extent);
         }
-        bufferAlloc->free(mTempOutput);
     }
+    if (nullptr == srcBuffer.host || nullptr == dstBuffer.host) {
+        return;
+    }
+    std::unique_ptr<Tensor> wrapTensor;
+    if (getDataType(srcTensor) != getDataType(dstTensor)) {
+        auto dimType =  OpCommonUtils::convertDimType(TensorUtils::getDescribe(srcTensor)->dimensionFormat);
+        auto convertType = CPUCastCreator::FlOAT_TO_INT8;
+        if (getDataType(srcTensor) == DataType_DT_INT8) {
+            convertType = CPUCastCreator::INT8_TO_FlOAT;
+        }
+        wrapTensor.reset(Tensor::createDevice(srcTensor->shape(), dstTensor->getType(), dimType));
+        auto dstType = getDataType(dstTensor);
+        if (dstType != DataType_DT_FLOAT) {
+            wrapTensor->setType(dstType);
+        }
+        wrapTensor->buffer().host = (uint8_t*)MNNMemoryAllocAlign(getTensorSize(wrapTensor.get()) * wrapTensor->getType().bytes(), MNN_MEMORY_ALIGN_DEFAULT);
 
-    backend()->onReleaseBuffer(mTempIm2ColBuffer.get(), Backend::DYNAMIC);
-    backend()->onReleaseBuffer(mBatchQuantInfo.get(), Backend::DYNAMIC);
-    backend()->onReleaseBuffer(mQuantInput.get(), Backend::DYNAMIC);
-    backend()->onReleaseBuffer(mAccumBuffer.get(), Backend::DYNAMIC);
-
-    return NO_ERROR;
-#else
-    return NO_ERROR;
+#ifdef LOG_VERBOSE
+        MNN_PRINT("CPU backend copy tensor ptr:%p -> ptr:%p hostPtr:%p -> %p, format %d -> %d, dims: [",
+        srcTensor, dstTensor, srcTensor->host<void>(), dstTensor->host<void>(), TensorUtils::getDescribe(srcTensor)->dimensionFormat, TensorUtils::getDescribe(dstTensor)->dimensionFormat);
+        for (int i=0; i<srcTensor->dimensions(); ++i) {
+            MNN_PRINT("%d ", srcTensor->length(i));
+        }
+        MNN_PRINT("]\n");
 #endif
-}
 
-
-static void _onlineReorderWeightPackH128ToH32(int8_t* dst, int8_t* src, int hPSrc, int hPDst, int hU, int blockNum, int blockLu, int lp, bool int4weight) {
-    // hPSrc = 4 * hPDst
-
-    int unitsize_ = hPDst * lp;
-    if (int4weight) {
-        lp /= 2;
-        unitsize_ /= 2;
-    }
-    int unitsize4 = unitsize_ * 4;
-
-    // Calculate strides based on source and destination h-pack sizes
-    int srcStride1 = blockLu * hPSrc * lp + 2 * hPSrc * sizeof(float);
-    int srcStride0 = blockNum * srcStride1;
-    int dstStride1 = blockLu * hPDst * lp + 2 * hPDst * sizeof(float);
-    int dstStride0 = blockNum * dstStride1;
-
-    for (int i = 0; i < hU; ++i) {
-        for (int k = 0; k < blockNum; ++k) {
-            auto weightsrc = (int8_t*)(src + i * srcStride0 + k * srcStride1);
-            auto weightdst0 = (int8_t*)(dst + (4 * i)     * dstStride0 + k * dstStride1);
-            auto weightdst1 = (int8_t*)(dst + (4 * i + 1) * dstStride0 + k * dstStride1);
-            auto weightdst2 = (int8_t*)(dst + (4 * i + 2) * dstStride0 + k * dstStride1);
-            auto weightdst3 = (int8_t*)(dst + (4 * i + 3) * dstStride0 + k * dstStride1);
-            auto lu = blockLu;
-
-            while (lu > 7) {
-                for (int j = 0; j < 8; ++j) {
-                    memcpy(weightdst0 + j * unitsize_, weightsrc + j * unitsize4 + 0 * unitsize_, unitsize_);
-                    memcpy(weightdst1 + j * unitsize_, weightsrc + j * unitsize4 + 1 * unitsize_, unitsize_);
-                    memcpy(weightdst2 + j * unitsize_, weightsrc + j * unitsize4 + 2 * unitsize_, unitsize_);
-                    memcpy(weightdst3 + j * unitsize_, weightsrc + j * unitsize4 + 3 * unitsize_, unitsize_);
-                }
-                weightsrc += unitsize4 * 8;
-                weightdst0 += unitsize_ * 8;
-                weightdst1 += unitsize_ * 8;
-                weightdst2 += unitsize_ * 8;
-                weightdst3 += unitsize_ * 8;
-                lu -= 8;
-            }
-
-            if (lu > 3) {
-                for (int j = 0; j < 4; ++j) {
-                    memcpy(weightdst0 + j * unitsize_, weightsrc + j * unitsize4 + 0 * unitsize_, unitsize_);
-                    memcpy(weightdst1 + j * unitsize_, weightsrc + j * unitsize4 + 1 * unitsize_, unitsize_);
-                    memcpy(weightdst2 + j * unitsize_, weightsrc + j * unitsize4 + 2 * unitsize_, unitsize_);
-                    memcpy(weightdst3 + j * unitsize_, weightsrc + j * unitsize4 + 3 * unitsize_, unitsize_);
-                }
-                weightsrc += unitsize4 * 4;
-                weightdst0 += unitsize_ * 4;
-                weightdst1 += unitsize_ * 4;
-                weightdst2 += unitsize_ * 4;
-                weightdst3 += unitsize_ * 4;
-                lu -= 4;
-            }
-
-            if (lu > 1) {
-                memcpy(weightdst0,                 weightsrc,                 unitsize_);
-                memcpy(weightdst0 + unitsize_,     weightsrc + unitsize4,     unitsize_);
-                memcpy(weightdst1,                 weightsrc + unitsize_,     unitsize_);
-                memcpy(weightdst1 + unitsize_,     weightsrc + unitsize4 + unitsize_, unitsize_);
-                memcpy(weightdst2,                 weightsrc + unitsize_ * 2, unitsize_);
-                memcpy(weightdst2 + unitsize_,     weightsrc + unitsize4 + unitsize_ * 2, unitsize_);
-                memcpy(weightdst3,                 weightsrc + unitsize_ * 3, unitsize_);
-                memcpy(weightdst3 + unitsize_,     weightsrc + unitsize4 + unitsize_ * 3, unitsize_);
-
-                weightsrc += unitsize4 * 2;
-                weightdst0 += unitsize_ * 2;
-                weightdst1 += unitsize_ * 2;
-                weightdst2 += unitsize_ * 2;
-                weightdst3 += unitsize_ * 2;
-                lu -= 2;
-            }
-
-            if (lu > 0) {
-                memcpy(weightdst0, weightsrc,                 unitsize_);
-                memcpy(weightdst1, weightsrc + unitsize_,     unitsize_);
-                memcpy(weightdst2, weightsrc + unitsize_ * 2, unitsize_);
-                memcpy(weightdst3, weightsrc + unitsize_ * 3, unitsize_);
-            }
-
-            // Reorder scale and bias
-            auto scaleSrc = src + i * srcStride0 + k * srcStride1 + blockLu * hPSrc * lp;
-            auto scaleDst0 = dst + (4 * i) * dstStride0 + k * dstStride1 + blockLu * hPDst * lp;
-            auto scaleDst1 = dst + (4 * i + 1) * dstStride0 + k * dstStride1 + blockLu * hPDst * lp;
-            auto scaleDst2 = dst + (4 * i + 2) * dstStride0 + k * dstStride1 + blockLu * hPDst * lp;
-            auto scaleDst3 = dst + (4 * i + 3) * dstStride0 + k * dstStride1 + blockLu * hPDst * lp;
-
-            // Copy scales (first part of the scale/bias region)
-            int scaleSize = hPDst * sizeof(float);
-            memcpy(scaleDst0, scaleSrc,                       scaleSize);
-            memcpy(scaleDst1, scaleSrc + scaleSize,           scaleSize);
-            memcpy(scaleDst2, scaleSrc + scaleSize * 2,       scaleSize);
-            memcpy(scaleDst3, scaleSrc + scaleSize * 3,       scaleSize);
-
-            // Copy biases (second part of the scale/bias region)
-            auto biasSrcOffset = hPSrc * sizeof(float);
-            memcpy(scaleDst0 + scaleSize, scaleSrc + biasSrcOffset,                  scaleSize);
-            memcpy(scaleDst1 + scaleSize, scaleSrc + biasSrcOffset + scaleSize,      scaleSize);
-            memcpy(scaleDst2 + scaleSize, scaleSrc + biasSrcOffset + scaleSize * 2,  scaleSize);
-            memcpy(scaleDst3 + scaleSize, scaleSrc + biasSrcOffset + scaleSize * 3,  scaleSize);
-        }
-    }
-}
-
-static void _onlineReorderWeightPackH8ToH32(int8_t* dst, const int8_t* src, int blockLu, int lp, bool isInt4Weight, int srcH, int blockNum, int resOcBranch) {
-    constexpr int hPSrc = 8;
-    constexpr int hPDst = 32;
-
-    int srcUnitLp = isInt4Weight ? lp / 2 : lp;
-
-    const size_t srcUnitSize = (size_t)hPSrc * srcUnitLp;
-    const size_t dstUnitSize = (size_t)hPDst * srcUnitLp;
-
-    const size_t srcStride1 = (size_t)blockLu * srcUnitSize + 2 * hPSrc * sizeof(float);
-    const size_t srcStride0 = (size_t)blockNum * srcStride1;
-    const size_t dstStride1 = (size_t)blockLu * dstUnitSize + 2 * hPDst * sizeof(float);
-    const size_t dstStride0 = (size_t)blockNum * dstStride1;
-
-    const int hUDst = srcH / 4;
-    const int hTail = srcH % 4;
-
-    for (int i = 0; i < hUDst; ++i) {
-        for (int k = 0; k < blockNum; ++k) {
-            auto weightSrcBase0 = src + (4 * i + 0) * srcStride0 + k * srcStride1;
-            auto weightSrcBase1 = src + (4 * i + 1) * srcStride0 + k * srcStride1;
-            auto weightSrcBase2 = src + (4 * i + 2) * srcStride0 + k * srcStride1;
-            auto weightSrcBase3 = src + (4 * i + 3) * srcStride0 + k * srcStride1;
-            auto weightDstBase  = dst + i * dstStride0 + k * dstStride1;
-
-            int lu = blockLu;
-
-            // --- Reorder Weights ---
-            if (isInt4Weight) {
-                auto process_int4_block = [](uint8_t* dst_b, const uint8_t* src_b, size_t size) {
-                    auto half_size = size / 2;
-                    for (int s = 0; s < half_size; ++s) {
-                        uint8_t p0 = src_b[2 * s];
-                        uint8_t p1 = src_b[2 * s + 1];
-                        dst_b[s]             = (p1 & 0xF0) | (p0 >> 4);
-                        dst_b[s + half_size] = (p1 << 4)  | (p0 & 0x0F);
-                    }
-                };
-                while (lu >= 4) {
-                    for (int j = 0; j < 4; ++j) {
-                        const auto* srcPtr0 = (const uint8_t*)(weightSrcBase0 + j * srcUnitSize);
-                        const auto* srcPtr1 = (const uint8_t*)(weightSrcBase1 + j * srcUnitSize);
-                        const auto* srcPtr2 = (const uint8_t*)(weightSrcBase2 + j * srcUnitSize);
-                        const auto* srcPtr3 = (const uint8_t*)(weightSrcBase3 + j * srcUnitSize);
-                        auto* dstPtr = (uint8_t*)(weightDstBase + j * dstUnitSize);
-
-                        process_int4_block(dstPtr + 0 * srcUnitSize, srcPtr0, srcUnitSize);
-                        process_int4_block(dstPtr + 1 * srcUnitSize, srcPtr1, srcUnitSize);
-                        process_int4_block(dstPtr + 2 * srcUnitSize, srcPtr2, srcUnitSize);
-                        process_int4_block(dstPtr + 3 * srcUnitSize, srcPtr3, srcUnitSize);
-                    }
-
-                    weightSrcBase0 += 4 * srcUnitSize;
-                    weightSrcBase1 += 4 * srcUnitSize;
-                    weightSrcBase2 += 4 * srcUnitSize;
-                    weightSrcBase3 += 4 * srcUnitSize;
-                    weightDstBase  += 4 * dstUnitSize;
-                    lu -= 4;
-                }
-
-                for (int j = 0; j < lu; ++j) {
-                    const auto* srcPtr0 = (const uint8_t*)(weightSrcBase0);
-                    const auto* srcPtr1 = (const uint8_t*)(weightSrcBase1);
-                    const auto* srcPtr2 = (const uint8_t*)(weightSrcBase2);
-                    const auto* srcPtr3 = (const uint8_t*)(weightSrcBase3);
-                    auto* dstPtr = (uint8_t*)(weightDstBase);
-
-                    process_int4_block(dstPtr + 0 * srcUnitSize, srcPtr0, srcUnitSize);
-                    process_int4_block(dstPtr + 1 * srcUnitSize, srcPtr1, srcUnitSize);
-                    process_int4_block(dstPtr + 2 * srcUnitSize, srcPtr2, srcUnitSize);
-                    process_int4_block(dstPtr + 3 * srcUnitSize, srcPtr3, srcUnitSize);
-
-                    weightSrcBase0 += srcUnitSize;
-                    weightSrcBase1 += srcUnitSize;
-                    weightSrcBase2 += srcUnitSize;
-                    weightSrcBase3 += srcUnitSize;
-                    weightDstBase  += dstUnitSize;
-                }
-            } else {
-                while (lu >= 4) {
-                    // j = 0
-                    memcpy(weightDstBase + 0 * dstUnitSize + 0 * srcUnitSize, weightSrcBase0 + 0 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 0 * dstUnitSize + 1 * srcUnitSize, weightSrcBase1 + 0 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 0 * dstUnitSize + 2 * srcUnitSize, weightSrcBase2 + 0 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 0 * dstUnitSize + 3 * srcUnitSize, weightSrcBase3 + 0 * srcUnitSize, srcUnitSize);
-                    // j = 1
-                    memcpy(weightDstBase + 1 * dstUnitSize + 0 * srcUnitSize, weightSrcBase0 + 1 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 1 * dstUnitSize + 1 * srcUnitSize, weightSrcBase1 + 1 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 1 * dstUnitSize + 2 * srcUnitSize, weightSrcBase2 + 1 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 1 * dstUnitSize + 3 * srcUnitSize, weightSrcBase3 + 1 * srcUnitSize, srcUnitSize);
-                    // j = 2
-                    memcpy(weightDstBase + 2 * dstUnitSize + 0 * srcUnitSize, weightSrcBase0 + 2 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 2 * dstUnitSize + 1 * srcUnitSize, weightSrcBase1 + 2 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 2 * dstUnitSize + 2 * srcUnitSize, weightSrcBase2 + 2 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 2 * dstUnitSize + 3 * srcUnitSize, weightSrcBase3 + 2 * srcUnitSize, srcUnitSize);
-                    // j = 3
-                    memcpy(weightDstBase + 3 * dstUnitSize + 0 * srcUnitSize, weightSrcBase0 + 3 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 3 * dstUnitSize + 1 * srcUnitSize, weightSrcBase1 + 3 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 3 * dstUnitSize + 2 * srcUnitSize, weightSrcBase2 + 3 * srcUnitSize, srcUnitSize);
-                    memcpy(weightDstBase + 3 * dstUnitSize + 3 * srcUnitSize, weightSrcBase3 + 3 * srcUnitSize, srcUnitSize);
-
-                    weightSrcBase0 += 4 * srcUnitSize;
-                    weightSrcBase1 += 4 * srcUnitSize;
-                    weightSrcBase2 += 4 * srcUnitSize;
-                    weightSrcBase3 += 4 * srcUnitSize;
-                    weightDstBase  += 4 * dstUnitSize;
-                    lu -= 4;
-                }
-
-                for (int j = 0; j < lu; ++j) {
-                    memcpy(weightDstBase + 0 * srcUnitSize, weightSrcBase0, srcUnitSize);
-                    memcpy(weightDstBase + 1 * srcUnitSize, weightSrcBase1, srcUnitSize);
-                    memcpy(weightDstBase + 2 * srcUnitSize, weightSrcBase2, srcUnitSize);
-                    memcpy(weightDstBase + 3 * srcUnitSize, weightSrcBase3, srcUnitSize);
-
-                    weightSrcBase0 += srcUnitSize;
-                    weightSrcBase1 += srcUnitSize;
-                    weightSrcBase2 += srcUnitSize;
-                    weightSrcBase3 += srcUnitSize;
-                    weightDstBase  += dstUnitSize;
-                }
-            }
-
-            // --- Reorder scale and bias ---
-            const int scaleSrcSize = hPSrc * sizeof(float);
-            const int8_t* scaleSrcBase = src + (4 * i) * srcStride0 + k * srcStride1 + (size_t)blockLu * srcUnitSize;
-            int8_t* scaleDstBase = dst + i * dstStride0 + k * dstStride1 + (size_t)blockLu * dstUnitSize;
-
-            memcpy(scaleDstBase + 0 * scaleSrcSize, scaleSrcBase + 0 * srcStride0, scaleSrcSize);
-            memcpy(scaleDstBase + 1 * scaleSrcSize, scaleSrcBase + 1 * srcStride0, scaleSrcSize);
-            memcpy(scaleDstBase + 2 * scaleSrcSize, scaleSrcBase + 2 * srcStride0, scaleSrcSize);
-            memcpy(scaleDstBase + 3 * scaleSrcSize, scaleSrcBase + 3 * srcStride0, scaleSrcSize);
-
-            const int8_t* biasSrcBase = scaleSrcBase + scaleSrcSize;
-            int8_t* biasDstBase = scaleDstBase + hPDst * sizeof(float);
-
-            memcpy(biasDstBase + 0 * scaleSrcSize, biasSrcBase + 0 * srcStride0, scaleSrcSize);
-            memcpy(biasDstBase + 1 * scaleSrcSize, biasSrcBase + 1 * srcStride0, scaleSrcSize);
-            memcpy(biasDstBase + 2 * scaleSrcSize, biasSrcBase + 2 * srcStride0, scaleSrcSize);
-            memcpy(biasDstBase + 3 * scaleSrcSize, biasSrcBase + 3 * srcStride0, scaleSrcSize);
-        }
-    }
-
-    // --- 2. Process the tail ---
-    if (hTail > 0) {
-        // The last block starts at index hUDst.
-        const int i = hUDst;
-        for (int k = 0; k < blockNum; ++k) {
-            const int8_t* srcBases[4] = {nullptr, nullptr, nullptr, nullptr};
-            for(int j = 0; j < hTail; ++j) {
-                srcBases[j] = src + (4 * i + j) * srcStride0 + k * srcStride1;
-            }
-
-            auto weightDstBase  = dst + i * dstStride0 + k * dstStride1;
-
-            int lu = blockLu;
-
-            if (isInt4Weight) {
-                auto process_int4_block = [](uint8_t* dst_b, const uint8_t* src_b, size_t size) {
-                    auto half_size = size / 2;
-                    for (int s = 0; s < half_size; ++s) {
-                        uint8_t p0 = src_b[2 * s];
-                        uint8_t p1 = src_b[2 * s + 1];
-                        dst_b[s]             = (p1 & 0xF0) | (p0 >> 4);
-                        dst_b[s + half_size] = (p1 << 4) | (p0 & 0x0F);
-                    }
-                };
-                while (lu --> 0) {
-                    for (int j = 0; j < hTail; ++j) {
-                        process_int4_block(
-                            (uint8_t*)(weightDstBase + j * srcUnitSize),
-                            (const uint8_t*)(srcBases[j]),
-                            srcUnitSize
-                        );
-                    }
-                    // For the remaining part of the destination block, set 0
-
-                    if (hTail < 4) {
-                        memset(weightDstBase + hTail * srcUnitSize, 0, (4 - hTail) * srcUnitSize);
-                    }
-
-                    for(int j=0; j<hTail; ++j) {
-                        srcBases[j] += srcUnitSize;
-                    }
-                    weightDstBase += dstUnitSize;
-                }
-            } else { // int8 weight
-                while (lu --> 0) {
-                    for (int j = 0; j < hTail; ++j) {
-                        memcpy(weightDstBase + j * srcUnitSize, srcBases[j], srcUnitSize);
-                    }
-                    // Zero out the rest of the destination block
-                    if (hTail < 4) {
-                        memset(weightDstBase + hTail * srcUnitSize, 0, (4 - hTail) * srcUnitSize);
-                    }
-
-                    for(int j=0; j<hTail; ++j) {
-                        srcBases[j] += srcUnitSize;
-                    }
-                    weightDstBase += dstUnitSize;
-                }
-            }
-
-            // --- Reorder scale and bias for tail ---
-            const int scaleSrcSize = hPSrc * sizeof(float);
-            const int8_t* scaleSrcBase = src + (4 * i) * srcStride0 + k * srcStride1 + (size_t)blockLu * srcUnitSize;
-            int8_t* scaleDstBase = dst + i * dstStride0 + k * dstStride1 + (size_t)blockLu * dstUnitSize;
-
-            for (int j = 0; j < hTail; ++j) {
-                 memcpy(scaleDstBase + j * scaleSrcSize, scaleSrcBase + j * srcStride0, scaleSrcSize);
-            }
-            if (hTail < 4) {
-                memset(scaleDstBase + hTail * scaleSrcSize, 0, (4 - hTail) * scaleSrcSize);
-            }
-
-            const int8_t* biasSrcBase = scaleSrcBase + scaleSrcSize;
-            int8_t* biasDstBase = scaleDstBase + hPDst * sizeof(float);
-
-            for (int j = 0; j < hTail; ++j) {
-                 memcpy(biasDstBase + j * scaleSrcSize, biasSrcBase + j * srcStride0, scaleSrcSize);
-            }
-            if (hTail < 4) {
-                memset(biasDstBase + hTail * scaleSrcSize, 0, (4 - hTail) * scaleSrcSize);
-            }
-        }
-    }
-
-    // --- 3. Copy the residual part ---
-    if (resOcBranch > 0) {
-        size_t resLp = isInt4Weight ? lp / 2 : lp;
-        size_t resChannels = ROUND_UP(resOcBranch, hPSrc);
-        size_t resDataLen = (size_t)blockNum * ((size_t)blockLu * resChannels * resLp + 2 * resChannels * sizeof(float));
-
-        // The source for residual data starts after ALL processed srcH blocks.
-        memcpy(dst + (size_t)hUDst * dstStride0 + (hTail > 0 ? dstStride0 : 0),
-               src + (size_t)srcH * srcStride0,
-               resDataLen);
-    }
-}
-
-static void _onlineReorderWeightKernelSumH128ToH32(float* dst, float* src, int blockNum, int hpSrc, int hpDst, int oc) {
-    // hpSrc = 4 * hpDst
-    // src shape: [huSrc, blockNum, hpSrc]
-    // dst shape: [huDst, blockNum, hpDst], where huDst = huSrc * 4
-
-    auto huSrc = UP_DIV(oc, hpSrc);
-    auto strideSrc = blockNum * hpSrc;
-    auto strideDst = blockNum * hpDst;
-
-    for (int i = 0; i < huSrc; ++i) {
-        for (int k = 0; k < blockNum; ++k) {
-            auto srcBase = src + i * strideSrc + k * hpSrc;
-
-            auto dst0 = dst + (4 * i + 0) * strideDst + k * hpDst;
-            auto dst1 = dst + (4 * i + 1) * strideDst + k * hpDst;
-            auto dst2 = dst + (4 * i + 2) * strideDst + k * hpDst;
-            auto dst3 = dst + (4 * i + 3) * strideDst + k * hpDst;
-
-            memcpy(dst0, srcBase, hpDst * sizeof(float));
-            memcpy(dst1, srcBase + hpDst, hpDst * sizeof(float));
-            memcpy(dst2, srcBase + 2 * hpDst, hpDst * sizeof(float));
-            memcpy(dst3, srcBase + 3 * hpDst, hpDst * sizeof(float));
-        }
-    }
-}
-
-static void _onlineReorderWeightKernelSumH8ToH32(float* dst, float* src, int blockNum, int hpSrc, int hpDst, int ocNeedReorder, int ocPreserve) {
-    // hpDst = 4 * hpSrc
-    // src shape: [huSrc, blockNum, hpSrc], where huSrc = huDst * 4
-    // dst shape: [huDst, blockNum, hpDst]
-
-    auto huDst = UP_DIV(ocNeedReorder, hpDst);
-
-    auto strideSrc = blockNum * hpSrc;
-    auto strideDst = blockNum * hpDst;
-
-    for (int i = 0; i < huDst; ++i) {
-        for (int k = 0; k < blockNum; ++k) {
-            auto dstBase = dst + i * strideDst + k * hpDst;
-
-            auto src0 = src + (4 * i + 0) * strideSrc + k * hpSrc;
-            auto src1 = src + (4 * i + 1) * strideSrc + k * hpSrc;
-            auto src2 = src + (4 * i + 2) * strideSrc + k * hpSrc;
-            auto src3 = src + (4 * i + 3) * strideSrc + k * hpSrc;
-
-            memcpy(dstBase, src0, hpSrc * sizeof(float));
-            memcpy(dstBase + hpSrc, src1, hpSrc * sizeof(float));
-            memcpy(dstBase + 2 * hpSrc, src2, hpSrc * sizeof(float));
-            memcpy(dstBase + 3 * hpSrc, src3, hpSrc * sizeof(float));
+        TensorUtils::getDescribe(wrapTensor.get())->memoryType = Tensor::InsideDescribe::MEMORY_HOST;
+        auto code = CPUCastCreator::cast(srcTensor, wrapTensor.get(), this, convertType);
+        if (NO_ERROR != code) {
+            MNN_ERROR("Error in CPUBackend::onCopyBuffer:cast\n");
         }
     }
 
@@ -1591,145 +1035,52 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                 mBatchQuantInfo->host<float>()[i] = scaleX;
             }
         }
-    }
-
-    // Declare variables used in dynamic quantization
-    const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
-    int dropBranch = 0;
-
-#ifdef MNN_LOW_MEMORY
-    auto BatchAsyDynamicQuant = [&](uint8_t* floatPtr, int32_t& inputZero, uint8_t* inputDequantScale, int LDiv4, int eCount, int innerSide, int32_t availableThreads, int8_t* dstInt8, uint8_t* inputDequantBias, int tId) {
-        // if mIm2ColBasedInt8=false, input shape: [kernelsize,mBlockNum,blocklu,EP,LP]
-        // if mIm2ColBasedInt8=true,  input shape: [ic/pack,EP,pack]
-        auto scalePtr = (float*)inputDequantScale;
-        auto zeroPtr = (float*)inputDequantBias;
-        int scaleCount = mSizeInputBlockQuant;
-        int kernelsize = 1;
-        if (!mIm2ColBasedInt8) {
-            kernelsize = kxky;
-        }
-
-        auto minPtr = mTempMaxMinValueBuffer.ptr() + tId * scaleCount * gcore->bytes;
-        auto maxPtr = mTempMaxMinValueBuffer.ptr() + tId * scaleCount * gcore->bytes + (scaleCount / 2) * gcore->bytes;
-        auto qscale = (float*)(mQScaleZero.ptr() + tId * scaleCount * QUANT_INFO_BYTES);
-        auto qbias  = (float*)(mQScaleZero.ptr() + tId * scaleCount * QUANT_INFO_BYTES + (scaleCount / 2) * QUANT_INFO_BYTES);
-
-        size_t info[9] = {(size_t)mInputBlockNum, (size_t)eCount, (size_t)innerSide, (size_t)DST_XUNIT, (size_t)SRC_UNIT, (size_t)kernelsize, (size_t)blocklu, 0, 0};
-        if (mIm2ColBasedInt8) {
-            info[6] = LDiv4 / mInputBlockNum;
-        }
-        if (mToFuseInputbias2Bias) {
-            info[7] = 1;
-        }
-        if (mIm2ColParamter.padX > 0 || mIm2ColParamter.padY > 0) {
-            info[8] = 1;
-        }
-        // scale&bias:float32
-        gcore->MNNAsyQuantInfo(scalePtr, zeroPtr, qscale, qbias, (float*)minPtr, (float*)maxPtr, (float*)floatPtr, info);
-
-        // quant: float->int8_t
-        if (!mToFuseInputbias2Bias) {
-            gcore->MNNAsyQuantFunc(dstInt8, (float*)floatPtr, qscale, qbias, info);
-        } else {
-            auto sizeDiv4 = UP_DIV(eCount * LDiv4 * innerSide, PackUnit);
-            mQuantFunc((float*)floatPtr, dstInt8, sizeDiv4, qscale, -128, 127, qbias, 0);
-        }
-
-        if (mToFuseInputbias2Bias) { // Decode
-            inputZero = static_cast<int32_t>(roundf(qbias[0]));
-            auto updatedBiasPtr = (float*)(mBiasBufferFusedInputzero.ptr() + tId * ocUpHp * QUANT_INFO_BYTES);
-            auto matmulBiasPtr = mResourceInt8->mOriginBias->host<float>();
-            auto weightKernelSum = mResourceInt8->mWeightKernelSum->host<float>();
-            auto inputZeroF = -qbias[0] * scalePtr[0];
-            gcore->MNNDynamicUpdateConvBiasScale(updatedBiasPtr, matmulBiasPtr, weightKernelSum, &inputZeroF, UP_DIV(ocUpHp, 4));
-            biasPtr = (uint8_t*)updatedBiasPtr;
-            auto unitsize = mBatchQuantInfo->length(1) / (2 * QUANT_INFO_BYTES);
-            auto inputScale = scalePtr[0];
-            for (int i = 0; i < unitsize; ++i) {
-                ((float*)inputDequantScale)[i] = inputScale;
+        switch (otype) {
+            case OpType_Convolution:
+            case OpType_ConvolutionDepthwise:
+                if (inputs.size() > 1) {
+                    return false;
+                }
+                if (op->main_as_Convolution2D() && op->main_as_Convolution2D()->weight() != nullptr) {
+                    return false;
+                } else {
+                    return true;
+                }
+            case OpType_ConvInt8:
+            case OpType_DepthwiseConvInt8:
+                return true;
+                // case OpType_Eltwise:
+            case OpType_Raster:
+            {
+                for (auto input : inputs) {
+                    if (TensorUtils::getDescribe(input)->quantAttr->scale != TensorUtils::getDescribe(outputs[0])->quantAttr->scale || TensorUtils::getDescribe(input)->quantAttr->zero != TensorUtils::getDescribe(outputs[0])->quantAttr->zero) {
+                        return false;
+                    }
+                    if (TensorUtils::getDescribe(input)->quantAttr.get() && TensorUtils::getDescribe(outputs[0])->quantAttr.get() && (TensorUtils::getDescribe(input)->quantAttr.get()->scale == 0 || TensorUtils::getDescribe(outputs[0])->quantAttr.get()->scale == 0)) {
+                        return false;
+                    }
+                }
+                return true;
             }
-        }
-    };
-
-    auto BatchSymDynamicQuant = [&](uint8_t* floatPtr, int32_t& inputZero, uint8_t* inputDequantScale, int LU, int EP, int LP, int32_t availableThreads, int8_t* dstInt8, int tId) {
-        auto quantPtr = mQScaleZero.ptr() + tId * mSizeInputBlockQuant * QUANT_INFO_BYTES;
-        auto maxPtr = mTempMaxMinValueBuffer.ptr() + tId * mSizeInputBlockQuant * gcore->bytes;
-
-        // compute sum and absmax
-        int divlu = UP_DIV(LU, availableThreads);
-        MNN_CONCURRENCY_BEGIN (tIdx, ALIMIN(availableThreads, UP_DIV(LU, divlu))) {
-            auto exeLu = ALIMIN(divlu, LU - tIdx * divlu);
-            auto batchMax = reinterpret_cast<float*>(maxPtr + tIdx * EP * gcore->bytes);
-            auto ptr_     = reinterpret_cast<float*>(floatPtr + tIdx * divlu * gcore->bytes * EP * LP);
-            gcore->MNNAbsMax((float*)ptr_, batchMax, exeLu, EP, LP);
-        } MNN_CONCURRENCY_END();
-
-
-        // Compute quant scale
-        gcore->MNNQuantScale((float*)maxPtr, (float*)quantPtr, (float*)inputDequantScale, availableThreads, EP);
-
-        // quant
-        auto scale_ptr = reinterpret_cast<float*>(quantPtr);
-        gcore->MNNDynamicQuant((float*)floatPtr, dstInt8, scale_ptr, LU, EP, LP, nullptr);
-        inputZero = 0;
-    };
-
-    if (mResourceInt8->mDynamicQuant) {
-        biasPtr = mResourceInt8->mOriginBias->host<uint8_t>();
-    }
-    if (mIm2ColBasedInt8 && mResourceInt8->mDynamicQuant) {
-        int icDiv4 = UP_DIV(input->channel(), PackUnit);
-        if (mUseBatchQuan) {
-            int availthreads = (icDiv4 > mThreadNums && inputPlane > 255 ) ? mThreadNums : 1;
-            if (dynamicOption != 2) {
-                BatchSymDynamicQuant(input->host<uint8_t>(), inputZeroPoint, mBatchQuantInfo->host<uint8_t>(), icDiv4, inputPlane, PackUnit, availthreads, mQuantInput->host<int8_t>(), 0);
-            } else {
-                BatchAsyDynamicQuant(input->host<uint8_t>(), inputZeroPoint, mBatchQuantInfo->host<uint8_t>(), icDiv4, inputPlane, PackUnit, availthreads, mQuantInput->host<int8_t>(), mBatchQuantInfo->host<uint8_t>() + mBatchQuantInfo->stride(0) / 2, 0);
-            }
-        } else {
-            BatchAsyDynamicQuant(input->host<uint8_t>(), inputZeroPoint, mBatchQuantInfo->host<uint8_t>(), icDiv4, inputPlane, PackUnit, 1, mQuantInput->host<int8_t>(), mBatchQuantInfo->host<uint8_t>() + mBatchQuantInfo->stride(0) / 2, 0);
-        }
-        im2colSrc = mQuantInput->host<uint8_t>();
-    }
-
-
-    if (mOnlineReorderWeightSme && plane > 1) {
-        _onlineReorderWeightPackH128ToH32((int8_t*)mWeight4Prefill.ptr(), weightDataPtr, GEMM_INT8_UNIT_SME2_128, UNIT, UP_DIV(mOcMain, GEMM_INT8_UNIT_SME2_128), mBlockNum, blockL, SRC_UNIT, mResourceInt8->mWeightBits == 4);
-
-        int kernelSumMainSize = 0;
-        int kernelSumBranchSize = 0;
-        if (dstBytes > 1 && mInputBlockNum > 1) {
-            _onlineReorderWeightKernelSumH128ToH32((float*)mWeightKernelSum4Prefill.ptr(), mResourceInt8->mWeightKernelSum->host<float>(), mBlockNum, GEMM_INT8_UNIT_SME2_128, UNIT, mOcMain);
-            kernelSumMainSize = ROUND_UP(mOcMain, UNIT) * mBlockNum * QUANT_INFO_BYTES;
-            kernelSumBranchSize = ROUND_UP(mOcBranch, 8) * mBlockNum * QUANT_INFO_BYTES;
-        }
-
-        // If change the workload distribution among SME and NEON cores.
-        if (mMixedKernel && mRatioDecode != mRatioPrefill) {
-            auto offsetWeight = UP_DIV(mOcMain, GEMM_INT8_UNIT_SME2_128) * mBlockNum * blockL * SRC_UNIT * GEMM_INT8_UNIT_SME2_128;
-            if (mResourceInt8->mWeightBits == 4) {
-                offsetWeight /= 2;
-            }
-            offsetWeight += (ROUND_UP(mOcMain, GEMM_INT8_UNIT_SME2_128) * mBlockNum * 2 * sizeof(float));
-
-            // Don't change mOcMain&mOcBranch here.
-            int tmpMain = mOcMain;
-            int tmpBranch = mOcBranch;
-            calculateSmeNeonWorkDivision(tmpMain, tmpBranch, mDividesTmp, oc, threads, PackUnit, plane, mRatioPrefill, mSmeCores);
-            auto updatedSmeWork = mDividesTmp[mSmeCores];
-
-
-            if (updatedSmeWork - mOriginSmeWork > 0 && ((updatedSmeWork - mOriginSmeWork) * 4 % 8 == 0)) { // To ensure pack=4, dropBranch % 2 == 0
-                dropBranch = updatedSmeWork - mOriginSmeWork; // Ensure update "dropBranch" inner the loop.
-                memcpy(mDivides.data(), mDividesTmp.data(), (threads+1) * sizeof(float));
-                dropBranch = mDivides[mSmeCores] - mOriginSmeWork;
-                _onlineReorderWeightPackH8ToH32((int8_t*)(mWeight4Prefill.ptr() + offsetWeight), weightDataPtr + offsetWeight, blockL, SRC_UNIT, mResourceInt8->mWeightBits == 4, (int)(dropBranch * PackUnit / 8), mBlockNum, (mDivides[threads] - mDivides[mSmeCores]) * PackUnit);
-            }
-
-            if (dstBytes > 1 && mInputBlockNum > 1) {
-                if (dropBranch > 0) {
-                    // reorder
-                    _onlineReorderWeightKernelSumH8ToH32((float*)(mWeightKernelSum4Prefill.ptr() + kernelSumMainSize), (float*)(mResourceInt8->mWeightKernelSum->host<int8_t>() + kernelSumMainSize), mBlockNum, 8, UNIT, dropBranch * PackUnit, (mDivides[threads] - mDivides[mSmeCores]) * PackUnit);
+            case OpType_Pooling:
+                if (TensorUtils::getDescribe(inputs[0])->quantAttr->scale != TensorUtils::getDescribe(outputs[0])->quantAttr->scale || TensorUtils::getDescribe(inputs[0])->quantAttr->zero != TensorUtils::getDescribe(outputs[0])->quantAttr->zero) {
+                    return false;
+                }
+                if (op->main_as_Pool() && op->main_as_Pool()->type() == PoolType_MAXPOOL ) {
+                    return true;
+                } else if (op->main_as_Pool() && op->main_as_Pool()->type() == PoolType_AVEPOOL) {
+                    return true;
+                } else {
+                    return false;
+                }
+            case OpType_Softmax:
+                return true;
+            case OpType_LayerNorm:
+                return true;
+#ifdef MNN_SUPPORT_QUANT_EXTEND
+            case OpType_ReLU:
+                if (TensorUtils::getDescribe(inputs[0])->quantAttr.get() != TensorUtils::getDescribe(outputs[0])->quantAttr.get()) {
+                    return false;
                 }
             }
         }
