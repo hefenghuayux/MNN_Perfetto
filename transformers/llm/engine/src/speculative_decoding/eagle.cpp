@@ -37,13 +37,10 @@ void EagleGeneration::load(Module::Config module_config) {
     mEagleModules[1].reset(Module::load({"fc_hidden"}, {"hidden_states"}, mLlm->mConfig->eagle_fc().c_str(), mLlm->mRuntimeManager, &module_config));
 
     mD2t = Express::Variable::load(mLlm->mConfig->eagle_d2t().c_str())[0];
-    // int verify_length = mLlm->mDraftLength + 1;
-    // mHiddenStateIndex = mLlm->getOutputIndex("hidden_states");
 
     // init
-    mTopK = 1;
-    mDepth = 3;
-    mMaxDraftTokens = 4;
+    mTopK = mLlm->mConfig->eagle_topk();
+    mDepth = mLlm->mConfig->eagle_depth();
     mTreePosition = _Input({1, mTopK}, NCHW, halide_type_of<int>());
 }
 
@@ -157,7 +154,7 @@ EagleGeneration::DraftInfo EagleGeneration::topkGenerate(const std::vector<int>&
         auto indices = topKV[1]->readMap<int>();
         tokenTree.grow(indices, scores);
     }
-    auto output = tokenTree.finalize(sampleToken, mMaxDraftTokens - 1);
+    auto output = tokenTree.finalize(sampleToken, mLlm->mDraftLength);
 #if EAGLE_DEBUG
     {
         std::cout << tokenTree.toString([&](int token){
@@ -292,11 +289,7 @@ bool EagleGeneration::processTokens(const std::vector<int>& acceptTokens) {
         }
         if (nullptr != mContext->os) {
             auto tokenStr = mLlm->tokenizer_decode(token);
-            if (i == acceptTokens.size() - 1) {
-                *mContext->os << tokenStr << std::flush;
-            } else {
-                *mContext->os << "\033[1;32m" << tokenStr << "\033[0m" << std::flush;
-            }
+            *mContext->os << tokenStr << std::flush;
         }
     }
     return false;
@@ -331,9 +324,22 @@ void EagleGeneration::generate(GenerationParams& param) {
     std::vector<int> accpetLens;
     auto newTokens = 0, steps = 0;
     while (true) {
+        if(mContext->status == LlmStatus::USER_CANCEL) {
+            break;
+        }
         steps++;
         MNN::Timer _dt;
         auto decodingInfo = treeDecoding(draftInfo);
+        for (auto o : decodingInfo) {
+            if(nullptr == o->readMap<float>()) {
+                mContext->status = LlmStatus::INTERNAL_ERROR;
+                break;
+            }
+        }
+        if(decodingInfo.empty()) {
+            break;
+        }
+        
         treeDecodingTime += _dt.durationInUs();
         auto acceptInfo = evaluatePosterior(draftInfo, decodingInfo[0]);
         newTokens += acceptInfo.acceptTokens.size();
@@ -355,6 +361,9 @@ void EagleGeneration::generate(GenerationParams& param) {
         eagleGenerateTime += _gt.durationInUs();
     }
     mContext->decode_us += _t.durationInUs();
+    if(newTokens >= param.max_new_tokens) {
+        mContext->status = LlmStatus::MAX_TOKENS_FINISHED;
+    }
 #if EAGLE_DEBUG
     printf("\n### Tree Decoding Time: %f s, Eagle Generate Time: %f s\n", (float)treeDecodingTime / 1000000.0, (float)eagleGenerateTime / 1000000.0);
     printf("\n### Tree Decoding Avg Time: %f ms, steps: %d\n", (float)treeDecodingTime / 1000.0 / steps, steps);

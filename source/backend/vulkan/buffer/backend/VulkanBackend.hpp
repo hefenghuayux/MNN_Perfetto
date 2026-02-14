@@ -13,6 +13,29 @@
 #include <MNN/ErrorCode.hpp>
 #include "MNN_generated.h"
 #include "VulkanRuntime.hpp"
+
+#ifdef ENABLE_VULKAN_TIME_PROFILE
+#include "VulkanTimeProfiler.hpp"
+#endif
+
+#ifdef MNN_USE_ARMV82
+// FP32 <--> FP16 Function
+#include "backend/arm82/Arm82OptFunc.hpp"
+#define FLOAT_TO_HALF MNNQuantizeFP16
+#define HALF_TO_FLOAT MNNDequantizeFP16
+#else
+#include "half.hpp"
+#define FLOAT_TO_HALF _VKFloatToHalf
+#define HALF_TO_FLOAT _VKHalfToFloat
+#endif // MNN_USE_ARMV82
+
+#ifndef MNN_USE_ARMV82
+namespace MNN {
+    void _VKFloatToHalf(const float* src, int16_t* dst, size_t size);
+    void _VKHalfToFloat(const int16_t* src, float* dst, size_t size);
+}
+#endif
+
 namespace MNN {
 class VulkanBasicExecution;
 typedef std::tuple<VkBuffer, VkDeviceSize, VkDeviceSize> VULKAN_TENSOR;
@@ -39,8 +62,9 @@ public:
 
     const VulkanPipelineFactory* getPipelineFactory() const;
     const VulkanPipeline* getPipeline(const std::string& key, const std::vector<VkDescriptorType>& types,
-                                      const std::vector<uint32_t>& localSize = std::vector<uint32_t>()) const;
-    SharedPtr<VulkanPipeline> getPrivatePipeline(const std::string& key, const std::vector<VkDescriptorType>& types);
+                                      const std::vector<uint32_t>& localSize = std::vector<uint32_t>(),
+                                      const std::vector<uint32_t>& specConstants = std::vector<uint32_t>()) const;
+    SharedPtr<VulkanPipeline> getPrivatePipeline(const std::string& key, const std::vector<VkDescriptorType>& types, const std::vector<uint32_t>& specConstants = std::vector<uint32_t>());
 
     const VulkanCommandPool& getPool() const {
         return (* mRuntime->mCmdPool);
@@ -48,6 +72,10 @@ public:
     const VulkanMemoryPool& getMemoryPool() const {
         return (* mRuntime->mMemoryPool);
     }
+    const VulkanDevice& getDevice() const {
+        return (* mRuntime->mDevice);
+    }
+
     BufferAllocator* getDynamicMemoryPool() const {
         return mCurrentDynamicBufferPool;
     }
@@ -98,20 +126,18 @@ public:
 
     const VulkanDevice& device() const;
 #ifdef ENABLE_VULKAN_TIME_PROFILE
-    void pushQueryPool(std::shared_ptr<VulkanQueryPool> queryPool) {
-        mQueryPools.push_back(queryPool);
-    }
-    void pushExecutionName(std::string executionName) {
-        mExecutionNames.push_back(executionName);
+    VulkanTimeProfiler* timeProfiler() const {
+        return mTimeProfiler.get();
     }
 #endif
+
+    bool useFP16() const {
+        return mUseFP16;
+    }
 
 private:
     void _finish() const;
     void _requireHostBuffer(size_t size) const;
-#ifdef ENABLE_VULKAN_TIME_PROFILE
-    void printTimeProfile() const;
-#endif
     mutable std::shared_ptr<VulkanBuffer> mHostBuffer;
 
     std::shared_ptr<VulkanCommandPool::Buffer> mCmdBuffer;
@@ -122,14 +148,14 @@ private:
     mutable std::vector<VkCommandBuffer> mCmdBuffers;
     mutable std::shared_ptr<VulkanFence> mFence;
 
-
     bool mDirect;
     const VulkanRuntime* mRuntime;
     bool mUseAutoTune = true;
 
+    bool mUseFP16{false};
+
 #ifdef ENABLE_VULKAN_TIME_PROFILE
-    mutable std::vector<std::shared_ptr<VulkanQueryPool>> mQueryPools;
-    mutable std::vector<std::string> mExecutionNames;
+    std::shared_ptr<VulkanTimeProfiler> mTimeProfiler;
 #endif
 };
 

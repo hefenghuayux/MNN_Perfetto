@@ -14,7 +14,6 @@ extern void ___ReshapeComputer__OpType_QuantizedReshape__();
 extern void ___FlattenComputer__OpType_Flatten__();
 extern void ___StridedSliceComputer__OpType_StridedSlice__();
 extern void ___PoolSizeComputer__OpType_Pooling__();
-extern void ___PoolSizeComputer__OpType_PoolInt8__();
 extern void ___InnerProductComputer__OpType_InnerProduct__();
 extern void ___ReductionComputer__OpType_Reduction__();
 extern void ___QuantizedAvgPoolComputer__OpType_QuantizedAvgPool__();
@@ -122,6 +121,7 @@ extern void ___SeqLen2SpatialSizeComputer__OpType_SeqLen2Spatial__();
 extern void ___FmhaV2SizeComputer__OpType_FmhaV2__();
 extern void ___FmhcaSizeComputer__OpType_Fmhca__();
 extern void ___AttentionSizeComputer__OpType_Attention__();
+extern void ___LinearAttentionSizeComputer__OpType_LinearAttention__();
 #endif
 void registerShapeOps() {
 ___ShapeSizeComputer__OpType_Shape__();
@@ -138,7 +138,6 @@ ___ReshapeComputer__OpType_QuantizedReshape__();
 ___FlattenComputer__OpType_Flatten__();
 ___StridedSliceComputer__OpType_StridedSlice__();
 ___PoolSizeComputer__OpType_Pooling__();
-___PoolSizeComputer__OpType_PoolInt8__();
 ___InnerProductComputer__OpType_InnerProduct__();
 ___ReductionComputer__OpType_Reduction__();
 ___QuantizedAvgPoolComputer__OpType_QuantizedAvgPool__();
@@ -245,6 +244,7 @@ ___SeqLen2SpatialSizeComputer__OpType_SeqLen2Spatial__();
 ___FmhaV2SizeComputer__OpType_FmhaV2__();
 ___FmhcaSizeComputer__OpType_Fmhca__();
 ___AttentionSizeComputer__OpType_Attention__();
+___LinearAttentionSizeComputer__OpType_LinearAttention__();
 #endif
 }
 }

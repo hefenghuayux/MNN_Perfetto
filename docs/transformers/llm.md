@@ -34,7 +34,7 @@
     *   **关键产物**：脚本会生成一个包含 `llm.mnn`, `llm.mnn.weight`, `tokenizer.txt`, `embeddings_bf16.bin`【可能存在】, `llm_config.json`, `config.json` 等文件的模型目录。
 
 4.  **（可选）高级功能**：
-    *   **量化**：通过 `--quant_bit 4` 和 `--quant_block 128` 等参数可以调节量化的Bits数，默认为`4 bit , block size 64`。通过 `--hqq` 或 `--awq` 可以启用对应算法以提升量化后的模型精度，一般建议增加`--hqq`
+    *   **量化**：通过 `--quant_bit 4` 和 `--quant_block 128` 等参数可以调节量化的Bits数，默认为`4 bit , block size 64`。通过 `--hqq` 或 `--awq` 或 `--omni` 可以启用对应算法以提升量化后的模型精度，一般建议增加`--hqq`
     *   **LoRA**：通过 `--lora_path` 合并或分离 LoRA 权重。
     *   **Embeding**：对于目前主流的8b以下模型，采用了`Tie-Embeding`技术，默认不会导出`embeddings_bf16.bin`，而是复用`llm.mnn.weight`中的`lm`权重，需要提升embed精度可以设置 `--seperate_embed` 分离出`embeddings_bf16.bin`。
     *   **GPTQ**：通过 `--gptq_path` 应用预量化好的 GPTQ 权重。
@@ -190,7 +190,7 @@ python llmexport.py \
 usage: llmexport.py [-h] --path PATH [--type TYPE] [--tokenizer_path TOKENIZER_PATH] [--lora_path LORA_PATH]
                     [--gptq_path GPTQ_PATH] [--dst_path DST_PATH] [--verbose] [--test TEST] [--export EXPORT]
                     [--onnx_slim] [--quant_bit QUANT_BIT] [--quant_block QUANT_BLOCK]
-                    [--lm_quant_bit LM_QUANT_BIT] [--mnnconvert MNNCONVERT] [--ppl] [--awq] [--sym] [--seperate_embed]
+                    [--lm_quant_bit LM_QUANT_BIT] [--mnnconvert MNNCONVERT] [--ppl] [--awq] [--omni] [--sym] [--seperate_embed]
                     [--lora_split]
 
 llm_exporter
@@ -383,15 +383,23 @@ node llm_demo.js ~/qwen2.0_1.5b/config.json ~/qwen2.0_1.5b/prompt.txt
     - dit_model: 当使用Omni模型时，dit_model的实际路径为`base_dir + dit_model`，默认为`base_dir + 'dit.mnn'`
     - bigvgan_model: 当使用Omni模型时，bigvgan_model的实际路径为`base_dir + bigvgan_model`，默认为`base_dir + 'bigvgan.mnn'`
     - spk_dict: 当使用Omni模型时，spk_dict的实际路径为`base_dir + spk_dict`，默认为`base_dir + 'spk_dict.txt'`
+    - context_file: 配置上下文信息文件路径，实际路径为`base_dir + context_file`，默认`base_dir + 'context.json'`，内容格式为json格式的上下文信息，包含：如tools，enable_thinking等信息。
 - 推理配置
   - max_new_tokens: 生成时最大token数，默认为`512`
   - reuse_kv: 多轮对话时是否复用之前对话的`kv cache`，默认为`false`.
-  - quant_qkv: CPU attention 算子中`query, key, value`是否量化，可选为：`0, 1, 2, 3, 4`，默认为`0`，含义如下：
-    - 0: key和value都不量化
-    - 1: 使用非对称8bit量化存储key
-    - 2: 使用fp8格式量化存储value
-    - 3: 使用非对称8bit量化存储key，使用fp8格式量化存储value
-    - 4: 量化kv的同时使用非对称8bit量化query，并使用int8矩阵乘计算Q*K
+  - quant_qkv: 选项废弃，请使用 `attention_mode`
+  - attention_mode: 
+    - CPU attention 算子中`query, key, value`是否量化，可选为：`0, 1, 2, 8, 9, 10`，默认为`8`，含义如下：
+      - 0: 运行时不使用Flash Attention, query, key, value均不量化
+      - 1: 运行时不使用Flash Attention, query和key使用8bit非对称量化，value不量化
+      - 2: 运行时不使用Flash Attention, query, key, value均使用8bit非对称量化
+      - 8: 运行时使用Flash Attention, query, key, value均不量化
+      - 9: 运行时使用Flash Attention, query和key使用8bit非对称量化，value不量化
+      - 10: 运行时使用Flash Attention, query, key, value均使用8bit非对称量化
+    - GPU attention 算子中是否使用Flash Attention，可选为：`0, 8, 16`，默认为`8`，目前仅支持Metal后端，含义如下：
+      - 0: 运行时不使用Flash Attention, 朴素Attention实现，上下文较长时不推荐内存占用高
+      - 8: 运行时使用Flash Attention, 在算子层面分步实现，性能接近设为0，内存占用比设为0小
+      - 16: 运行时使用Flash Attention, 在算子层面单算子融合实现，内存占用最小，性能比设为8稍慢一些
   - use_mmap: 是否使用mmap方式，在内存不足时将权重写入磁盘，避免溢出，默认为false，手机上建议设成true
   - chunk: 限制每次最大处理的token数，高于此值将分块运行，以减少内存占用，eg: chunk: 128
   - chunk_limits: 限制每次处理的token数，不在此范围内将分拆或者补零处理，eg: chunk_limits: [128, 1] , 存在 chunk_limits 时，chunk 配置无效
@@ -403,12 +411,14 @@ node llm_demo.js ~/qwen2.0_1.5b/config.json ~/qwen2.0_1.5b/prompt.txt
   - thread_num: CPU推理使用硬件线程数，默认为：`4`; OpenCL推理时使用`68`(不是传统意义的线程数，代表的是opencl buffer存储和tuning wide模式)
   - precision: 推理使用精度策略，默认为：`"low"`，尽量使用`fp16`
   - memory: 推理使用内存策略，默认为：`"low"`，开启运行时量化
-- 与CPU动态量化相关的配置
-  - dynamic_option: 推理时是否对feature map分blocksize/group进行量化。可选为：`0, 1, 2`，默认是`0`，含义如下：
+- 与CPU动态量化相关的配置，提升精度、性能
+  - dynamic_option: 推理时是否对feature map分blocksize/group进行量化。可选为：`0, 1, 2, 8, 9, 10`，默认是`0`，含义如下：
     - 0: feature map数据使用per channel量化
     - 1: feature map数据使用per tensor量化
     - 2: feature map数据用per block量化，blocksize等于权重量化时的blocksize，如果权重量化时没有使用per block量化，即使设置2，也不会对feature map做per block量化
-  - prefer_decode: 是否希望有更快的解码（Decode）速度。可选：`true, false`，默认`false`。注意：当prompt长度小于300时，`true`条件下的Prefill速度会显著慢于`false`条件下时的性能。当prompt长度高于300时，`true`条件下的Prefill速度和`false`条件基本持平，Decode速度大约会快20%. 如果你希望在各种情况下Prefill速度和Decode速度更加均衡，建议设置该选项为`false`.
+    - 8+n(n=0,1,2): 该选项是为了加速LLM 推理时Decode性能。但是当prompt长度小于300时，Prefill速度会显著变慢。当prompt长度高于300时，Prefill速度不会变慢。
+  - cpu_sme2_neon_division_ratio: 为了提高Arm SME后端多线程推理时性能，可根据模型、线程数定制化设置该参数。参数计算方式: Prefill阶段单个SME核和NEON核的工作量比例x:1，Decode阶段工作量比例y:1，
+                                  则参数设置为8*x+y，x和y均是不大于7的正整数。41、49和33是常见的参数设置. 可以通过观察单线程推理时，SME后端相较于NEON后端的加速比来决定该参数的取值。默认是`41`.
 - Sampler配置
   - sampler_type: 使用的sampler种类，目前支持`greedy`, `temperature`, `topK`, `topP`, `minP`, `tfs`, `typical`, `penalty`8种基本sampler，外加`mixed`(混合sampler，当选择`mixed`时，依次执行mixed_samplers中的sampler)。默认为`greedy`，但是建议使用`mixed`、`temperature`来增加输出多样性，或使用`penalty`来降低重复。
   - mixed_samplers: 当`sampler_type`为`mixed`时有效，默认为`["topK", "tfs", "typical", "topP", "min_p", "temperature"]`, 模型计算得到的logits会依次经过这些sampler采样。
@@ -473,6 +483,21 @@ node llm_demo.js ~/qwen2.0_1.5b/config.json ~/qwen2.0_1.5b/prompt.txt
       "prompt_template": "<|im_start|>user\n%s<|im_end|>\n<|im_start|>assistant\n",
       "is_visual": false,
       "is_single": true
+  }
+  ```
+- `context.json`
+  ```json
+  {
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_time",
+                "description": "获取当前时间"
+            }
+        }
+    ],
+    "enable_thinking": false
   }
   ```
 
@@ -552,6 +577,15 @@ options:
 ./llm_bench -m ./Qwen2.5-1.5B-Instruct/config.json,./Qwen2.5-0.5B-Instruct/config.json -a cpu,opencl,metal -c 1,2 -t 8,12 -p 16,32 -n 10,20 -pg 8,16 -mmp 0 -rep 4 -kv true -fp ./test_result
 ```
 
+#### 多Prompt场景下KVCache选择性复用
+rollback_demo提供了多Prompt场景下自行选择复用部分kvcache的示例代码。
+```bash
+./rollback_demo /path/to/model_dir/config.json /path/to/prompt.txt <cache_prefix_in_disk> <max_token_number>
+```
+其中，prompt.txt需要包含至少三组prompt。
+- cache_prefix_in_disk需要设置为0或1。
+- cache_prefix_in_disk 设置1表示：第一段Prompt是后续Prompt的公共前缀Prompt，第二、三段Prompt分别是基于第一段Prompt后续的文本内容。第一次启动会将前缀Prompt的KVCache缓存在磁盘文件中。第二次启动会跳过公共前缀Prompt的Prefill，直接在磁盘中加载，提升Prefill速度。。
+- cache_prefix_in_disk 设置0表示：在多段Prompt下，如何删除不需要的KVCache，仅保留关联性的KVCache示例。
 
 #### GPTQ权重
 需要使用GPTQ权重，可以在导出模型时，使用`--gptq_path PATH`来指定的路径，使用如下：
@@ -763,4 +797,186 @@ print(out)
 
 out_ids = qwen.generate([151644, 872, 198, 108386, 151645, 198, 151644, 77091])
 print(out_ids)
+```
+
+## NPU 推理 LLM
+
+使用NPU推理，需要特定的导出参数，并针对目标设备转换出相应的模型。目前支持使用高通芯片和MTK芯片的NPU进行推理。一般流程是：LLM模型导出->转换成对应设备NPU模型->推到目标设备运行
+
+### LLM 模型导出
+NPU运行LLM需要特定的量化格式，需要按如下参数以导出 mnn
+llmexport脚本导出在NPU上运行的模型时，必须使用的选项有：
+- --generate_for_npu: 导出在NPU上运行的模型
+- --seperate_embed: NPU必须使用embedding层和lm层分开存储
+- --sym: 目前NPU仅支持权重对称量化
+用于提高量化精度可以使用的选项，选择其一即可，不可以同时使用：
+- --smooth 使用Smooth量化算法提高精度
+- --omni：使用Omni量化算法提高精度
+部分选项说明：
+- QNN已经支持了feature map使用非对称量化，转模型时可以不使用`--act_sym`，即该选项可视情况加或者不加；
+- NPU目前仅支持feature map使用16bit量化以提高模型精度，所以转模型时加上选项`--act_bit=16`；
+- 经过测试，截止2026年1月，仅仅在高通8Gen5芯片上使用QNN推理时，权重是4bit量化且group=64时，模型性能会比权重8bit量化，group=0时更好。
+- 如果是要转换出在QNN上运行的LLM模型，LM层也会量化，该层的权重量化参数和其他Linear层一致
+- 模型用于量化的校准数据集来源于HuggingFace的wikitext数据集，如果你想要使用指定的多个prompt作为校准数据集，可以使用`--calib_data`选项
+
+`--smooth --act_bit=16 --quant_block=0 --lm_quant_bit=16 --quant_bit=4 --seperate_embed --sym --act_sym`
+
+eg:
+```
+python3 llmexport.py --path /YouPath/Dowload/models/Qwen/Qwen3-4B --export mnn --smooth --act_bit=16 --quant_block=0 --lm_quant_bit=16 --seperate_embed --quant_bit=4 --sym --act_sym
+```
+或者你也可以自定义校准数据集，并使用Omni算法提高量化精度：
+```
+python llmexport.py --path /YouPath/Dowload/models/Qwen/Qwen3-0.6B --export mnn --quant_block 64 --quant_bit 4 --generate_for_npu --seperate_embed --act_bit=16 --sym --omni --hqq --calib_data /Your/prompt.txt
+```
+
+### QNN LLM
+
+#### 获得QNN依赖
+
+可通过以下步骤获取依赖：
+- [注册高通账号](https://myaccount.qualcomm.com/signup)
+- 访问Qualcomm AI Engine Direct SDK（即QNN SDK），下载SDK，并解压。比如`/home/xiaying/third/qnn/qairt/2.38.0.250901`
+- 修改`~/.bashrc` ，增加SDK路径到环境变量, 然后运行 `source ~/.bashrc` 或者重启终端。eg：
+
+```
+export QNN_SDK_ROOT=/home/xiaying/third/qnn/qairt/2.38.0.250901
+export QNN_ROOT=/home/xiaying/third/qnn/qairt/2.38.0.250901
+export HEXAGON_SDK_ROOT=/home/xiaying/third/qnn/qairt/2.38.0.250901
+```
+
+#### 构建 QNN 模型
+
+在模型转换器编译时，增加`-DMNN_QNN=ON -DMNN_QNN_CONVERT_MODE=ON`，eg:
+
+```
+cd ${MNN_ROOT}
+mkdir build && cd build
+cmake .. -DMNN_QNN=ON -DMNN_QNN_CONVERT_MODE=ON -DMNN_BUILD_TOOLS=ON -DMNN_BUILD_LLM=ON
+make -j16
+```
+
+
+使用 `npu/generate_llm_qnn.py` 构建 qnn 模型
+eg:
+
+```
+cd ${MNN_ROOT}
+cd transformers/llm/export
+python3 npu/generate_llm_qnn.py --model model --soc_id=57 --dsp_arch=v75
+```
+
+目标设备`soc_id` 和 `dsp_arch` 可在高通官方查询，如下为一些设备的参考
+
+| 硬件    | SOC ID | HEXAGON ARCH |
+| :------ | :----- | :----------- |
+| 8 Gen 1 | 36     | 69           |
+| 8 Gen 2 | 43     | 73           |
+| 8 Gen 3 | 57     | 75           |
+| 8 Elite | 69     | 79           |
+
+
+***执行成功后，会在 model 目录下产出 config_qnn.json 及 model/qnn 目录***
+
+***构建完成后，model 目录下的 llm.mnn 及 llm.mnn.weight 不再需要，可以删除以减少文件总大小***
+
+#### Android设备上运行QNN LLM
+
+- 编译 MNN Android 库并推送到目标设备，编译时需要增加 `-DMNN_QNN=ON -DMNN_WITH_PLUGIN=ON`，eg:
+
+```
+cd ${MNN_ROOT}
+cd project/android
+mkdir build_64 && cd build_64
+../build_64.sh -DMNN_QNN=ON -DMNN_WITH_PLUGIN=ON -DMNN_BUILD_LLM=ON -DMNN_LOW_MEMORY=ON
+../updateTest.sh
+```
+
+- 参考如下脚本把 QNN 相关 so 放到 Android 对应测试目录中
+
+```
+ANDROID_WORKING_DIR=/data/local/tmp/MNN/
+HEXAGON_ARCH=75
+adb push ${QNN_SDK_ROOT}/lib/aarch64-android/libQnnHtp.so ${ANDROID_WORKING_DIR}
+adb push ${QNN_SDK_ROOT}/lib/aarch64-android/libQnnHtpV${HEXAGON_ARCH}Stub.so ${ANDROID_WORKING_DIR}
+adb push ${QNN_SDK_ROOT}/lib/hexagon-v${HEXAGON_ARCH}/unsigned/libQnnHtpV${HEXAGON_ARCH}Skel.so ${ANDROID_WORKING_DIR}
+adb push ${QNN_SDK_ROOT}/lib/aarch64-android/libQnnSystem.so ${ANDROID_WORKING_DIR}
+```
+
+- 推送模型并执行
+
+推送模型：
+```
+cd ${MNN_ROOT}
+cd transformers/llm/export
+adb push model /data/local/tmp/MNN/model
+```
+
+运行：
+```
+cd ${MNN_ROOT}
+project/android/testCommon.sh ./llm_demo model/config_qnn.json
+```
+
+### MTK LLM
+#### 获得 MTK SDK
+- 目前MTK没有开放SDK获得方案，需自行联系MTK取得支持，获得对应的SDK
+- 获取后，修改`~/.bashrc`，添加环境变量，eg:
+
+```
+export NEURON_SDK=/home/xiaying/third/mtk/neuropilot-sdk-basic-7.0.8-build20240807/neuron_sdk
+```
+
+#### 构建 MLDA 模型
+MLDA 是 MTK 的 NPU 推理引擎，需要把 MNN 模型转成 MLDA 模型才可在其NPU上运行
+
+- 增加MNN对应的预转换后端配置 `-DMNN_NEUROPILOT=ON` ，eg:
+
+```
+cd ${MNN_ROOT}
+mkdir build && cd build
+cmake ../ -DMNN_BUILD_CONVERTER=ON -DMNN_BUILD_LLM=ON -DMNN_NEUROPILOT=ON
+make -j4
+```
+
+- 确定设备的`mlda`版本号和编译选项，并修改`source/backend/neuropilot/npu_convert.py`的`archoptions`，当前默认配置为`--arch=mdla5.1 --l1-size-kb=7168 --num-mdla=4`，支持天玑9300的NPU编译
+
+- 使用 `npu/generate_llm_mlda.py` 构建 MLDA 模型
+
+```
+cd ${MNN_ROOT}
+cd transformers/llm/export
+python3 npu/generate_llm_mlda.py --model model
+```
+
+执行成功后，会在 model 目录下产出`config_mlda.json`与`mlda`目录。
+
+***生成后，原先的llm.mnn和llm.mnn.weight可以删除***
+
+#### Android设备上运行 MLDA LLM
+
+- 增加`-DMNN_NEUROPILOT=ON -DMNN_WITH_PLUGIN=ON`编译 MNN Android 库
+
+```
+cd ${MNN_ROOT}
+cd project/android/
+mkdir build_64
+cd build_64
+../build_64.sh -DMNN_NEUROPILOT=ON -DMNN_WITH_PLUGIN=ON -DMNN_BUILD_LLM=ON
+../updateTest.sh
+```
+
+- 推送模型并执行
+
+推送模型：
+```
+cd ${MNN_ROOT}
+cd transformers/llm/export
+adb push model /data/local/tmp/MNN/model
+```
+
+运行：
+```
+cd ${MNN_ROOT}
+project/android/testCommon.sh ./llm_demo model/config_mlda.json
 ```

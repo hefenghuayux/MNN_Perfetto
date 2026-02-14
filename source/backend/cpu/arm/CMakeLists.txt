@@ -32,10 +32,13 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^armv7" OR ARCHS MATCHES "^armv7(;armv7s)?")
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64" OR ARCHS STREQUAL "arm64" OR ARCHS STREQUAL "ARM64")
     message(STATUS "Enabling AArch64 Assemblies")
-  
+
     if (MNN_KLEIDIAI)
        include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/KleidiAI.cmake)
        download_kleidiai_and_collect_sources()
+       if(MNN_KLEIDIAI_DEFAULT_ON)
+           add_definitions(-DMNN_DEFAULT_USE_KLEIDIAI)
+        endif()
     endif()
 
     if (MNN_SME2)

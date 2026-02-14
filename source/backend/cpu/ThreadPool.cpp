@@ -135,7 +135,7 @@ ThreadPool::ThreadPool(int numberThread, const std::vector<int>& core_ids) {
                     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
                         if (*mTasks[i].second[threadIndex]) {
                             begin_trace_marker("Worker_Work");
-                            mTasks[i].first.first(threadIndex);
+                            mTasks[i].first->first(threadIndex);
                             end_trace_marker();
                             
                             { *mTasks[i].second[threadIndex] = false; }
@@ -209,16 +209,18 @@ void ThreadPool::deactive() {
     mActiveCount--;
 }
 
-void ThreadPool::enqueue(TASK&& task, int index) {
+void ThreadPool::enqueue(TASK* taskp, int index) {
+    auto& task = *taskp;
     if (1 >= task.second || 0 > index) {
         for (int i = 0; i < task.second; ++i) {
             task.first(i);
         }
         return;
     }
-    enqueueInternal(std::move(task), index);
+    enqueueInternal(taskp, index);
 }
-void ThreadPool::enqueueInternal(TASK&& task, int index) {
+void ThreadPool::enqueueInternal(TASK* taskp, int index) {
+    auto& task = *taskp;
     if (mActiveCount == 0) {
         // [修改] 替换 TRACE_SCOPE("Pool_Inactive_Run_On_Main")
         begin_trace_marker("Pool_Inactive_Run_On_Main");
@@ -229,17 +231,18 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         return;
     }
     int workSize = task.second;
+    TASK* tmpTask = nullptr;
     if (workSize > mNumberThread) {
-        mTasks[index].first = std::make_pair(
-            [workSize, &task, this](int tId) {
-                for (int v = tId; v < workSize; v += mNumberThread) {
-                    task.first(v);
-                }
-            },
-            mNumberThread);
+        tmpTask = new TASK;
+        *tmpTask = std::make_pair([workSize, &task, this](int tId) {
+            for (int v = tId; v < workSize; v += mNumberThread) {
+                task.first(v);
+            }
+        }, mNumberThread);
+        mTasks[index].first = tmpTask;
         workSize = mNumberThread;
     } else {
-        mTasks[index].first = std::move(task);
+        mTasks[index].first = taskp;
     }
     {
         // (可选) 追踪任务分发的开销
@@ -253,7 +256,7 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
     // 1. 追踪主线程（T0）的实际工作时间
     // [修改] 替换 TRACE_SCOPE("MainThread_Work")
     begin_trace_marker("MainThread_Work");
-    mTasks[index].first.first(0);
+    mTasks[index].first->first(0);
     end_trace_marker();
 
     // 2. 追踪主线程的“忙等”同步时间
@@ -271,6 +274,9 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         std::this_thread::yield();
     } while (!complete);
     end_trace_marker();
+    if (nullptr != tmpTask) {
+        delete tmpTask;
+    }
 }
 } // namespace MNN
 #endif

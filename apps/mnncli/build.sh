@@ -13,6 +13,10 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Building MNNCLI...${NC}"
 
+# Detect OS
+OS_NAME=$(uname -s)
+echo -e "${YELLOW}Detected OS: $OS_NAME${NC}"
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -34,22 +38,37 @@ fi
 mkdir -p "$MNN_BUILD_DIR"
 
 echo -e "${YELLOW}Configuring MNN...${NC}"
-cmake -B "$MNN_BUILD_DIR" -S "$PROJECT_ROOT" \
-    -DMNN_BUILD_LLM=ON \
-    -DMNN_BUILD_SHARED_LIBS=OFF \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DMNN_LOW_MEMORY=ON \
-    -DMNN_CPU_WEIGHT_DEQUANT_GEMM=ON \
-    -DMNN_SUPPORT_TRANSFORMER_FUSE=ON \
-    -DMNN_METAL=ON \
-    -DLLM_SUPPORT_VISION=ON \
-    -DMNN_BUILD_OPENCV=ON \
-    -DMNN_IMGCODECS=ON \
-    -DLLM_SUPPORT_AUDIO=ON \
-    -DMNN_BUILD_AUDIO=ON \
-    -DMNN_BUILD_DIFFUSION=ON \
-    -DMNN_SEP_BUILD=OFF \
-    -DMNN_USE_OPENCV=ON
+
+# Common CMake args
+CMAKE_ARGS=(
+    "-DMNN_BUILD_LLM=ON"
+    "-DMNN_BUILD_SHARED_LIBS=OFF"
+    "-DCMAKE_BUILD_TYPE=Release"
+    "-DMNN_LOW_MEMORY=ON"
+    "-DMNN_CPU_WEIGHT_DEQUANT_GEMM=ON"
+    "-DMNN_SUPPORT_TRANSFORMER_FUSE=ON"
+    "-DLLM_SUPPORT_VISION=ON"
+    "-DMNN_BUILD_OPENCV=ON"
+    "-DMNN_IMGCODECS=ON"
+    "-DLLM_SUPPORT_AUDIO=ON"
+    "-DMNN_BUILD_AUDIO=ON"
+    "-DMNN_BUILD_DIFFUSION=ON"
+    "-DMNN_SEP_BUILD=OFF"
+    "-DMNN_USE_OPENCV=ON"
+    "-DLLM_SUPPORT_HTTP_RESOURCE=OFF"
+)
+
+# OS-specific CMake args
+if [ "$OS_NAME" == "Darwin" ]; then
+    CMAKE_ARGS+=("-DMNN_METAL=ON")
+elif [ "$OS_NAME" == "Linux" ]; then
+    CMAKE_ARGS+=("-DMNN_OPENCL=ON") # Enable OpenCL for Linux if available/needed, otherwise can be omitted
+    # You might want to add -DMNN_VULKAN=ON if Vulkan is needed
+else
+    echo -e "${YELLOW}Warning: Unknown OS $OS_NAME, using default configuration${NC}"
+fi
+
+cmake -B "$MNN_BUILD_DIR" -S "$PROJECT_ROOT" "${CMAKE_ARGS[@]}"
 
 echo -e "${YELLOW}Building MNN...${NC}"
 if command -v nproc &> /dev/null; then
@@ -72,19 +91,22 @@ MNNCLI_BUILD_DIR="$SCRIPT_DIR/build_mnncli"
 echo -e "${YELLOW}Stage 2: Building mnncli executable...${NC}"
 echo -e "${YELLOW}mnncli build directory: $MNNCLI_BUILD_DIR${NC}"
 
-# Clean mnncli build directory
-if [ -d "$MNNCLI_BUILD_DIR" ]; then
-    echo -e "${YELLOW}Cleaning mnncli build directory...${NC}"
-    rm -rf "$MNNCLI_BUILD_DIR"
-fi
-
 mkdir -p "$MNNCLI_BUILD_DIR"
 
 echo -e "${YELLOW}Configuring mnncli...${NC}"
-cmake -B "$MNNCLI_BUILD_DIR" -S "$SCRIPT_DIR" \
-    -DMNN_BUILD_DIR="$MNN_BUILD_DIR" \
-    -DMNN_SOURCE_DIR="$PROJECT_ROOT" \
-    -DCMAKE_BUILD_TYPE=Release
+
+MNNCLI_CMAKE_ARGS=(
+    "-DMNN_BUILD_DIR=$MNN_BUILD_DIR"
+    "-DMNN_SOURCE_DIR=$PROJECT_ROOT"
+    "-DCMAKE_BUILD_TYPE=Release"
+)
+
+if [ "$OS_NAME" == "Darwin" ]; then
+    SDK_PATH=$(xcrun --sdk macosx --show-sdk-path)
+    MNNCLI_CMAKE_ARGS+=("-DCMAKE_OSX_SYSROOT=$SDK_PATH")
+fi
+
+cmake -B "$MNNCLI_BUILD_DIR" -S "$SCRIPT_DIR" "${MNNCLI_CMAKE_ARGS[@]}"
 
 echo -e "${YELLOW}Building mnncli...${NC}"
 if command -v nproc &> /dev/null; then
@@ -110,13 +132,18 @@ if [ -f "$MNNCLI_BUILD_DIR/mnncli" ]; then
         exit 1
     fi
     
-    # Show dependencies
-    echo -e "${YELLOW}Checking dependencies...${NC}"
-    otool -L "$MNNCLI_BUILD_DIR/mnncli"
+    # Check dependencies (OS specific)
+    if [ "$1" == "--check" ]; then
+        echo -e "${YELLOW}Checking dependencies...${NC}"
+        if [ "$OS_NAME" == "Darwin" ]; then
+            otool -L "$MNNCLI_BUILD_DIR/mnncli"
+        elif [ "$OS_NAME" == "Linux" ]; then
+            ldd "$MNNCLI_BUILD_DIR/mnncli"
+        fi
+    fi
 else
     echo -e "${RED}Build failed! Executable not found.${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}Build completed successfully!${NC}"
-

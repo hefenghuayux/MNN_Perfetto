@@ -212,6 +212,9 @@ public:
 #ifdef MNN_USE_THREAD_POOL
     inline int taskIndex() const {return mRuntime->mTaskIndex;}
     inline ThreadPool* threadPool() const {return mRuntime->mThreadPool;}
+    void enqueue(ThreadPool::TASK& task) const {
+        threadPool()->enqueue(&task, taskIndex());
+    }
 #endif
     static void initCreatorMap();
     static size_t getBytes(const Backend* backend, const Tensor* output);
@@ -224,6 +227,7 @@ protected:
     CoreFunctions* mCoreFunctions;
     CoreInt8Functions* mInt8CoreFunctions;
     const MatmulRelatedFunctions* mRelatedFunctions;
+    CPURuntime* mRuntime;
 private:
     mutable std::shared_ptr<WorkerThread> mInitWorkQueue;
     mutable int mThreadNumber = 1;
@@ -234,7 +238,6 @@ private:
     mutable DynamicTaskState mDynamicState;
 
     std::shared_ptr<CPURuntime::DynamicAllocator> mDmaInfo;
-    CPURuntime* mRuntime;
     BackendConfig::PrecisionMode mPrecisionMode;
     BackendConfig::MemoryMode mMemory;
     static std::map<OpType, CPUBackend::Creator*>* gCreator;

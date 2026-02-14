@@ -7,6 +7,7 @@ from typing import Tuple, Optional, Dict, Any
 
 from .transformers import VisionRotary, Decoder
 from .spinner import spinner_run
+from .torch_utils import onnx_export
 
 class Vision(torch.nn.Module):
     def __init__(self, visual, base):
@@ -15,16 +16,19 @@ class Vision(torch.nn.Module):
         self.quant_block = 128
         self.transformer_fuse = True
         self.group_conv_native = False
-        self.model_type = base.model_type
+        self.model_type = base.config.model_type
         self.visual = visual.eval()
         self.embed_ = base.embed
         self.tokenizer = base.tokenizer
-        self.config = base.config
-        self.hidden_size = base.hidden_size
-        self.llm_config = base.llm_config
+        self.config = base.config.origin_config
+        self.hidden_size = base.config.hidden_size
+        self.llm_config = { "is_visual": True }
         self.rope_ratio = 1.0
         self.init_config()
         self.load()
+
+    def get_config(self):
+        return self.llm_config
 
     @staticmethod
     def get_vision(model_type):
@@ -37,6 +41,8 @@ class Vision(torch.nn.Module):
             'qwen2_5_omni': Qwen2_5OmniVision,
             'qwen3_vl': Qwen3Vision,
             'qwen3_vl_moe': Qwen3Vision,
+            'qwen3_5': Qwen3_5Vision,
+            'qwen3_5_moe': Qwen3_5Vision,
             'gemma3': Gemma3Vision,
             'idefics3': Idefics3Vision,
             'smolvlm': Idefics3Vision,
@@ -71,7 +77,7 @@ class Vision(torch.nn.Module):
         raise NotImplementedError
 
     def embed(self, input_ids, images = None, videos = None):
-        raise NotImplementedError
+        return self.embed_(input_ids)
 
     def deepstacks(self):
         return None
@@ -103,16 +109,13 @@ class DeepSeekVL(Vision):
     def export(self, onnx_path):
         input_images = torch.randn((1, 3, self.image_size, self.image_size), dtype=torch.float32)
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (input_images),
-                        onnx_model,
-                        input_names=['input_images'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "input_images": { 0: "size", 2: "height", 3: "width"},
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (input_images),
+                    onnx_model,
+                    input_names=['input_images'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "input_images": { 0: "size", 2: "height", 3: "width"},
+                    })
         return onnx_model
     def forward(self, images):
         vit_embeds = self.aligner(self.vision_model(images))
@@ -126,8 +129,8 @@ class InternVLVision(Vision):
         super().__init__(visual, base)
         self.quant_bit = 8
         self.vision_model = visual
-        self.mlp1 = base.model.mlp1
-        self.select_layer = base.model.select_layer
+        self.mlp1 = visual.mlp1
+        self.select_layer = visual.select_layer
 
     def load(self):
         self.image_size = self.config.force_image_size
@@ -137,6 +140,7 @@ class InternVLVision(Vision):
         # self.llm_config['vision_start'] = self.tokenizer.img_start_id
         # self.llm_config['vision_end'] = self.tokenizer.img_end_id
         # self.llm_config['image_pad'] = self.tokenizer.img_pad_id
+
     def pixel_shuffle(self, x, scale_factor=0.5):
         n, w, h, c = x.shape[0], x.shape[1], x.shape[2], x.shape[3]
         # N, W, H, C --> N, W, H * scale, C // scale
@@ -148,6 +152,7 @@ class InternVLVision(Vision):
                    (c / (scale_factor * scale_factor)).int())
         x = x.permute(0, 2, 1, 3).contiguous()
         return x
+
     def extract_feature(self, pixel_values):
         if self.select_layer == -1:
             vit_embeds = self.vision_model(
@@ -170,6 +175,7 @@ class InternVLVision(Vision):
         # For mnn's embedding, the order is (seq, batch, hidden)
         vit_embeds = vit_embeds.permute(1, 0, 2)
         return vit_embeds
+
     def init_config(self):
         self.llm_config['is_visual'] = True
         IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -180,20 +186,19 @@ class InternVLVision(Vision):
         self.llm_config['image_mean'] = IMAGENET_MEAN
         self.llm_config['image_norm'] = IMAGENET_STD
         self.llm_config['image_size_unit'] = 14
+
     def export(self, onnx_path):
         input_images = torch.randn((1, 3, self.image_size, self.image_size), dtype=torch.float32)
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (input_images),
-                        onnx_model,
-                        input_names=['input_images'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "input_images": { 0: "size", 2: "height", 3: "width"},
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (input_images),
+                    onnx_model,
+                    input_names=['input_images'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "input_images": { 0: "size", 2: "height", 3: "width"},
+                    })
         return onnx_model
+
     def forward(self, images):
         return self.extract_feature(images)
 
@@ -215,16 +220,13 @@ class QwenVision(Vision):
     def export(self, onnx_path):
         input_images = torch.randn((1, 3, self.image_size, self.image_size))
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (input_images),
-                        onnx_model,
-                        input_names=['input_images'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "input_images": { 0: "size" },
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (input_images),
+                    onnx_model,
+                    input_names=['input_images'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "input_images": { 0: "size" },
+                    })
         return onnx_model
 
     def forward(self, images):
@@ -433,7 +435,7 @@ class Qwen2Vision(Vision):
         if rotary_pos_emb.dtype != hidden_states.dtype:
             rotary_pos_emb = rotary_pos_emb.to(hidden_states.dtype)
         for blk in self.blocks:
-            hidden_states, _ = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask)
+            hidden_states = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask)
         image_embeds = self.merger(hidden_states)
         image_embeds = image_embeds.unsqueeze(1)
         return image_embeds
@@ -497,18 +499,15 @@ class Qwen2Vision(Vision):
         posision_ids = torch.zeros([2, 900], dtype=torch.int32)
         attention_mask = torch.zeros([1, 900, 900], dtype=torch.float)
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (patch, posision_ids, attention_mask),
-                        onnx_model,
-                        input_names=['patches', 'position_ids', 'attention_mask'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "patches": { 0: "size" },
-                            "position_ids": { 1: "size" },
-                            "attention_mask": { 1: "size", 2: "size" }
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (patch, posision_ids, attention_mask),
+                    onnx_model,
+                    input_names=['patches', 'position_ids', 'attention_mask'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "patches": { 0: "size" },
+                        "position_ids": { 1: "size" },
+                        "attention_mask": { 1: "size", 2: "size" }
+                    })
         return onnx_model
 
 class Gemma3Vision(Vision):
@@ -546,16 +545,13 @@ class Gemma3Vision(Vision):
     def export(self, onnx_path):
         input_images = torch.randn((1, 3, self.image_size, self.image_size))
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (input_images),
-                        onnx_model,
-                        input_names=['input_images'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "input_images": { 0: "size", 2: "height", 3: "width"},
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (input_images),
+                    onnx_model,
+                    input_names=['input_images'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "input_images": { 0: "size", 2: "height", 3: "width"},
+                    })
         return onnx_model
 
     def embed(self, input_ids):
@@ -635,7 +631,7 @@ class Qwen2_5Vision(Qwen2Vision):
                 attention_mask_now = attention_mask[0]
             else:
                 attention_mask_now = attention_mask[1]
-            hidden_states, _ = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask_now)
+            hidden_states = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask_now)
         image_embeds = self.merger(hidden_states)
         reverse_indices = torch.argsort(window_index)
         image_embeds = image_embeds[reverse_indices, :]
@@ -649,19 +645,16 @@ class Qwen2_5Vision(Qwen2Vision):
         attention_mask = torch.zeros([2, 1, 400, 400], dtype=torch.float)
         window_index = torch.arange(100, dtype=torch.int32)
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (patch, posision_ids, attention_mask, window_index),
-                        onnx_model,
-                        input_names=['patches', 'position_ids', 'attention_mask', 'window_index'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "patches": { 0: "size" },
-                            "position_ids": { 1: "size" },
-                            "attention_mask": { 2: "size", 3: "size" },
-                            "window_index": { 0: "size" }
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (patch, posision_ids, attention_mask, window_index),
+                    onnx_model,
+                    input_names=['patches', 'position_ids', 'attention_mask', 'window_index'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "patches": { 0: "size" },
+                        "position_ids": { 1: "size" },
+                        "attention_mask": { 2: "size", 3: "size" },
+                        "window_index": { 0: "size" }
+                    })
         return onnx_model
 
 class Qwen2_5OmniVision(Qwen2_5Vision):
@@ -830,7 +823,7 @@ class Qwen3Vision(Qwen2Vision):
             rotary_pos_emb = rotary_pos_emb.to(hidden_states.dtype)
         deepstack_feature_lists = []
         for layer_num, blk in enumerate(self.blocks):
-            hidden_states, _ = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask)
+            hidden_states = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask)
             if layer_num in self.deepstack_visual_indexes:
                 deepstack_feature = self.deepstack_merger_list[self.deepstack_visual_indexes.index(layer_num)](
                     hidden_states
@@ -849,21 +842,138 @@ class Qwen3Vision(Qwen2Vision):
         idx_tensor = torch.zeros([4, 256], dtype=torch.int32)
         weight_tensor = torch.randn([4, 256])
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (patch, posision_ids, attention_mask, idx_tensor, weight_tensor),
-                        onnx_model,
-                        input_names=['patches', 'position_ids', 'attention_mask', 'idx_tensor', 'weight_tensor'],
-                        output_names=['image_embeds', 'deepstack_feature'],
-                        dynamic_axes={
-                            "patches": { 0: "size" },
-                            "position_ids": { 1: "size" },
-                            "attention_mask": { 1: "size", 2: "size" },
-                            "idx_tensor": { 1: "size" },
-                            "weight_tensor": { 1: "size" }
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (patch, posision_ids, attention_mask, idx_tensor, weight_tensor),
+                    onnx_model,
+                    input_names=['patches', 'position_ids', 'attention_mask', 'idx_tensor', 'weight_tensor'],
+                    output_names=['image_embeds', 'deepstack_feature'],
+                    dynamic_axes={
+                        "patches": { 0: "size" },
+                        "position_ids": { 1: "size" },
+                        "attention_mask": { 1: "size", 2: "size" },
+                        "idx_tensor": { 1: "size" },
+                        "weight_tensor": { 1: "size" }
+                    })
         return onnx_model
+
+class Qwen3_5Vision(Qwen2Vision):
+    def __init__(self, visual, base):
+        super().__init__(visual, base)
+        self.patch_size = 16
+        self.image_height = 480
+        self.image_width = 480
+
+        self.image_height = 256
+        self.image_width = 256
+
+        self.min_pixels = 65536
+        self.max_pixels = 16777216
+        self.merge_unit = self.merge_size * self.merge_size
+        self.num_grid_per_side = visual.num_grid_per_side
+        self.pos_embed = visual.pos_embed
+        self.norm_mean = self.norm_std = [0.5, 0.5, 0.5]
+        image_mean = np.array(self.norm_mean) * 255.0
+        image_norm = 1 / (np.array(self.norm_std) * 255.0)
+        self.llm_config['image_mean'] = image_mean.tolist()
+        self.llm_config['image_norm'] = image_norm.tolist()
+        self.llm_config['num_grid_per_side'] = self.num_grid_per_side
+        self.llm_config['has_deepstack'] = True
+
+    def get_idx_weight(self, grid_thw):
+        grid_ts, grid_hs, grid_ws = grid_thw[:, 0], grid_thw[:, 1], grid_thw[:, 2]
+        idx_list = [[] for _ in range(4)]
+        weight_list = [[] for _ in range(4)]
+
+        for t, h, w in zip(grid_ts, grid_hs, grid_ws):
+            h_idxs = torch.linspace(0, self.num_grid_per_side - 1, h)
+            w_idxs = torch.linspace(0, self.num_grid_per_side - 1, w)
+            h_idxs_floor = h_idxs.int()
+            w_idxs_floor = w_idxs.int()
+            h_idxs_ceil = (h_idxs.int() + 1).clip(max=self.num_grid_per_side - 1)
+            w_idxs_ceil = (w_idxs.int() + 1).clip(max=self.num_grid_per_side - 1)
+
+            dh = h_idxs - h_idxs_floor
+            dw = w_idxs - w_idxs_floor
+
+            base_h = h_idxs_floor * self.num_grid_per_side
+            base_h_ceil = h_idxs_ceil * self.num_grid_per_side
+
+            indices = [
+                (base_h[None].T + w_idxs_floor[None]).flatten(),
+                (base_h[None].T + w_idxs_ceil[None]).flatten(),
+                (base_h_ceil[None].T + w_idxs_floor[None]).flatten(),
+                (base_h_ceil[None].T + w_idxs_ceil[None]).flatten(),
+            ]
+
+            weights = [
+                ((1 - dh)[None].T * (1 - dw)[None]).flatten(),
+                ((1 - dh)[None].T * dw[None]).flatten(),
+                (dh[None].T * (1 - dw)[None]).flatten(),
+                (dh[None].T * dw[None]).flatten(),
+            ]
+
+            for i in range(4):
+                idx_list[i].extend(indices[i].tolist())
+                weight_list[i].extend(weights[i].tolist())
+
+        idx_tensor = torch.tensor(idx_list, dtype=torch.long, device=self.pos_embed.weight.device)
+        weight_tensor = torch.tensor(weight_list, dtype=self.pos_embed.weight.dtype, device=self.pos_embed.weight.device)
+        merge_size = self.merge_size
+        idx_tensor = idx_tensor.repeat(1, t)
+        idx_tensor = idx_tensor.view(4, t, h // merge_size, merge_size, w // merge_size, merge_size).permute(0, 1, 2, 4, 3, 5).reshape(4, -1)
+        weight_tensor = weight_tensor.repeat(1, t)
+        weight_tensor = weight_tensor.view(4, t, h // merge_size, merge_size, w // merge_size, merge_size).permute(0, 1, 2, 4, 3, 5).reshape(4, -1)
+        return idx_tensor, weight_tensor
+
+    def embed(self, input_ids, images = None, videos = None):
+        input_embeds = self.embed_(input_ids)
+        if self.image_embeds is not None and len(self.image_embeds) > 0:
+            image_mask = (input_ids == self.image_pad_id).squeeze()
+            input_embeds[image_mask] = torch.concat(self.image_embeds, dim=0).to(input_embeds.dtype)
+        return input_embeds
+
+    def images_forward(self, images):
+        flatten_patches, grid_thw = self.vision_reshape(images)
+        idx_tensor, weight_tensor = self.get_idx_weight(grid_thw)
+        position_ids = self.vision_position_ids(grid_thw)
+        attention_mask = self.vision_attention_mask(grid_thw)
+        image_embeds = self.forward(flatten_patches, position_ids, attention_mask, idx_tensor, weight_tensor)
+        return image_embeds
+
+    def forward(self, flatten_patches, position_ids, attention_mask, idx_tensor, weight_tensor):
+        rotary_pos_emb = self.rotary(position_ids)
+        hidden_states = self.patch_embed(flatten_patches)
+        pos_embeds = self.pos_embed(idx_tensor) * weight_tensor.unsqueeze(2)
+        pos_embeds = torch.sum(pos_embeds, 0, False)
+        hidden_states = hidden_states + pos_embeds
+        if rotary_pos_emb.dtype != hidden_states.dtype:
+            rotary_pos_emb = rotary_pos_emb.to(hidden_states.dtype)
+        for _, blk in enumerate(self.blocks):
+            hidden_states = blk(hidden_states, rotary_pos_emb=rotary_pos_emb, attention_mask=attention_mask)
+        image_embeds = self.merger(hidden_states)
+        image_embeds = image_embeds.unsqueeze(1)
+        return image_embeds
+
+    @spinner_run(f'export visual to ')
+    def export(self, onnx_path):
+        patch = torch.randn([256, 1536])
+        posision_ids = torch.zeros([2, 256], dtype=torch.int32)
+        attention_mask = torch.zeros([1, 256, 256], dtype=torch.float)
+        idx_tensor = torch.zeros([4, 256], dtype=torch.int32)
+        weight_tensor = torch.randn([4, 256])
+        onnx_model = f'{onnx_path}/visual.onnx'
+        onnx_export(self, (patch, posision_ids, attention_mask, idx_tensor, weight_tensor),
+                    onnx_model,
+                    input_names=['patches', 'position_ids', 'attention_mask', 'idx_tensor', 'weight_tensor'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "patches": { 0: "size" },
+                        "position_ids": { 1: "size" },
+                        "attention_mask": { 1: "size", 2: "size" },
+                        "idx_tensor": { 1: "size" },
+                        "weight_tensor": { 1: "size" }
+                    })
+        return onnx_model
+
 
 # SmolVLM & SmolVLM2
 class Idefics3Vision(Vision):
@@ -876,8 +986,8 @@ class Idefics3Vision(Vision):
         self.image_mean = np.array([0.5, 0.5, 0.5], dtype=np.float32)
         self.image_norm = np.array([0.5, 0.5, 0.5], dtype=np.float32)
         super().__init__(visual, base)
-        self.connector = base.model.model.connector.float()
         self.visual = self.visual.float()
+        self.connector = self.visual.connector.float()
         self.quant_bit = 8
         self.transformer_fuse = False
 
@@ -1046,16 +1156,13 @@ class Idefics3Vision(Vision):
     def export(self, onnx_path):
         pixel_values = torch.randn([1, 3, self.patch_size, self.patch_size])
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (pixel_values),
-                        onnx_model,
-                        input_names=['pixel_values'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "pixel_values": { 0: "size" },
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=15)
+        onnx_export(self, (pixel_values),
+                    onnx_model,
+                    input_names=['pixel_values'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "pixel_values": { 0: "size" },
+                    })
         return onnx_model
 
 # FastVLM
@@ -1063,7 +1170,7 @@ class MobileCLIPVision(QwenVision):
     def __init__(self, visual, base):
         super().__init__(visual, base)
         self.visual = visual.float()
-        self.mm_projector = base.model.model.mm_projector.float()
+        self.mm_projector = self.visual.mm_projector.float()
         self.quant_bit = 8
         self.group_conv_native = False
 
@@ -1110,7 +1217,7 @@ class MiniCPMVision(Vision):
         self.encoder = self.visual.encoder
         self.post_layernorm = self.visual.post_layernorm
         # rebuild resampler
-        self.resampler = base.model.resampler.float()
+        self.resampler = self.visual.resampler.float()
         attrs = ['query', 'kv_proj', 'ln_kv', 'ln_q', 'attn', 'ln_post', 'proj', 'pos_embed', 'embed_dim']
         for attr in attrs:
             setattr(self, attr, getattr(self.resampler, attr))
@@ -1132,13 +1239,13 @@ class MiniCPMVision(Vision):
         self.vision_id_end_token = '</image_id>'
         self.vision_slice_start_token = '<slice>'
         self.vision_slice_end_token = '</slice>'
-        self.vision_start_id = self.tokenizer.encode(self.vision_start_token)[1]
-        self.vision_end_id = self.tokenizer.encode(self.vision_end_token)[1]
-        self.image_pad_id = self.tokenizer.encode(self.image_pad_token)[1]
-        self.vision_id_start_id = self.tokenizer.encode(self.vision_id_start_token)[1]
-        self.vision_id_end_id = self.tokenizer.encode(self.vision_id_end_token)[1]
-        self.vision_slice_start_id = self.tokenizer.encode(self.vision_slice_start_token)[1]
-        self.vision_slice_end_id = self.tokenizer.encode(self.vision_slice_end_token)[1]
+        self.vision_start_id = self.tokenizer.encode(self.vision_start_token)[-1]
+        self.vision_end_id = self.tokenizer.encode(self.vision_end_token)[-1]
+        self.image_pad_id = self.tokenizer.encode(self.image_pad_token)[-1]
+        self.vision_id_start_id = self.tokenizer.encode(self.vision_id_start_token)[-1]
+        self.vision_id_end_id = self.tokenizer.encode(self.vision_id_end_token)[-1]
+        self.vision_slice_start_id = self.tokenizer.encode(self.vision_slice_start_token)[-1]
+        self.vision_slice_end_id = self.tokenizer.encode(self.vision_slice_end_token)[-1]
         self.llm_config['image_size_unit'] = self.patch_size
         self.llm_config['image_size'] = self.image_size
         # self.llm_config['image_max_size'] = self.image_max_size
@@ -1402,17 +1509,14 @@ class MiniCPMVision(Vision):
         tgt_sizes = torch.tensor([[num_patches, num_patches]] * num_grids, dtype=torch.int32)
         position_ids = self.gen_position_ids(tgt_sizes, self.num_patches_per_side)
         onnx_model = f'{onnx_path}/visual.onnx'
-        torch.onnx.export(self, (pixel_values, position_ids, attention_mask, tgt_sizes),
-                        onnx_model,
-                        input_names=['pixel_values', 'position_ids', 'attention_mask', 'tgt_sizes'],
-                        output_names=['image_embeds'],
-                        dynamic_axes={
-                            "pixel_values": { 0: "num", 3: "size" },
-                            "position_ids": { 0: "num", 1: "size" },
-                            "attention_mask": { 0: "num", 1: "size" },
-                            "tgt_sizes": { 0: "num" }
-                        },
-                        do_constant_folding=True,
-                        verbose=False,
-                        opset_version=18)
+        onnx_export(self, (pixel_values, position_ids, attention_mask, tgt_sizes),
+                    onnx_model,
+                    input_names=['pixel_values', 'position_ids', 'attention_mask', 'tgt_sizes'],
+                    output_names=['image_embeds'],
+                    dynamic_axes={
+                        "pixel_values": { 0: "num", 3: "size" },
+                        "position_ids": { 0: "num", 1: "size" },
+                        "attention_mask": { 0: "num", 1: "size" },
+                        "tgt_sizes": { 0: "num" }
+                    })
         return onnx_model

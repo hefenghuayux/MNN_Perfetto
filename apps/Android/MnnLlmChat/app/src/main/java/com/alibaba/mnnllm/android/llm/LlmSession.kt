@@ -20,15 +20,15 @@ import android.content.Context
 import android.app.ActivityManager
 import com.alibaba.mnnllm.android.modelsettings.Jinja
 import com.alibaba.mnnllm.android.modelsettings.JinjaContext
-import com.alibaba.mnnllm.android.modelsettings.ModelConfig.Companion.defaultConfig
 import com.alibaba.mnnllm.android.modelsettings.ModelConfig.Companion.loadConfig
 import com.alibaba.mnnllm.android.utils.FileSplitter
-
+import com.alibaba.mnnllm.android.qnn.QnnModule
 class LlmSession (
     private val modelId: String,
     override var sessionId: String,
     private val configPath: String,
     var savedHistory: List<ChatDataItem>?,
+    var backendType: String? = null
 ): ChatSession{
     override var supportOmni: Boolean = false
     private var nativePtr: Long = 0
@@ -44,6 +44,8 @@ class LlmSession (
 
     private var keepHistory = false
 
+    private var isQnn = false
+
     override fun getHistory(): List<ChatDataItem>?{
         return savedHistory
     }
@@ -52,12 +54,11 @@ class LlmSession (
     }
 
     override fun load() {
-        Log.d(TAG, "MNN_DEBUG load begin")
+        Log.d(TAG, "MNN_DEBUG load begin modelId: $modelId backend: $backendType")
         modelLoading = true
-        
-        // Check and merge split files before loading the model
+        isQnn = ModelTypeUtils.isQnnModel(modelId)
+
         checkAndMergeSplitFiles()
-        
         var historyStringList: List<String>? = null
         val currentHistory = this.savedHistory
         if (!currentHistory.isNullOrEmpty()) {
@@ -79,13 +80,20 @@ class LlmSession (
             put("mmap_dir", rootCacheDir ?: "")
             put("keep_history", keepHistory)
         }
-        val extraConfig = ModelConfig.loadMergedConfig(configPath, getExtraConfigFile(modelId))
+        val llmConfig = ModelConfig.loadMergedConfig(configPath, getExtraConfigFile(modelId))!!
+        // Override backend type from constructor only if not null
+        if (backendType != null) {
+            llmConfig.backendType = backendType
+        }
+        if (isQnn) {
+            llmConfig.visualModel = "visual_qnn_${QnnModule.modelMiddleName()}.mnn"
+        }
         Log.d(TAG, "MNN_DEBUG load initNative")
         nativePtr = initNative(
                 configPath,
                 historyStringList,
-        if (extraConfig != null) {
-            Gson().toJson(extraConfig)
+        if (llmConfig != null) {
+            Gson().toJson(llmConfig)
         } else {
             "{}"
         },

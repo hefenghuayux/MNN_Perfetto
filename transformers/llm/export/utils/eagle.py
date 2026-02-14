@@ -12,7 +12,7 @@ from utils.custom_op import FakeLinear
 from transformers.configuration_utils import PretrainedConfig
 from transformers.activations import ACT2FN
 from utils.spinner import spinner_run
-
+from .torch_utils import onnx_export
 
 
 class Eagle(torch.nn.Module):
@@ -22,31 +22,28 @@ class Eagle(torch.nn.Module):
         config_file_path = eagle_path + "/config.json"
         self.eagle_config = PretrainedConfig.from_json_file(config_file_path)
 
-        self.model_type = base.model_type
+        self.model_type = base.config.model_type
         self.eagle_path = eagle_path
 
         self.config = base.config
-        if not hasattr(base.config, 'head_dim'):
-            self.config.head_dim = base.head_dim
-        # self.config.rotary = base.rotary
+        if hasattr(self.eagle_config, "head_dim"):
+            self.config.head_dim = self.eagle_config.head_dim
 
         self.rope_theta = 10000
         self.rope_ratio = 1.0
         self.head_dim = self.config.head_dim
-        self.config.rotary = Rotary(self)
-        self.config.model_type = base.model_type
-        self.config.model_map = base.model_map
-        self.hidden_size = base.hidden_size
+        self.hidden_size = self.config.hidden_size
         if self.eagle_config.hidden_size != self.hidden_size:
             raise RuntimeError(f'eagle_config hidden_size not equal: {self.eagle_config.hidden_size}, {self.hidden_size}!')
-        self.past_kv_shape = base.past_kv_shape
-        self.num_attention_heads = base.num_attention_heads
-        self.llm_config = base.llm_config
+        # self.past_kv_shape = base.past_kv_shape
+        self.num_attention_heads = self.config.num_attention_heads
+        self.past_kv_shape = [self.config.num_hidden_layers, 2, 1, 0, self.config.num_key_value_heads, self.config.head_dim]
 
-        self.head_dim = self.hidden_size // self.num_attention_heads
+        self.head_dim = self.config.head_dim
         self.num_key_value_heads = self.config.num_key_value_heads
         self.num_key_value_groups = self.num_attention_heads // self.num_key_value_heads
-
+        # self.config.head_dim = self.head_dim
+        self.config.rotary = Rotary(self)
         # eagle config params
         self.padding_idx = self.eagle_config.pad_token_id
         self.vocab_size = self.eagle_config.vocab_size
@@ -68,7 +65,7 @@ class Eagle(torch.nn.Module):
         # midlayer.input_layernorm
         self.midlayer.input_layernorm = RMSNorm(self.hidden_size, eps=self.eagle_config.rms_norm_eps)
         # midlayer.self_attn
-        self.midlayer.self_attn = Attention(None, 0, self.config)
+        self.midlayer.self_attn = Attention(None, 0, self.config, base.rotary, self.config.model_map)
         self.midlayer.self_attn.q_proj = nn.Linear(self.hidden_size * 2, self.num_attention_heads * self.head_dim, bias=False)
         self.midlayer.self_attn.k_proj = nn.Linear(self.hidden_size * 2, self.num_key_value_heads * self.head_dim, bias=False)
         self.midlayer.self_attn.v_proj = nn.Linear(self.hidden_size * 2, self.num_key_value_heads * self.head_dim, bias=False)
@@ -123,7 +120,7 @@ class Eagle(torch.nn.Module):
         }
         if model_type in eagles:
             return eagles[model_type]
-        return None
+        return LlamaEagle
 
     @spinner_run(f'export onnx model to ')
     def export(self, onnx_path):
@@ -150,18 +147,15 @@ class Eagle(torch.nn.Module):
 
         # For export onnx, don't need image or audio's embedding
         input_embed = self.embed_tokens(input_ids)
-        past_key_values = torch.zeros(self.past_kv_shape[1:])
+        past_key_values = torch.zeros(self.past_kv_shape[1:-1] + [self.head_dim])
         # export to onnx
         with torch.no_grad():
-            torch.onnx.export(self.fc, (fc_hidden),
+            onnx_export(self.fc, (fc_hidden),
                 eagle_fc_model,
                 input_names=['fc_hidden'],
                 output_names=['hidden_states'],
-                dynamic_axes={ "fc_hidden" : { 1: "seq_len" } },
-                do_constant_folding=True,
-                verbose=False,
-                opset_version=15)
-            torch.onnx.export(
+                dynamic_axes={ "fc_hidden" : { 1: "seq_len" } })
+            onnx_export(
                 self, (input_embed, hidden_states, attention_mask, position_ids, past_key_values, logits_index),
                 eagle_model,
                 input_names=[
@@ -176,10 +170,7 @@ class Eagle(torch.nn.Module):
                     "attention_mask" : { 2: "seq_len", 3: "seq_len" },
                     "position_ids" : { 1: "seq_len" },
                     "past_key_values" : { 2: "history_len" }
-                    },
-                do_constant_folding=True,
-                verbose=False,
-                opset_version=15)
+                    })
         return eagle_model, eagle_fc_model
 
     def load(self):
@@ -193,9 +184,18 @@ class LlamaEagle(Eagle):
         super().__init__(eagle_path, base)
 
     def load(self):
-        load_model_path = os.path.join(self.eagle_path, "pytorch_model.bin")
-        ea_layer_state_dict = torch.load(load_model_path,
-                                         map_location="cpu")
+        safetensors_path = os.path.join(self.eagle_path, "model.safetensors")
+        bin_path = os.path.join(self.eagle_path, "pytorch_model.bin")
+        ea_layer_state_dict = None
+        if os.path.exists(safetensors_path):
+            from safetensors.torch import load_file
+            ea_layer_state_dict = load_file(safetensors_path, device="cpu")
+        elif os.path.exists(bin_path):
+            ea_layer_state_dict = torch.load(bin_path, map_location="cpu")
+        else:
+            raise FileNotFoundError(
+                f"Eagle path '{self.eagle_path}' not found 'model.safetensors' or 'pytorch_model.bin'."
+            )
         self.load_state_dict(ea_layer_state_dict, strict=False)
 
     def forward(self,
@@ -224,7 +224,6 @@ class LlamaEagle(Eagle):
             rotary_pos_emb=rotary_pos_emb,
             attention_mask=attention_mask,
             past_key_value=past_key_values,
-            cross_attention_states=None,
         )
 
         hidden_states = residual + hidden_states

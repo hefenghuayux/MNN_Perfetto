@@ -475,6 +475,7 @@ Calibration::Calibration(MNN::NetT* model, const uint8_t* modelBuffer, const int
     }
     if (picObj.HasMember("batch_size")) {
         _batch = picObj["batch_size"].GetInt();
+        _batchSetByUser = true;
     }
     if (picObj.HasMember("quant_bits")) {
         _quant_bits = picObj["quant_bits"].GetInt();
@@ -569,7 +570,7 @@ Calibration::Calibration(MNN::NetT* model, const uint8_t* modelBuffer, const int
     config.backupType = MNN_FORWARD_CPU;
     BackendConfig backendConfig;
     config.backendConfig     = &backendConfig;
-    
+
     std::shared_ptr<Executor::RuntimeManager> rtmgr(Executor::RuntimeManager::createRuntimeManager(config));
     if (_featureQuantizeMethod == "KL" || _featureQuantizeMethod == "ADMM") {
         _featureInfo.clear();
@@ -652,7 +653,7 @@ Calibration::Calibration(MNN::NetT* model, const uint8_t* modelBuffer, const int
         }
     }
 
-    
+
     if (_debug) {
         _moduleOrigin.reset(Module::load(mInputNames, mOutputNames, originalModelFile.c_str(), rtmgr)); // rtmgr.mode->debug
     }
@@ -834,6 +835,7 @@ void Calibration::_collectFeatureMapsDistribution() {
             Helper::preprocessInput(_process.get(), _preprocessConfig, file, inputTensor, _inputType, mInputs[0]);
         }
         MNN::TensorCallBackWithInfo before = [&](const std::vector<MNN::Tensor*>& nTensors, const MNN::OperatorInfo* info) {
+            std::vector<std::weak_ptr<MNN::Tensor::InsideDescribe::NativeInsideDescribe>> inputsWeakPtrs;
             for (auto t : nTensors) {
                 if (TensorUtils::getDescribe(t)->index < 0) {
                     continue;
@@ -844,6 +846,16 @@ void Calibration::_collectFeatureMapsDistribution() {
                         _featureInfo[weakPtr]->updateDistribution();
                     }
                 }
+                if (info->type() == "Raster" || info->type() == "Pooling") {
+                    inputsWeakPtrs.emplace_back(weakPtr);
+                }
+            }
+
+            // store all raster input tensor
+            if (info->type() == "Raster") {
+                _rasterTensors[info->name()] = std::make_pair(inputsWeakPtrs[0], inputsWeakPtrs);
+            } else if (info->type() == "Pooling") {
+                _poolTensors[info->name()] = std::make_pair(inputsWeakPtrs[0], inputsWeakPtrs);
             }
             return true;
         };
@@ -858,6 +870,17 @@ void Calibration::_collectFeatureMapsDistribution() {
                         _featureInfo[weakPtr]->updateDistribution();
                     }
                 }
+            }
+
+            // store raster output tensor
+            if (info->type() == "Raster") {
+                auto inputsWeakPtrs = _rasterTensors[info->name()].second;
+                auto outputweakPtr = std::weak_ptr<Tensor::InsideDescribe::NativeInsideDescribe>(TensorUtils::getDescribeOrigin(nTensors[0])->mContent);
+                _rasterTensors[info->name()] = std::make_pair(outputweakPtr, inputsWeakPtrs);
+            } else if (info->type() == "Pooling") {
+                auto inputsWeakPtrs = _poolTensors[info->name()].second;
+                auto outputweakPtr = std::weak_ptr<Tensor::InsideDescribe::NativeInsideDescribe>(TensorUtils::getDescribeOrigin(nTensors[0])->mContent);
+                _poolTensors[info->name()] = std::make_pair(outputweakPtr, inputsWeakPtrs);
             }
             return true;
         };
@@ -880,6 +903,31 @@ void Calibration::_computeFeatureScaleKL() {
         AUTOTIME;
         _scales[iter.first] = iter.second->finishAndCompute();
     }
+
+    for (auto& iter: _rasterTensors) {
+        auto inputsPtr = iter.second.second;
+        auto outputPtr = iter.second.first;
+        if (inputsPtr.size() > 1) {
+            for (auto& inputWeakPtr: inputsPtr) {
+                _scales[inputWeakPtr].first = _scales[outputPtr].first;
+                _scales[inputWeakPtr].second = _scales[outputPtr].second;
+            }
+        } else {
+            auto inputWeakPtr = inputsPtr[0];
+            _scales[outputPtr].first = _scales[inputWeakPtr].first;
+            _scales[outputPtr].second = _scales[inputWeakPtr].second;
+        }
+    }
+    for (auto& iter: _poolTensors) {
+        auto inputsPtr = iter.second.second;
+        auto outputPtr = iter.second.first;
+
+        for (auto& inputWeakPtr: inputsPtr) {
+            _scales[outputPtr].first  = _scales[inputWeakPtr].first;
+            _scales[outputPtr].second = _scales[inputWeakPtr].second;
+        }
+
+    }
 }
 
 void Calibration::_computeFeatureScaleADMM() {
@@ -896,7 +944,7 @@ void Calibration::_computeFeatureScaleADMM() {
             inputTensors[i] = inputs[i]->getTensor();
         }
     }
-    
+
     auto dimType                        = MNN::Tensor::CAFFE_C4;
     if (netInfo->inputs[0].order == NHWC) {
         dimType = MNN::Tensor::TENSORFLOW;
@@ -1016,7 +1064,7 @@ void Calibration::_insertScale() {
         if (des->index < 0) {
             continue;
         }
-        
+
         describe->index = des->index;
         describe->quantInfo.reset(new MNN::TensorQuantInfoT);
         describe->quantInfo->scale = iter.second.first;
@@ -1233,6 +1281,12 @@ void Calibration::_quantizeModelEMA() {
         originDims = originInfo->dim;
         originType = originInfo->type;
     }
+    if (!_batchSetByUser && !originDims.empty() && originDims[0] > 0) {
+        if (_batch != originDims[0]) {
+            DLOG(INFO) << "batch_size not set, use model batch: " << originDims[0];
+            _batch = originDims[0];
+        }
+    }
     _module.reset(NN::extract(varInputs, varOutputs, true), Module::destroy);
     NN::turnQuantize(_module.get(), _quant_bits, NN::PerTensor, NN::MovingAverage, _winogradOpt);
 
@@ -1424,7 +1478,7 @@ void Calibration::dumpTensorScales(const std::string& modelFile) {
             for (int i = 0; i < outputSize; ++i) {
                 const auto curOutputIndex = outputIndexes[i];
 
-                
+
                 auto weakPtr = _tensorMap[curOutputIndex].first.lock();
                 auto outputOpScale = _scales[weakPtr];
 
