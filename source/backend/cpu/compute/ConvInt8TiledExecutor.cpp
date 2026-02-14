@@ -682,9 +682,7 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
 
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        auto hybridParams = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(totalWork, mDivides.data() + 1, flop / ios);
-        mTotalTasks = hybridParams.first * part;  // 需要乘以 part
-        mDynamicStepSize = hybridParams.second;
+        static_cast<CPUBackend *>(backend())->computeDivideSizes(totalWork, mDivides.data() + 1, flop / ios);
         for (int i = 0; i < mDivides.size(); ++i) {
             mDivides[i] *= part;
         }
@@ -694,14 +692,8 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
         mThreadNums = ALIMIN(threads, mTileCount);
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        auto hybridParams = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(mTileCount, mDivides.data() + 1, flop / ios);
-        mTotalTasks = hybridParams.first;
-        mDynamicStepSize = hybridParams.second;
+        static_cast<CPUBackend *>(backend())->computeDivideSizes(mTileCount, mDivides.data() + 1, flop / ios);
     }
-
-    // 旁路判断：当静态比例 >= 1.0 时，使用原版静态调度路径
-    auto tuningParams = AutoTuner::getInstance()->getTuningParams();
-    mUseStaticOnly = (tuningParams.static_ratio >= 0.999f);
     int ocUp4 = ROUND_UP(outC, gcore->pack);
     int k = mThreadNums;
     int workPT = DST_XUNIT * mIm2ColCount;
@@ -1485,216 +1477,87 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             memset(xKernelSumPtr, 0, mTileCount * mBlockNum * DST_XUNIT * mIm2ColCount * QUANT_INFO_BYTES);
         }
 
-        // ================== 旁路判断：静态路径 vs 混合调度路径 ==================
-        if (mUseStaticOnly) {
-            // ===== 快速路径：纯静态调度，无原子变量/闭包开销 =====
-            MNN_CONCURRENCY_BEGIN(tId, threads) {
-                int ocBlockStart = mDivides[tId];
-                int ocBlockEnd = mDivides[tId + 1];
-                int ocDivThread = ALIMIN(ocBlockEnd - ocBlockStart, ocDiv4 - ocBlockStart);
-                int ocIndex = PackUnit * ocBlockStart;
-                
-                if (ocIndex < ocUp4 && ocDivThread > 0) {
-                    auto im2colDstThread = im2colDst;
-                    float* ptrY = nullptr;
-                    if (dstBytes != 1) {
-                        ptrY = mResourceInt8->mWeightKernelSum->host<float>() + (ocIndex / UNIT) * UNIT * mInputBlockNum;
-                    }
-                    QuanPostTreatParameters quanParam;
-                    quanParam.blockNum = mBlockNum;
-                    quanParam.weightKernelSum = ptrY;
-                    quanParam.biasFloat = reinterpret_cast<float*>(biasPtr + ocIndex * 4);
-                    int32_t indices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-                    if (dstBytes != 1) {
-                        quanParam.useInt8 = 0;
-                        quanParam.fp32minmax = reluPtr;
-#ifdef MNN_USE_SSE
-                        if (!mBatchQuantInfo.get()) {
-                            quanParam.weightKernelSum = nullptr;
-                        }
-#endif
-                    } else {
-                        quanParam.maxValue = mMutableResource->mClampMax;
-                        if (mResourceInt8->mRelu) {
-                            quanParam.minValue = mMutableResource->mOutputZeroPoint;
-                        } else {
-                            quanParam.minValue = mMutableResource->mClampMin;
-                        }
-                    }
-                    quanParam.indices = indices;
-                    uint8_t* inputScale = nullptr; 
-                    uint8_t* inputBias = nullptr;
-                    float* accumbuff = nullptr;
-                    if (mBatchQuantInfo.get()) {
-                        inputScale = mBatchQuantInfo->host<uint8_t>();
-                        if (dynamicOption == 2) {
-                            inputBias = inputScale + mInputBlockNum * plane * QUANT_INFO_BYTES;
-                        }
-                    } else {
-                        inputScale = (uint8_t*)fakeInputScales.data();
-                    }
-                    
-                    if (mBlockNum > 1) {
-                        accumbuff = reinterpret_cast<float*>(mAccumBuffer->host<int8_t>() + tId * mAccumBuffer->stride(0) * sizeof(int32_t));
-                    }
+        MNN_CONCURRENCY_BEGIN(tId, threads) {
+            int ocIndex = PackUnit * mDivides[tId];
+            auto ocDivThread = ALIMIN(mDivides[tId + 1] - mDivides[tId], ocDiv4 - mDivides[tId]);
 
-                    auto outputInTilePtr = outputDataPtr + ocIndex * plane * dstBytes;
-                    const auto weightPtrTid = weightDataPtr + static_cast<int32_t>(ocIndex * mBlockNum * blockL * SRC_UNIT * weightBytes + ocIndex * 2 * mBlockNum * QUANT_INFO_BYTES);
-                    int realDstCount = plane;
-                    auto ptrX = xKernelSumPtr;
-                    
-                    do {
-                        int step = ALIMIN(DST_XUNIT, realDstCount);
-                        quanParam.inputScale = (float*)inputScale;
-                        quanParam.inputBias = (float*)inputBias;
-                        quanParam.srcKernelSum = ptrX;
-                        if (mBlockNum > 1) {
-                            memset(accumbuff, 0, UNIT * 4 * DST_XUNIT);
-                            quanParam.accumBuffer = accumbuff;
-                        }
-                        mGemmKernel(outputInTilePtr, im2colDstThread, weightPtrTid, blockL, dstZStep * dstBytes, ocDivThread, &quanParam, step);
-                        ptrX += (step * mBlockNum);
-                        realDstCount -= step;
-                        outputInTilePtr += DST_XUNIT * PackUnit * dstBytes;
-                        im2colDstThread += unitColBufferSize;
-                        inputScale = mUseBatchQuan ? (inputScale + mInputBlockNum * step * QUANT_INFO_BYTES) : inputScale;
-                        inputBias = (inputBias != nullptr) ? (inputBias + mInputBlockNum * step * QUANT_INFO_BYTES) : inputBias;
-                    } while(realDstCount > 0);
+            if (ocIndex < ocUp4) {
+                auto im2colDstThread = im2colDst;
+                float* ptrY = nullptr;
+                if (dstBytes != 1) {
+                    ptrY = mResourceInt8->mWeightKernelSum->host<float>() + (ocIndex / UNIT) * UNIT * mInputBlockNum;
                 }
-            }
-            MNN_CONCURRENCY_END();
-        } else {
-            // ===== 混合调度路径：静态 + 动态抢占 =====
-            auto cpuBnOc = static_cast<CPUBackend*>(backend());
-            // 预先获取成员变量的值，避免 Lambda 内部通过 this 指针间接访问
-            auto gemmKernel = mGemmKernel;
-            auto blockNum = mBlockNum;
-            auto inputBlockNum = mInputBlockNum;
-            auto useBatchQuan = mUseBatchQuan;
-            auto* resourceInt8 = mResourceInt8.get();
-            auto* mutableResource = mMutableResource.get();
-            auto* batchQuantInfo = mBatchQuantInfo.get();
-            auto* accumBuffer = mAccumBuffer.get();
-            
-            MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
-                
-                // 优化 Lambda 捕获：显式值捕获高频变量，消除间接寻址开销
-                auto processOcRange = [
-                    // 值捕获高频指针和标量（消除间接寻址）
-                    im2colDst, weightDataPtr, biasPtr, outputDataPtr, xKernelSumPtr, reluPtr,
-                    plane, ocDiv4, ocUp4, dstBytes, blockL, dstZStep,
-                    unitColBufferSize, weightBytes, PackUnit, UNIT, SRC_UNIT, DST_XUNIT,
-                    dynamicOption, gemmKernel, blockNum, inputBlockNum, useBatchQuan,
-                    resourceInt8, mutableResource, batchQuantInfo, accumBuffer,
-                    // 引用捕获需要访问的其他变量
-                    &fakeInputScales, &tId
-                ](int ocBlockStart, int ocBlockEnd) {
-                    int count = ocBlockEnd - ocBlockStart;
-                    if (count <= 0) return;
-
-                    int ocIndex = PackUnit * ocBlockStart;
-                    auto ocDivThread = ALIMIN(ocBlockEnd - ocBlockStart, ocDiv4 - ocBlockStart);
-
-                    if (ocIndex < ocUp4 && ocDivThread > 0) {
-                        auto im2colDstThread = im2colDst;
-                        float* ptrY = nullptr;
-                        if (dstBytes != 1) {
-                            ptrY = resourceInt8->mWeightKernelSum->host<float>() + (ocIndex / UNIT) * UNIT * inputBlockNum;
-                        }
-                        QuanPostTreatParameters quanParam;
-                        quanParam.blockNum = blockNum;
-                        quanParam.weightKernelSum = ptrY;
-                        quanParam.biasFloat = reinterpret_cast<float*>(biasPtr + ocIndex * 4);
-                        int32_t indices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-                        if (dstBytes != 1) {
-                            quanParam.useInt8 = 0;
-                            quanParam.fp32minmax = reluPtr;
+                QuanPostTreatParameters quanParam;
+                quanParam.blockNum = mBlockNum;
+                quanParam.weightKernelSum = ptrY;
+                quanParam.biasFloat = reinterpret_cast<float*>(biasPtr + ocIndex * 4);
+                int32_t indices[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+                if (dstBytes != 1) {
+                    quanParam.useInt8 = 0;
+                    quanParam.fp32minmax = reluPtr;
 #ifdef MNN_USE_SSE
-                            if (!batchQuantInfo) {
-                                quanParam.weightKernelSum = nullptr;
-                            }
-#endif
-                        } else {
-                            quanParam.maxValue = mutableResource->mClampMax;
-                            if (resourceInt8->mRelu) {
-                                quanParam.minValue = mutableResource->mOutputZeroPoint;
-                            } else {
-                                quanParam.minValue = mutableResource->mClampMin;
-                            }
-                        }
-                        quanParam.indices = indices;
-                        uint8_t* inputScale = nullptr; 
-                        uint8_t* inputBias = nullptr;
-                        float* accumbuff = nullptr;
-                        if (batchQuantInfo) {
-                            inputScale = batchQuantInfo->host<uint8_t>();
-                            if (dynamicOption == 2) {
-                                inputBias = inputScale + inputBlockNum * plane * QUANT_INFO_BYTES;
-                            }
-                        } else {
-                            inputScale = (uint8_t*)fakeInputScales.data();
-                        }
-                        
-                        if (blockNum > 1) {
-                            accumbuff = reinterpret_cast<float*>(accumBuffer->host<int8_t>() + tId * accumBuffer->stride(0) * sizeof(int32_t));
-                        }
-
-                        auto outputInTilePtr = outputDataPtr + ocIndex * plane * dstBytes;
-                        const auto weightPtrTid = weightDataPtr + static_cast<int32_t>(ocIndex * blockNum * blockL * SRC_UNIT * weightBytes + ocIndex * 2 * blockNum * QUANT_INFO_BYTES);
-                        int realDstCount = plane;
-                        auto ptrX = xKernelSumPtr;
-                        
-                        do {
-                            int step = ALIMIN(DST_XUNIT, realDstCount);
-                            quanParam.inputScale = (float*)inputScale;
-                            quanParam.inputBias = (float*)inputBias;
-                            quanParam.srcKernelSum = ptrX;
-                            if (blockNum > 1) {
-                                memset(accumbuff, 0, UNIT * 4 * DST_XUNIT);
-                                quanParam.accumBuffer = accumbuff;
-                            }
-                            gemmKernel(outputInTilePtr, im2colDstThread, weightPtrTid, blockL, dstZStep * dstBytes, ocDivThread, &quanParam, step);
-                            ptrX += (step * blockNum);
-                            realDstCount -= step;
-                            outputInTilePtr += DST_XUNIT * PackUnit * dstBytes;
-                            im2colDstThread += unitColBufferSize;
-                            inputScale = useBatchQuan ? (inputScale + inputBlockNum * step * QUANT_INFO_BYTES) : inputScale;
-                            inputBias = (inputBias != nullptr) ? (inputBias + inputBlockNum * step * QUANT_INFO_BYTES) : inputBias;
-                        } while(realDstCount > 0);
+                    if (!mBatchQuantInfo.get()) {
+                        quanParam.weightKernelSum = nullptr;
                     }
-                };
+#endif
+                } else {
+                    quanParam.maxValue = mMutableResource->mClampMax;
+                    if (mResourceInt8->mRelu) {
+                        quanParam.minValue = mMutableResource->mOutputZeroPoint;
+                    } else {
+                        quanParam.minValue = mMutableResource->mClampMin;
+                    }
+                }
+                quanParam.indices = indices;
+                uint8_t* inputScale = nullptr; // input scale for batch dynamic quant.
+                uint8_t* inputBias = nullptr;
+                float* accumbuff = nullptr;
+                if (mBatchQuantInfo.get()) {
+                    inputScale = mBatchQuantInfo->host<uint8_t>();
+                    if (dynamicOption == 2) {
+                        inputBias = inputScale + mInputBlockNum * plane * QUANT_INFO_BYTES;
+                    }
+                } else {
+                    inputScale = (uint8_t*)fakeInputScales.data();
+                }
+                if (mBlockNum > 1) {
+                    accumbuff = reinterpret_cast<float*>(mAccumBuffer->host<int8_t>() + tId * mAccumBuffer->stride(0) * sizeof(int32_t));
+                }
 
-                MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), processOcRange);
-                MNN_HYBRID_DYNAMIC_RANGE(cpuBnOc, processOcRange);
-
+                auto outputInTilePtr = outputDataPtr + ocIndex * plane * dstBytes;
+                const auto weightPtrTid = weightDataPtr + static_cast<int32_t>(ocIndex * mBlockNum * blockL * SRC_UNIT * weightBytes + ocIndex * 2 * mBlockNum * QUANT_INFO_BYTES);
+                int realDstCount = plane;
+                auto ptrX = xKernelSumPtr;
+                do {
+                    int step = ALIMIN(DST_XUNIT, realDstCount);
+                    quanParam.inputScale = (float*)inputScale;
+                    quanParam.inputBias = (float*)inputBias;
+                    quanParam.srcKernelSum = ptrX;
+                    if (mBlockNum > 1) {
+                        memset(accumbuff, 0, UNIT * 4 * DST_XUNIT);
+                        quanParam.accumBuffer = accumbuff;
+                    }
+                    mGemmKernel(outputInTilePtr, im2colDstThread, weightPtrTid, blockL, dstZStep * dstBytes, ocDivThread, &quanParam, step);
+                    ptrX += (step * mBlockNum);
+                    realDstCount-=step;
+                    outputInTilePtr += DST_XUNIT * PackUnit * dstBytes;
+                    im2colDstThread += unitColBufferSize;
+                    inputScale = mUseBatchQuan ? (inputScale + mInputBlockNum * step * QUANT_INFO_BYTES) : inputScale;
+                    inputBias = (inputBias != nullptr) ? (inputBias + mInputBlockNum * step * QUANT_INFO_BYTES) : inputBias;
+                } while(realDstCount > 0);
             }
-            MNN_CONCURRENCY_HYBRID_END();
         }
-        // ==========================================================
+        MNN_CONCURRENCY_END();
+
     };
     const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
-    auto cpuBn = static_cast<CPUBackend*>(backend());
     if (!mSplitByOc) {
-        // ===== 旁路判断：静态路径 vs 混合调度路径 =====
-        if (mUseStaticOnly) {
-            // 快速路径：纯静态调度
-            MNN_CONCURRENCY_BEGIN(tId, threads) {
-                if (mDivides[tId + 1] - mDivides[tId] > 0) {
-                    tileSplitFunction((int)tId, mDivides[tId], mDivides[tId + 1], 1);
-                }
+        MNN_CONCURRENCY_BEGIN(tId, threads) {
+            if (mDivides[tId + 1] - mDivides[tId] > 0) {
+                tileSplitFunction((int)tId, mDivides[tId], mDivides[tId + 1], 1);
             }
-            MNN_CONCURRENCY_END();
-        } else {
-            // 混合调度路径
-            auto processTileRange = [&](int tileStart, int tileEnd) {
-                tileSplitFunction(0, tileStart, tileEnd, 1);
-            };
-            MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
-                MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), processTileRange);
-                MNN_HYBRID_DYNAMIC_RANGE(cpuBn, processTileRange);
-            }
-            MNN_CONCURRENCY_HYBRID_END();
         }
+        MNN_CONCURRENCY_END();
     } else {
         ocSplitFunction(threads);
     }
