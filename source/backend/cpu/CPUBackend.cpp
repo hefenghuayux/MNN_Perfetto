@@ -131,13 +131,12 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
         return {size, 1};  // 全静态，无动态任务
     }
     
-    // 3. 计算静态部分的任务数
+    // 3. 计算静态部分的任务数（纯整数运算，不做对齐优化）
     int total_static = (int)(size * params.static_ratio);
     
-    // 4. 关键约束：将静态边界对齐到 Cache Line，避免 False Sharing
-    // 对于 float (4字节)，Cache Line = 64字节 = 16个元素
-    // 使用向上取整，确保静态部分足够大，动态部分不会膨胀
-    total_static = alignToCacheLineUp(total_static, 4);
+    // [Phase 2 优化预留] 可在此处将 total_static 对齐到 Cache Line 边界，
+    // 避免静态/动态任务分界处的 False Sharing：
+    // total_static = alignToCacheLineUp(total_static, 4);
     
     // 确保静态部分不超过总任务数
     if (total_static > size) {
@@ -173,14 +172,12 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
     // 6. 计算动态任务步长（不在这里初始化状态，在执行时初始化）
     int dynamic_size = size - total_static;
     int step = 1;
-    if (dynamic_size > 0 && params.step_size > 0) {
-        // step_size 是期望的任务块数，计算每块的实际任务数
-        // 目标是将动态任务分成 step_size 个块，让所有线程有机会抢占
-        step = UP_DIV(dynamic_size, params.step_size);
+    if (dynamic_size > 0 && params.dynamic_blocks > 0) {
+        // dynamic_blocks 是期望的任务块数，计算每块的实际任务数
+        // 目标是将动态任务分成 dynamic_blocks 个块，让所有线程有机会抢占
+        step = UP_DIV(dynamic_size, params.dynamic_blocks);
         
-        // 注意：动态任务的步长不需要 Cache Line 对齐！
-        // False Sharing 只在静态/动态边界处需要考虑（已在 total_static 处理）
-        // 动态抢占时，每个线程处理不同的任务索引，输出到不同内存位置
+        // [Phase 2 优化预留] 动态任务的步长可考虑 Cache Line 对齐
         
         // 确保步长不会太大，至少给每个线程一个抢占机会
         int max_step = UP_DIV(dynamic_size, mThreadNumber);
@@ -189,6 +186,7 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
         }
         if (step < 1) step = 1;
     }
+    // dynamic_blocks <= 0 表示最细粒度（step=1，逐任务抢占）
     
     MNN_PRINT("HybridSplit Result - Static End: %d, Dynamic Size: %d, Step: %d, Threads: %d\n",
               total_static, dynamic_size, step, mThreadNumber);

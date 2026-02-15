@@ -123,11 +123,11 @@ public:
      * 
      * 从 AutoTuner 获取当前阶段参数（不再需要传递 is_prefill）
      * 逻辑：
-     * 1. 从 AutoTuner 获取 static_ratio 和 step_size
+     * 1. 从 AutoTuner 获取 static_ratio, affinity_mask 和 dynamic_blocks
      * 2. 静态部分按 mGroupWithComputeRate 性能比分配
      * 3. 动态部分通过原子计数器竞争获取
      * 
-     * @return pair<total_size, step_size> 用于执行时初始化动态状态
+     * @return pair<total_size, step> 用于执行时初始化动态状态
      */
     std::pair<int, int> computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
     

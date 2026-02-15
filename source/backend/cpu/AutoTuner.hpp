@@ -32,11 +32,13 @@ enum class InferencePhase {
  * @brief 任务划分的调优参数
  */
 struct TuningParams {
-    float static_ratio;    // 静态部分占比 [0.0, 1.0]
-    int step_size;         // 动态调度时每次抢占的任务块数（以迭代为单位）
+    float static_ratio;            // 静态部分占比 [0.0, 1.0]
+    unsigned long affinity_mask;   // CPU 核心亲和性掩码（16进制），Phase 1 仅存储不使用
+    int dynamic_blocks;            // 动态任务池切分份数，step = dynamic_size / dynamic_blocks
+                                   // 0 表示最细粒度（step=1，逐任务抢占）
     
-    TuningParams(float ratio = 0.8f, int step = 4)
-        : static_ratio(ratio), step_size(step) {}
+    TuningParams(float ratio = 0.8f, unsigned long mask = 0xFFFFFFFF, int blocks = 8)
+        : static_ratio(ratio), affinity_mask(mask), dynamic_blocks(blocks) {}
 };
 
 /**
@@ -82,7 +84,7 @@ public:
 
     /**
      * @brief 获取当前阶段的任务划分参数
-     * @return TuningParams 包含 static_ratio 和 step_size
+     * @return TuningParams 包含 static_ratio, affinity_mask 和 dynamic_blocks
      * 
      * 根据内部状态 mCurrentPhase 自动返回对应参数
      */
@@ -90,13 +92,16 @@ public:
     
     /**
      * @brief 设置 Prefill 阶段的调优参数
+     * @param static_ratio 静态部分占比 [0.0, 1.0]
+     * @param dynamic_blocks 动态任务池切分份数（0=最细粒度step=1）
+     * @param affinity_mask CPU 亲和性掩码（Phase 1 仅存储）
      */
-    void setPrefillParams(float static_ratio, int step_size);
+    void setPrefillParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask = 0xFFFFFFFF);
     
     /**
      * @brief 设置 Decode 阶段的调优参数
      */
-    void setDecodeParams(float static_ratio, int step_size);
+    void setDecodeParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask = 0xFFFFFFFF);
     
     /**
      * @brief 设置核心性能比（大核:中核:小核...）
@@ -160,10 +165,10 @@ private:
     static AutoTuner* sInstance;
     static std::mutex sInstanceMutex;
     
-    // Prefill 阶段参数（默认：静态80%，动态步长4）
+    // Prefill 阶段参数（默认：静态80%，动态部分分8块）
     TuningParams mPrefillParams;
     
-    // Decode 阶段参数（默认：全动态调度）
+    // Decode 阶段参数（默认：全动态，最细粒度）
     TuningParams mDecodeParams;
     
     // 当前推理阶段状态

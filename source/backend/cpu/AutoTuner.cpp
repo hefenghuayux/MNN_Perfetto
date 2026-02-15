@@ -34,16 +34,16 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(0.8f, 8)    // Prefill: 100% 静态，动态部分分成8块（每线程可抢约2块）
-    , mDecodeParams(0.0f, 1)     // Decode: 全动态，步长1
+    : mPrefillParams(0.8f, 0xFFFFFFFF, 8)    // Prefill: 80% 静态，动态部分分成8块（每线程可抢约2块）
+    , mDecodeParams(0.0f, 0xFFFFFFFF, 0)     // Decode: 全动态，最细粒度（step=1，逐任务抢占）
     , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
     , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1
     , mPanicMode(false) {
     MNN_PRINT("[AutoTuner] Initialized with default params:\n");
-    MNN_PRINT("  Prefill: static_ratio=%.2f, step_size=%d\n", 
-              mPrefillParams.static_ratio, mPrefillParams.step_size);
-    MNN_PRINT("  Decode:  static_ratio=%.2f, step_size=%d\n", 
-              mDecodeParams.static_ratio, mDecodeParams.step_size);
+    MNN_PRINT("  Prefill: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n", 
+              mPrefillParams.static_ratio, mPrefillParams.dynamic_blocks, mPrefillParams.affinity_mask);
+    MNN_PRINT("  Decode:  static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n", 
+              mDecodeParams.static_ratio, mDecodeParams.dynamic_blocks, mDecodeParams.affinity_mask);
 }
 
 void AutoTuner::setPhase(InferencePhase phase) {
@@ -83,29 +83,31 @@ TuningParams AutoTuner::getTuningParams() const {
     }
 }
 
-void AutoTuner::setPrefillParams(float static_ratio, int step_size) {
+void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask) {
     // 参数合法性检查
     if (static_ratio < 0.0f) static_ratio = 0.0f;
     if (static_ratio > 1.0f) static_ratio = 1.0f;
-    if (step_size < 1) step_size = 1;
+    if (dynamic_blocks < 0) dynamic_blocks = 0;
     
     mPrefillParams.static_ratio = static_ratio;
-    mPrefillParams.step_size = step_size;
+    mPrefillParams.dynamic_blocks = dynamic_blocks;
+    mPrefillParams.affinity_mask = affinity_mask;
     
-    MNN_PRINT("[AutoTuner] Prefill params updated: static_ratio=%.2f, step_size=%d\n",
-              static_ratio, step_size);
+    MNN_PRINT("[AutoTuner] Prefill params updated: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n",
+              static_ratio, dynamic_blocks, affinity_mask);
 }
 
-void AutoTuner::setDecodeParams(float static_ratio, int step_size) {
+void AutoTuner::setDecodeParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask) {
     if (static_ratio < 0.0f) static_ratio = 0.0f;
     if (static_ratio > 1.0f) static_ratio = 1.0f;
-    if (step_size < 1) step_size = 1;
+    if (dynamic_blocks < 0) dynamic_blocks = 0;
     
     mDecodeParams.static_ratio = static_ratio;
-    mDecodeParams.step_size = step_size;
+    mDecodeParams.dynamic_blocks = dynamic_blocks;
+    mDecodeParams.affinity_mask = affinity_mask;
     
-    MNN_PRINT("[AutoTuner] Decode params updated: static_ratio=%.2f, step_size=%d\n",
-              static_ratio, step_size);
+    MNN_PRINT("[AutoTuner] Decode params updated: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n",
+              static_ratio, dynamic_blocks, affinity_mask);
 }
 
 void AutoTuner::setCoreRatios(const std::vector<int>& ratios) {
@@ -162,8 +164,8 @@ bool AutoTuner::isPanicMode() const {
 
 void AutoTuner::reset() {
     // 恢复默认参数
-    mPrefillParams = TuningParams(0.8f, 8);
-    mDecodeParams = TuningParams(0.0f, 1);
+    mPrefillParams = TuningParams(0.8f, 0xFFFFFFFF, 8);
+    mDecodeParams = TuningParams(0.0f, 0xFFFFFFFF, 0);
     mPanicMode.store(false, std::memory_order_release);
     
     // Phase 2 TODO: 清除历史数据
