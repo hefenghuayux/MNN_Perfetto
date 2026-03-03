@@ -34,8 +34,8 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(0.8f, 0xFFFFFFFF, 8)    // Prefill: 80% 静态，动态部分分成8块（每线程可抢约2块）
-    , mDecodeParams(0.0f, 0xFFFFFFFF, 0)     // Decode: 全动态，最细粒度（step=1，逐任务抢占）
+    : mPrefillParams(0.0f, 0xFFFFFFFF, 600)    // Prefill: 80% 静态，动态部分分成8块（每线程可抢约2块）
+    , mDecodeParams(0.0f, 0xFFFFFFFF, 12)     // Decode: 全动态，最细粒度（step=1，逐任务抢占）
     , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
     , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1
     , mPanicMode(false) {
@@ -75,12 +75,15 @@ TuningParams AutoTuner::getTuningParams() const {
         case InferencePhase::PREFILL:
             return mPrefillParams;
         case InferencePhase::DECODE:
+        MNN_PRINT("AutoTuner: Returning Decode params: static_ratio=%.2f, dynamic_blocks=%d\n", 
+                  mDecodeParams.static_ratio, mDecodeParams.dynamic_blocks);
             return mDecodeParams;
         case InferencePhase::UNKNOWN:
         default:
             // 未知阶段默认使用 Prefill 参数（保守策略）
             return mPrefillParams;
     }
+    
 }
 
 void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask) {
@@ -173,6 +176,15 @@ void AutoTuner::reset() {
     // mDecodeHistory.clear();
     
     MNN_PRINT("[AutoTuner] Reset to default parameters\n");
+}
+TuningParams AutoTuner::getDecodeParams() const {
+    // 直接返回成员变量 mDecodeParams，不依赖 mCurrentPhase
+    return mDecodeParams;
+}
+
+TuningParams AutoTuner::getPrefillParams() const {
+    // 直接返回成员变量 mPrefillParams
+    return mPrefillParams;
 }
 
 } // namespace MNN

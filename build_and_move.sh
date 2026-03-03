@@ -117,3 +117,4 @@ echo "✅ 全部完成！"
 echo "本地路径: $OUTPUT_DIR"
 echo "共享路径: $FINAL_DEST_PARENT/$PACKAGE_NAME"
 echo "========================================"
+bash run_perfetto_batch.sh

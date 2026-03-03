@@ -1201,7 +1201,7 @@ int main(int argc, char ** argv) {
                 int64_t sampler_us =   0;
                 
                 // ============ 设置 Prefill 阶段 ============
-                MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+                
                 MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
                 if (prompt_tokens) {
@@ -1226,7 +1226,7 @@ int main(int argc, char ** argv) {
 
                 if (decodeTokens) {
                     // ============ 设置 Decode 阶段 ============
-                    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
+                   
                     // --- [修改 3] Decode 开始前 ---
                     MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
                     int d_start_total = g_task_count.load();

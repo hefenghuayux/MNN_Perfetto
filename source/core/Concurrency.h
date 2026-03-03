@@ -80,26 +80,30 @@
 // __divides__: 任务边界数组，布局为 [0, end1, end2, ...], 即 thread i 处理 [divides[i], divides[i+1])
 #define MNN_HYBRID_EXECUTE_STATIC(__iter__, __divides__, __task_func__)       \
     {                                                                          \
-        begin_trace_marker("Worker_StaticPhase");                              \
         int __static_start__ = (__divides__)[__iter__];                        \
         int __static_end__ = (__divides__)[(__iter__) + 1];                    \
-        for (int __x__ = __static_start__; __x__ < __static_end__; ++__x__) {  \
-            __task_func__(__x__);                                              \
+        if (__static_start__ < __static_end__) {                               \
+            begin_trace_marker("Worker_StaticPhase");                          \
+            for (int __x__ = __static_start__; __x__ < __static_end__; ++__x__) { \
+                __task_func__(__x__);                                          \
+            }                                                                  \
+            end_trace_marker();                                                \
         }                                                                      \
-        end_trace_marker();                                                    \
     }
 
 #define MNN_HYBRID_EXECUTE_DYNAMIC(__cpuBn__, __task_func__)                  \
     {                                                                          \
-        begin_trace_marker("Worker_DynamicPhase");                             \
-        while ((__cpuBn__)->hasDynamicTasks()) {                               \
-            auto __chunk__ = (__cpuBn__)->fetchDynamicChunk();                 \
-            if (__chunk__.first >= __chunk__.second) break;                    \
-            for (int __x__ = __chunk__.first; __x__ < __chunk__.second; ++__x__) { \
-                __task_func__(__x__);                                          \
-            }                                                                  \
+        if ((__cpuBn__)->hasDynamicTasks()) {                                  \
+            begin_trace_marker("Worker_DynamicPhase");                         \
+            do {                                                               \
+                auto __chunk__ = (__cpuBn__)->fetchDynamicChunk();             \
+                if (__chunk__.first >= __chunk__.second) break;                \
+                for (int __x__ = __chunk__.first; __x__ < __chunk__.second; ++__x__) { \
+                    __task_func__(__x__);                                      \
+                }                                                              \
+            } while ((__cpuBn__)->hasDynamicTasks());                          \
+            end_trace_marker();                                                \
         }                                                                      \
-        end_trace_marker();                                                    \
     }
 
 // ===================== 批量处理版本 (推荐使用) =====================
@@ -116,24 +120,26 @@
 
 #define MNN_HYBRID_STATIC_RANGE(__iter__, __divides__, __range_func__)        \
     {                                                                          \
-        begin_trace_marker("Worker_StaticPhase");                              \
         int __static_start__ = (__divides__)[__iter__];                        \
         int __static_end__ = (__divides__)[(__iter__) + 1];                    \
         if (__static_start__ < __static_end__) {                               \
+            begin_trace_marker("Worker_StaticPhase");                          \
             __range_func__(__static_start__, __static_end__);                  \
+            end_trace_marker();                                                \
         }                                                                      \
-        end_trace_marker();                                                    \
     }
 
 #define MNN_HYBRID_DYNAMIC_RANGE(__cpuBn__, __range_func__)                   \
     {                                                                          \
-        begin_trace_marker("Worker_DynamicPhase");                             \
-        while ((__cpuBn__)->hasDynamicTasks()) {                               \
-            auto __chunk__ = (__cpuBn__)->fetchDynamicChunk();                 \
-            if (__chunk__.first >= __chunk__.second) break;                    \
-            __range_func__(__chunk__.first, __chunk__.second);                 \
+        if ((__cpuBn__)->hasDynamicTasks()) {                                  \
+            begin_trace_marker("Worker_DynamicPhase");                         \
+            do {                                                               \
+                auto __chunk__ = (__cpuBn__)->fetchDynamicChunk();             \
+                if (__chunk__.first >= __chunk__.second) break;                \
+                __range_func__(__chunk__.first, __chunk__.second);             \
+            } while ((__cpuBn__)->hasDynamicTasks());                          \
+            end_trace_marker();                                                \
         }                                                                      \
-        end_trace_marker();                                                    \
     }
 
 // ===================== 混合调度宏结束 =====================

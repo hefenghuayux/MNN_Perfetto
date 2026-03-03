@@ -19,8 +19,8 @@ else
 fi
 
 # 1. 基础配置
-LOCAL_PKG="android_demo_package"
-REMOTE_DIR="/data/local/tmp/android_demo_package"
+LOCAL_PKG="base"
+REMOTE_DIR="/data/local/tmp/base"
 TRACE_FILE_REMOTE="/data/misc/perfetto-traces/temp_trace.perfetto-trace"
 # 【注意】确保此 Config 的 duration_ms 足够长 (例如 60000ms)，我们会手动提前结束它
 CONFIG_FILE="/data/misc/perfetto-configs/normal_config_30.pbtxt" 
@@ -47,12 +47,12 @@ TEST_CASES=(
     # "2:6,7"
     # "3:5,6,7"
     # "4:4,5,6,7"
-    "5:3,4,5,6,7"
-    # "6:2,3,4,5,6,7"
+    # "5:3,4,5,6,7"
+    "6:2,3,4,5,6,7"
     # "7:1,2,3,4,5,6,7"
     # "8:0,1,2,3,4,5,6,7"
     # 4:4,5,6,7
-    # 4:3,4,5,6
+    # 4:0,5,6,7
 )
 
 for case in "${TEST_CASES[@]}"; do

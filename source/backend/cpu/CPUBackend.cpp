@@ -112,12 +112,34 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
     
     // 1. 从 AutoTuner 获取当前阶段的调优参数（自动根据内部状态返回）
     auto tuner = AutoTuner::getInstance();
-    TuningParams params = tuner->getTuningParams();  // 不再需要传递参数
     
-    MNN_PRINT("HybridSplit Input - Total Tasks: %d, Threads: %d, Core Groups: %zu, Static Ratio: %.2f\n", 
-              size, mThreadNumber, mGroupWithComputeRate.size(), params.static_ratio);
+    // 2. 定义参数容器
+    TuningParams params;
+    
+    // 3. 【核心逻辑】基于算力密度的启发式判断
+    // 如果平均每个任务的计算量 (avgDiv) 小于阈值 (mComputeI)，
+    // 说明这是访存密集型的小算子（典型如 Decode 阶段的 MatMul/Attention）
+    // 同时也建议结合 size 判断 (例如 size < 256) 作为双重保险
+    bool isDecodeFeatures = (avgDiv > 0 && avgDiv < mComputeI);
+
+    if (isDecodeFeatures) {
+        // 【不再硬编码】直接请求 Decode 参数
+        // 即使当前全局 Phase 还没切过来，这里也能强制拿到 Decode 配置
+
+        params = tuner->getDecodeParams();
+        
+        // 调试日志（可选，调试完可关闭）
+        MNN_PRINT("[Hybrid] Auto-detected DECODE pattern: avgDiv=%.2f < %.2f  static ratio: %.2f\n", avgDiv, mComputeI,params.static_ratio);
+    } else {
+        // 默认为 Prefill 参数
+        params = tuner->getPrefillParams();
+        MNN_PRINT("[Hybrid] Auto-detected PREFILL pattern: avgDiv=%.2f >= %.2f\n", avgDiv, params.static_ratio);
+    }
+    
+
     // 2. 如果是小任务或只有单线程，回退到均匀分配
-    if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI) || mThreadNumber <= 1) {
+    // if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI) || mThreadNumber <= 1) {
+    if (mGroupWithComputeRate.size() <= 1 ||  mThreadNumber <= 1) {
         int length = UP_DIV(size, mThreadNumber);
         int cur = length;
         for (int i = 0; i < mThreadNumber; ++i) {
@@ -130,7 +152,8 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
         end_trace_marker();
         return {size, 1};  // 全静态，无动态任务
     }
-    
+
+        
     // 3. 计算静态部分的任务数（纯整数运算，不做对齐优化）
     int total_static = (int)(size * params.static_ratio);
     
@@ -188,8 +211,8 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
     }
     // dynamic_blocks <= 0 表示最细粒度（step=1，逐任务抢占）
     
-    MNN_PRINT("HybridSplit Result - Static End: %d, Dynamic Size: %d, Step: %d, Threads: %d\n",
-              total_static, dynamic_size, step, mThreadNumber);
+    // MNN_PRINT("HybridSplit Result - Static End: %d, Dynamic Size: %d, Step: %d, Threads: %d\n",
+    //           total_static, dynamic_size, step, mThreadNumber);
     
     end_trace_marker();
     return {size, step};  // 返回总任务数和步长，供执行时使用

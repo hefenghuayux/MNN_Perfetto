@@ -139,7 +139,12 @@ public:
      * - 用于检测到严重性能异常时的快速恢复
      */
     void setPanicMode(bool enable);
+   
+
+    TuningParams getDecodeParams() const;
+
     
+    TuningParams getPrefillParams() const;
     /**
      * @brief [Phase 2 预留] 检查是否处于急停模式
      */
