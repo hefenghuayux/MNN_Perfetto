@@ -42,6 +42,8 @@ struct RuntimeParameters
     std::vector<int> memory;
     std::vector<int> dynamicOption;
     std::vector<int> cpuIds;
+    std::vector<int> prefillCpuIds;
+    std::vector<int> decodeCpuIds;
 };
 
 struct TestParameters
@@ -72,6 +74,8 @@ struct CommandParameters
     std::string kvCache;
     std::string loadingTime;
     std::vector<int> cpuIds;
+    std::vector<int> prefillCpuIds;
+    std::vector<int> decodeCpuIds;
 };
 
 static const RuntimeParameters runtimeParamsDefaults = {
@@ -83,7 +87,9 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* precision            */ {2},
     /* memory               */ {2},
     /* dynamicOption       */ {0},
-    /* cpuIds              */ {}
+    /* cpuIds              */ {},
+    /* prefillCpuIds       */ {},
+    /* decodeCpuIds        */ {}
 };
 
 static const TestParameters testParamsDefaults = {
@@ -117,6 +123,8 @@ struct commandParametersInstance
         mCmdParam.kvCache = cmdParam.kvCache;
         mCmdParam.loadingTime = cmdParam.loadingTime;
         mCmdParam.cpuIds = cmdParam.cpuIds;
+        mCmdParam.prefillCpuIds = cmdParam.prefillCpuIds;
+        mCmdParam.decodeCpuIds = cmdParam.decodeCpuIds;
     }
 
     CommandParameters get_cmd_parameters() const
@@ -132,7 +140,9 @@ struct commandParametersInstance
                mCmdParam.precision == other.mCmdParam.precision &&
                mCmdParam.memory == other.mCmdParam.memory &&
                mCmdParam.dynamicOption == other.mCmdParam.dynamicOption &&
-               mCmdParam.cpuIds == other.mCmdParam.cpuIds;
+               mCmdParam.cpuIds == other.mCmdParam.cpuIds &&
+               mCmdParam.prefillCpuIds == other.mCmdParam.prefillCpuIds &&
+               mCmdParam.decodeCpuIds == other.mCmdParam.decodeCpuIds;
     }
 };
 
@@ -610,6 +620,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.kvCache = "true";
                     tmpParam.loadingTime = tp.loadTime;
                     tmpParam.cpuIds = rp.cpuIds;
+                    tmpParam.prefillCpuIds = rp.prefillCpuIds;
+                    tmpParam.decodeCpuIds = rp.decodeCpuIds;
                     auto instance = commandParametersInstance(tmpParam);
                     instances.push_back(instance);
                 }
@@ -634,6 +646,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
                 tmpParam.cpuIds = rp.cpuIds;
+                tmpParam.prefillCpuIds = rp.prefillCpuIds;
+                tmpParam.decodeCpuIds = rp.decodeCpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -653,6 +667,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
                 tmpParam.cpuIds = rp.cpuIds;
+                tmpParam.prefillCpuIds = rp.prefillCpuIds;
+                tmpParam.decodeCpuIds = rp.decodeCpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -675,6 +691,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
                 tmpParam.cpuIds = rp.cpuIds;
+                tmpParam.prefillCpuIds = rp.prefillCpuIds;
+                tmpParam.decodeCpuIds = rp.decodeCpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -724,7 +742,9 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -kv, --kv-cache <true|false>              (default: %s) | Note: if true: Every time the LLM model generates a new word, it utilizes the cached KV-cache\n", "false");
     printf("  -fp, --file-print <stdout|filename>       (default: %s)\n", "stdout");
     printf("  -load, --loading-time <true|false>        (default: %s)\n", "true");
-    printf("  -ids, --cpu-ids <n,n,n>                 (default: %s) | Note: set cpu core ids for binding, e.g. 4,5,6,7\n", "none");
+    printf("  -ids, --cpu-ids <n,n,n>                   (default: %s) | Note: legacy, apply to both prefill/decode when phase ids not set\n", "none");
+    printf("  -pids, --prefill-cpu-ids <n,n,n>          (default: %s) | Note: set prefill phase cpu core ids, e.g. 4,5,6,7\n", "none");
+    printf("  -dids, --decode-cpu-ids <n,n,n>           (default: %s) | Note: set decode phase cpu core ids, e.g. 0,1,2,3\n", "none");
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
 }
 
@@ -880,6 +900,20 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.cpuIds.insert(runtimeParams.cpuIds.end(), p.begin(), p.end());
+        } else if (arg == "-pids" || arg == "--prefill-cpu-ids") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.prefillCpuIds.insert(runtimeParams.prefillCpuIds.end(), p.begin(), p.end());
+        } else if (arg == "-dids" || arg == "--decode-cpu-ids") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.decodeCpuIds.insert(runtimeParams.decodeCpuIds.end(), p.begin(), p.end());
         }
         else {
             invalidParam = true;
@@ -927,6 +961,12 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     }
     if (runtimeParams.cpuIds.empty()) {
         runtimeParams.cpuIds = runtimeParamsDefaults.cpuIds;
+    }
+    if (runtimeParams.prefillCpuIds.empty()) {
+        runtimeParams.prefillCpuIds = runtimeParams.cpuIds;
+    }
+    if (runtimeParams.decodeCpuIds.empty()) {
+        runtimeParams.decodeCpuIds = runtimeParams.cpuIds;
     }
     if (testParams.nRepeat.empty()) {
         testParams.nRepeat = testParamsDefaults.nRepeat;
@@ -1010,6 +1050,16 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
         return nullptr;
     }
     return llmPtr;
+}
+
+static unsigned long cpuIdsToMask(const std::vector<int>& cpu_ids) {
+    unsigned long mask = 0;
+    for (auto id : cpu_ids) {
+        if (id >= 0 && id < (int)(sizeof(mask) * 8)) {
+            mask |= (1UL << id);
+        }
+    }
+    return mask;
 }
 
 static void tuning_prepare(Llm* llm) {
@@ -1104,6 +1154,10 @@ int main(int argc, char ** argv) {
     if (parseSuccess && helpInfo) {
         return 0;
     }
+    if (runtimeParams.cpuIds.empty() && (!runtimeParams.prefillCpuIds.empty() || !runtimeParams.decodeCpuIds.empty())) {
+    // 优先用 prefill 的核心数来初始化底层 ThreadPool 的基本规模
+    runtimeParams.cpuIds = runtimeParams.prefillCpuIds.empty() ? runtimeParams.decodeCpuIds : runtimeParams.prefillCpuIds;
+}
     std::vector<commandParametersInstance> paramsInstances = get_cmd_params_instances(runtimeParams, testParams);
     std::unique_ptr<Printer> printer_(new markdownPrinter());
     bool printHeader = true;
@@ -1134,6 +1188,12 @@ int main(int argc, char ** argv) {
     // // Decode: 静态 0.0 (或 0.2)，步长 = 线程数 (!!! 风险操作，建议改为 1)
     // // 如果你坚持要试：
     // MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads);
+        auto prefill_affinity_mask = cpuIdsToMask(instance.mCmdParam.prefillCpuIds);
+        auto decode_affinity_mask = cpuIdsToMask(instance.mCmdParam.decodeCpuIds);
+        MNN::AutoTuner::getInstance()->setPrefillParams(0.8f, current_threads, prefill_affinity_mask);
+        MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads, decode_affinity_mask);
+        MNN_PRINT("[llm_bench] Prefill cpu ids: %s | affinity mask: 0x%lX\n", join(instance.mCmdParam.prefillCpuIds, ",").c_str(), prefill_affinity_mask);
+        MNN_PRINT("[llm_bench] Decode  cpu ids: %s | affinity mask: 0x%lX\n", join(instance.mCmdParam.decodeCpuIds, ",").c_str(), decode_affinity_mask);
         // --- ATrace 修改 (if 块) ---
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
@@ -1205,6 +1265,7 @@ int main(int argc, char ** argv) {
                 MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
                 if (prompt_tokens) {
+                    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
                     int p_start_total = g_task_count.load();
                     int p_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (prefill_only)");
@@ -1226,6 +1287,7 @@ int main(int argc, char ** argv) {
 
                 if (decodeTokens) {
                     // ============ 设置 Decode 阶段 ============
+                    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
                    
                     // --- [修改 3] Decode 开始前 ---
                     MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");

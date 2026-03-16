@@ -34,8 +34,8 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(0.0f, 0xFFFFFFFF, 600)    // Prefill: 80% 静态，动态部分分成8块（每线程可抢约2块）
-    , mDecodeParams(0.0f, 0xFFFFFFFF, 12)     // Decode: 全动态，最细粒度（step=1，逐任务抢占）
+    : mPrefillParams(0.0f, 0xFFFFFFFF, 60)    // Prefill: 80% 静态，动态部分分成8块（每线程可抢约2块）
+    , mDecodeParams(0.9f, 0xFFFFFFFF, 2)    // Decode: 全动态，最细粒度（step=1，逐任务抢占）
     , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
     , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1
     , mPanicMode(false) {
@@ -49,6 +49,11 @@ AutoTuner::AutoTuner()
 void AutoTuner::setPhase(InferencePhase phase) {
     InferencePhase oldPhase = mCurrentPhase.exchange(phase, std::memory_order_release);
     if (oldPhase != phase) {
+        if (phase == InferencePhase::PREFILL) {
+            mCurrentAffinityMask.store(mPrefillParams.affinity_mask, std::memory_order_relaxed);
+        } else if (phase == InferencePhase::DECODE) {
+            mCurrentAffinityMask.store(mDecodeParams.affinity_mask, std::memory_order_relaxed);
+        }
         const char* oldName = (oldPhase == InferencePhase::PREFILL) ? "PREFILL" : 
                               (oldPhase == InferencePhase::DECODE) ? "DECODE" : "UNKNOWN";
         const char* newName = (phase == InferencePhase::PREFILL) ? "PREFILL" : 
@@ -95,7 +100,7 @@ void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks, unsigne
     mPrefillParams.static_ratio = static_ratio;
     mPrefillParams.dynamic_blocks = dynamic_blocks;
     mPrefillParams.affinity_mask = affinity_mask;
-    
+    mCurrentAffinityMask.store(mPrefillParams.affinity_mask, std::memory_order_relaxed);
     MNN_PRINT("[AutoTuner] Prefill params updated: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n",
               static_ratio, dynamic_blocks, affinity_mask);
 }
@@ -108,7 +113,7 @@ void AutoTuner::setDecodeParams(float static_ratio, int dynamic_blocks, unsigned
     mDecodeParams.static_ratio = static_ratio;
     mDecodeParams.dynamic_blocks = dynamic_blocks;
     mDecodeParams.affinity_mask = affinity_mask;
-    
+    mCurrentAffinityMask.store(mDecodeParams.affinity_mask, std::memory_order_relaxed);
     MNN_PRINT("[AutoTuner] Decode params updated: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n",
               static_ratio, dynamic_blocks, affinity_mask);
 }

@@ -12,6 +12,7 @@
 #include <MNN/MNNDefine.h>
 #include "ThreadPool.hpp"
 #include "trace_marker_helper.h" // [保留] 核心 ATrace API
+#include "AutoTuner.hpp" // [新增] 引入 AutoTuner
 #define MNN_THREAD_POOL_MAX_TASKS 2
 
 // [新代码] 添加绑核所需的头文件
@@ -117,21 +118,40 @@ ThreadPool::ThreadPool(int numberThread, const std::vector<int>& core_ids) {
         int threadIndex = i; // T1, T2, T3 ...
         mWorkers.emplace_back([this, threadIndex]() {
             
-            // [新代码]
-            // 3. 为每个工作线程 T_i 绑定核心 core_ids[i]
-            int core_to_pin = -1; // 默认不绑核
+            // // [新代码]
+            // // 3. 为每个工作线程 T_i 绑定核心 core_ids[i]
+            // int core_to_pin = -1; // 默认不绑核
             
-            // 检查 mCoreIDs 列表是否足够长，以覆盖当前 threadIndex
-            // (threadIndex 对应 T_i, 例如 T1 对应 index 1)
-            if (threadIndex < mCoreIDs.size()) {
-                core_to_pin = mCoreIDs[threadIndex];
-            }
-            // 在工作线程内部调用绑核
-            _set_thread_affinity(core_to_pin);
-            // [新代码结束]
+            // // 检查 mCoreIDs 列表是否足够长，以覆盖当前 threadIndex
+            // // (threadIndex 对应 T_i, 例如 T1 对应 index 1)
+            // if (threadIndex < mCoreIDs.size()) {
+            //     core_to_pin = mCoreIDs[threadIndex];
+            // }
+            // // 在工作线程内部调用绑核
+            // _set_thread_affinity(core_to_pin);
+            // // [新代码结束]
+            // [修改] 移除静态绑核，改为记录当前掩码状态
+            unsigned long current_bound_mask = 0;
 
             while (!mStop) {
                 while (mActiveCount > 0) {
+                    // +++ [方案 A: 任务前极速检查] +++
+                            unsigned long global_mask = MNN::AutoTuner::getInstance()->getFastAffinityMask();
+                            if (global_mask != current_bound_mask && global_mask != 0) {
+                                current_bound_mask = global_mask;
+                                
+                                std::vector<int> active_cores;
+                                for (int bit = (sizeof(global_mask) * 8) - 1; bit >= 0; --bit) {
+                                    if ((global_mask >> bit) & 1) active_cores.push_back(bit);
+                                }
+                                
+                                int core_to_pin = -1;
+                                if (threadIndex < active_cores.size()) {
+                                    core_to_pin = active_cores[threadIndex];
+                                }
+                                _set_thread_affinity(core_to_pin);
+                            }
+                            // +++ [检查结束] +++
                     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
                         if (*mTasks[i].second[threadIndex]) {
                             begin_trace_marker("Worker_Work");

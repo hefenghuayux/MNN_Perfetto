@@ -76,7 +76,11 @@ public:
      * @param phase 推理阶段（PREFILL/DECODE）
      */
     void setPhase(InferencePhase phase);
-    
+    // 在 public 方法区新增：
+unsigned long getFastAffinityMask()  const {
+    // 使用 relaxed 内存序，保证极速读取，不产生内存屏障开销
+    return mCurrentAffinityMask.load(std::memory_order_relaxed);
+}
     /**
      * @brief 获取当前阶段
      */
@@ -169,6 +173,8 @@ private:
     
     static AutoTuner* sInstance;
     static std::mutex sInstanceMutex;
+    // 在 private 成员区新增：
+    std::atomic<unsigned long> mCurrentAffinityMask{0};
     
     // Prefill 阶段参数（默认：静态80%，动态部分分8块）
     TuningParams mPrefillParams;
@@ -214,6 +220,8 @@ inline int alignToCacheLineUp(int boundary, int element_size = 4) {
     int elements_per_line = MNN_CACHE_LINE_SIZE / element_size;
     return ((boundary + elements_per_line - 1) / elements_per_line) * elements_per_line;
 }
+
+
 
 } // namespace MNN
 
