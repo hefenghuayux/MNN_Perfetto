@@ -2,226 +2,128 @@
 //  AutoTuner.hpp
 //  MNN
 //
-//  Created for MNN Heterogeneous Scheduling Optimization
-//  Copyright © 2024, Alibaba Group Holding Limited
+//  Created for MNN heterogeneous scheduling optimization.
 //
 #include <MNN/MNNDefine.h>
 #ifndef AutoTuner_hpp
 #define AutoTuner_hpp
 
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <vector>
-#include <cstdint>
 
-// Cache Line 大小（字节），用于避免 False Sharing
 #define MNN_CACHE_LINE_SIZE 64
 
 namespace MNN {
 
-/**
- * @brief 推理阶段枚举
- */
 enum class InferencePhase {
-    PREFILL = 0,  // Prefill 阶段（首次处理 prompt）
-    DECODE = 1,   // Decode 阶段（逐 token 生成）
-    UNKNOWN = -1  // 未知阶段（默认使用 Prefill 参数）
+    PREFILL = 0,
+    DECODE = 1,
+    UNKNOWN = -1
 };
 
-/**
- * @brief 任务划分的调优参数
- */
 struct TuningParams {
-    float static_ratio;            // 静态部分占比 [0.0, 1.0]
-    unsigned long affinity_mask;   // CPU 核心亲和性掩码（16进制），Phase 1 仅存储不使用
-    int dynamic_blocks;            // 动态任务池切分份数，step = dynamic_size / dynamic_blocks
-                                   // 0 表示最细粒度（step=1，逐任务抢占）
-    
-    TuningParams(float ratio = 0.8f, unsigned long mask = 0xFFFFFFFF, int blocks = 8)
-        : static_ratio(ratio), affinity_mask(mask), dynamic_blocks(blocks) {}
+    float static_ratio;
+    int dynamic_blocks;
+
+    TuningParams(float ratio = 0.8f, int blocks = 8)
+        : static_ratio(ratio), dynamic_blocks(blocks) {}
 };
 
-/**
- * @brief 用于动态调度的原子计数器结构，强制 Cache Line 对齐避免 False Sharing
- */
+struct ExecutionParams {
+    int active_threads;
+    unsigned long affinity_mask;
+
+    ExecutionParams(int threads = 1, unsigned long mask = 0)
+        : active_threads(threads), affinity_mask(mask) {}
+};
+
 struct alignas(MNN_CACHE_LINE_SIZE) DynamicTaskState {
-    std::atomic<int> cursor{0};   // 动态任务的当前游标（原子抢占点）
-    int end{0};                   // 动态任务结束边界
-    int step_size{1};             // 每次抢占的任务块大小
-    
-    // 填充字节确保整个结构体占据完整的 Cache Line
+    std::atomic<int> cursor{0};
+    int end{0};
+    int step_size{1};
     char padding[MNN_CACHE_LINE_SIZE - sizeof(std::atomic<int>) - sizeof(int) * 2];
 };
 
-/**
- * @brief AutoTuner 单例类 - 全局任务划分策略指挥官
- * 
- * Phase 1: 静态比例 + 动态缓冲的固定逻辑
- * Phase 2 (预留): 运行时自动调优（Hill Climbing）和急停开关（Panic Switch）
- */
 class MNN_PUBLIC AutoTuner {
 public:
-    /**
-     * @brief 获取单例实例
-     */
     static AutoTuner* getInstance();
-    
-    /**
-     * @brief 销毁单例（程序退出时调用）
-     */
     static void destroy();
 
-    /**
-     * @brief 设置当前推理阶段
-     * @param phase 推理阶段（PREFILL/DECODE）
-     */
     void setPhase(InferencePhase phase);
-    // 在 public 方法区新增：
-unsigned long getFastAffinityMask()  const {
-    // 使用 relaxed 内存序，保证极速读取，不产生内存屏障开销
-    return mCurrentAffinityMask.load(std::memory_order_relaxed);
-}
-    /**
-     * @brief 获取当前阶段
-     */
-    InferencePhase getPhase() const;
 
-    /**
-     * @brief 获取当前阶段的任务划分参数
-     * @return TuningParams 包含 static_ratio, affinity_mask 和 dynamic_blocks
-     * 
-     * 根据内部状态 mCurrentPhase 自动返回对应参数
-     */
+    unsigned long getFastAffinityMask() const {
+        return mCurrentAffinityMask.load(std::memory_order_relaxed);
+    }
+
+    int getActiveThreadCount() const {
+        int threads = mCurrentActiveThreadCount.load(std::memory_order_relaxed);
+        return threads > 0 ? threads : 1;
+    }
+
+    InferencePhase getPhase() const;
     TuningParams getTuningParams() const;
-    
-    /**
-     * @brief 设置 Prefill 阶段的调优参数
-     * @param static_ratio 静态部分占比 [0.0, 1.0]
-     * @param dynamic_blocks 动态任务池切分份数（0=最细粒度step=1）
-     * @param affinity_mask CPU 亲和性掩码（Phase 1 仅存储）
-     */
-    void setPrefillParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask = 0xFFFFFFFF);
-    
-    /**
-     * @brief 设置 Decode 阶段的调优参数
-     */
-    void setDecodeParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask = 0xFFFFFFFF);
-    
-    /**
-     * @brief 设置核心性能比（大核:中核:小核...）
-     * @param ratios 性能比数组，从大核到小核排列。例如 {4, 2, 1} 表示大核是小核4倍速度
-     */
+
+    void setPrefillParams(float static_ratio, int dynamic_blocks);
+    void setDecodeParams(float static_ratio, int dynamic_blocks);
+
+    void setDefaultExecution(int active_threads, unsigned long affinity_mask = 0);
+    void setPrefillExecution(int active_threads, unsigned long affinity_mask = 0);
+    void setDecodeExecution(int active_threads, unsigned long affinity_mask = 0);
+
     void setCoreRatios(const std::vector<int>& ratios);
-    
-    /**
-     * @brief 获取核心性能比
-     */
     const std::vector<int>& getCoreRatios() const;
 
-    // ===================== Phase 2 预留接口 =====================
-    
-    /**
-     * @brief [Phase 2 预留] 反馈接口 - 接收上一次推理的耗时
-     * @param cost_time 上一次推理的耗时（毫秒）
-     * 
-     * 用于未来实现梯度微调（Hill Climbing）:
-     * - 记录历史耗时
-     * - 计算性能梯度
-     * - 自动调整 static_ratio
-     * 
-     * 使用内部 mCurrentPhase 判断阶段
-     */
     void feedback(float cost_time);
-    
-    /**
-     * @brief [Phase 2 预留] 急停开关 - 紧急切换调度策略
-     * @param enable true=启用急停模式
-     * 
-     * 急停模式下的行为:
-     * - 立即切换到保守的均匀分配策略
-     * - 禁用动态调度
-     * - 用于检测到严重性能异常时的快速恢复
-     */
     void setPanicMode(bool enable);
-   
 
     TuningParams getDecodeParams() const;
-
-    
     TuningParams getPrefillParams() const;
-    /**
-     * @brief [Phase 2 预留] 检查是否处于急停模式
-     */
     bool isPanicMode() const;
-    
-    /**
-     * @brief [Phase 2 预留] 重置调优状态
-     * 
-     * 清除所有历史反馈数据，恢复到初始参数
-     */
     void reset();
 
 private:
     AutoTuner();
     ~AutoTuner() = default;
-    
-    // 禁止拷贝和移动
+
     AutoTuner(const AutoTuner&) = delete;
     AutoTuner& operator=(const AutoTuner&) = delete;
     AutoTuner(AutoTuner&&) = delete;
     AutoTuner& operator=(AutoTuner&&) = delete;
-    
+
+    void updateFastPhaseState(InferencePhase phase);
+    void refreshFallbackExecutionState();
+
+private:
     static AutoTuner* sInstance;
     static std::mutex sInstanceMutex;
-    // 在 private 成员区新增：
+
     std::atomic<unsigned long> mCurrentAffinityMask{0};
-    
-    // Prefill 阶段参数（默认：静态80%，动态部分分8块）
+    std::atomic<int> mCurrentActiveThreadCount{1};
+    std::atomic<unsigned long> mFallbackAffinityMask{0};
+    std::atomic<int> mFallbackActiveThreadCount{1};
+
     TuningParams mPrefillParams;
-    
-    // Decode 阶段参数（默认：全动态，最细粒度）
     TuningParams mDecodeParams;
-    
-    // 当前推理阶段状态
+    ExecutionParams mDefaultExecution;
+    ExecutionParams mPrefillExecution;
+    ExecutionParams mDecodeExecution;
+
     std::atomic<InferencePhase> mCurrentPhase;
-    
-    // 核心性能比（从大核到小核）
     std::vector<int> mCoreRatios;
-    
-    // Phase 2 预留: 急停模式标志
     std::atomic<bool> mPanicMode{false};
-    
-    // Phase 2 预留: 用于 Hill Climbing 的历史数据
-    // std::deque<float> mPrefillHistory;
-    // std::deque<float> mDecodeHistory;
-    // float mLearningRate = 0.05f;
 };
 
-// ===================== 工具函数 =====================
-
-/**
- * @brief 将任务边界对齐到 Cache Line（向下取整）
- * @param boundary 原始边界
- * @param element_size 单个元素的大小（字节）
- * @return 对齐后的边界
- * 
- * 用于防止静态/动态任务边界处的 False Sharing
- * 例如：对于 float (4字节)，Cache Line = 64字节 = 16个float
- */
 inline int alignToCacheLine(int boundary, int element_size = 4) {
     int elements_per_line = MNN_CACHE_LINE_SIZE / element_size;
     return (boundary / elements_per_line) * elements_per_line;
 }
 
-/**
- * @brief 将任务边界对齐到 Cache Line（向上取整）
- */
 inline int alignToCacheLineUp(int boundary, int element_size = 4) {
     int elements_per_line = MNN_CACHE_LINE_SIZE / element_size;
     return ((boundary + elements_per_line - 1) / elements_per_line) * elements_per_line;
 }
-
-
 
 } // namespace MNN
 

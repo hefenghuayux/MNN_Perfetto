@@ -8,6 +8,7 @@
 
 #include "backend/cpu/CPUBackend.hpp"
 #include "AutoTuner.hpp"
+#include <algorithm>
 #include <cmath>
 #include <mutex>
 #include <unordered_map>
@@ -48,12 +49,50 @@
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
 extern "C" { //以此防止C++ name mangling，虽然是atomic但作为全局符号导出更稳妥（可选，如果报错去掉extern "C"）
     __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
     __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
     // 统计 computeDivideSizes 的任务平均大小
+    __attribute__((visibility("default"))) std::atomic<long long> g_divide_size_total(0);
     __attribute__((visibility("default"))) std::atomic<long long> g_divide_size_total(0);
     __attribute__((visibility("default"))) std::atomic<int> g_divide_size_count(0);
 }
 namespace MNN {
+static int _effectiveThreadCount(int configuredThreads) {
+    int activeThreads = AutoTuner::getInstance()->getActiveThreadCount();
+    activeThreads = std::max(1, activeThreads);
+    return std::min(configuredThreads, activeThreads);
+}
+
+static std::vector<std::pair<float, int>> _activeGroupRates(const std::vector<std::pair<float, int>>& fullGroups,
+                                                            int effectiveThreads) {
+    std::vector<std::pair<float, int>> activeGroups;
+    if (effectiveThreads <= 0) {
+        return activeGroups;
+    }
+    int remaining = effectiveThreads;
+    float totalWeight = 0.0f;
+    for (const auto& group : fullGroups) {
+        if (remaining <= 0) {
+            break;
+        }
+        int selectCount = std::min(remaining, group.second);
+        if (selectCount <= 0 || group.second <= 0) {
+            continue;
+        }
+        float perThreadWeight = group.first / static_cast<float>(group.second);
+        float groupWeight = perThreadWeight * static_cast<float>(selectCount);
+        activeGroups.emplace_back(groupWeight, selectCount);
+        totalWeight += groupWeight;
+        remaining -= selectCount;
+    }
+    if (totalWeight > 0.0f) {
+        for (auto& group : activeGroups) {
+            group.first /= totalWeight;
+        }
+    }
+    return activeGroups;
+}
+
 void registerCPUOps();
 ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs) {
     auto convertType = mRunType == DataType_DT_INT8 ? CPUCastCreator::FlOAT_TO_INT8 : CPUCastCreator::INT8_TO_FlOAT;
@@ -64,40 +103,44 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
     begin_trace_marker("CPUBackend::computeDivideSizes");
     g_task_count++;
-    // 统计任务大小
     g_divide_size_total += size;
     g_divide_size_count++;
-    if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
-        
-        int length = UP_DIV(size, mThreadNumber);
+
+    int effectiveThreads = _effectiveThreadCount(mThreadNumber);
+    auto activeGroups = _activeGroupRates(mGroupWithComputeRate, effectiveThreads);
+    if (activeGroups.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
+        int length = UP_DIV(size, effectiveThreads);
         int cur = length;
-        for (int i=0; i<mThreadNumber; ++i) {
+        for (int i = 0; i < effectiveThreads; ++i) {
             dst[i] = cur;
-            cur = cur + length;
+            cur += length;
             cur = ALIMIN(cur, size);
         }
+        for (int i = effectiveThreads; i < mThreadNumber; ++i) {
+            dst[i] = size;
+        }
         g_small_task_count++;
-            int last = 0;
-            for (int i = 0; i < mThreadNumber; ++i) {
-                int current_workload = dst[i] - last;
-                
-                last = dst[i];
-            }
         end_trace_marker();
         return;
     }
 
     int cur = 0;
     int curPos = 0;
-    for (auto& group : mGroupWithComputeRate) {
-        int currentGroupTotal = (int)(ceilf((float)size*group.first));
+    for (const auto& group : activeGroups) {
+        int currentGroupTotal = static_cast<int>(ceilf(static_cast<float>(size) * group.first));
         int length = UP_DIV(currentGroupTotal, group.second);
-        for (int i=0; i<group.second; ++i) {
-            cur = cur + length;
+        for (int i = 0; i < group.second; ++i) {
+            cur += length;
             cur = ALIMIN(cur, size);
-            dst[curPos+i] = cur;
+            dst[curPos + i] = cur;
         }
         curPos += group.second;
+    }
+    if (curPos > 0) {
+        dst[curPos - 1] = size;
+    }
+    for (int i = curPos; i < mThreadNumber; ++i) {
+        dst[i] = size;
     }
     end_trace_marker();
 }
@@ -109,113 +152,82 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
     g_task_count++;
     g_divide_size_total += size;
     g_divide_size_count++;
-    
-    // 1. 从 AutoTuner 获取当前阶段的调优参数（自动根据内部状态返回）
+    int effectiveThreads = _effectiveThreadCount(mThreadNumber);
+
     auto tuner = AutoTuner::getInstance();
-    
-    // 2. 定义参数容器
     TuningParams params;
-    
-    // 3. 【核心逻辑】基于算力密度的启发式判断
-    // 如果平均每个任务的计算量 (avgDiv) 小于阈值 (mComputeI)，
-    // 说明这是访存密集型的小算子（典型如 Decode 阶段的 MatMul/Attention）
-    // 同时也建议结合 size 判断 (例如 size < 256) 作为双重保险
+
     bool isDecodeFeatures = (avgDiv > 0 && avgDiv < mComputeI);
-
     if (isDecodeFeatures) {
-        // 【不再硬编码】直接请求 Decode 参数
-        // 即使当前全局 Phase 还没切过来，这里也能强制拿到 Decode 配置
-
         params = tuner->getDecodeParams();
-        
-        // 调试日志（可选，调试完可关闭）
-        MNN_PRINT("[Hybrid] Auto-detected DECODE pattern: avgDiv=%.2f < %.2f  static ratio: %.2f\n", avgDiv, mComputeI,params.static_ratio);
+        MNN_PRINT("[Hybrid] Auto-detected DECODE pattern: avgDiv=%.2f < %.2f static ratio: %.2f\n", avgDiv, mComputeI, params.static_ratio);
     } else {
-        // 默认为 Prefill 参数
         params = tuner->getPrefillParams();
-        MNN_PRINT("[Hybrid] Auto-detected PREFILL pattern: avgDiv=%.2f >= %.2f\n", avgDiv, params.static_ratio);
+        MNN_PRINT("[Hybrid] Auto-detected PREFILL pattern: avgDiv=%.2f static ratio: %.2f\n", avgDiv, params.static_ratio);
     }
-    
 
-    // 2. 如果是小任务或只有单线程，回退到均匀分配
-    // if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI) || mThreadNumber <= 1) {
-    if (mGroupWithComputeRate.size() <= 1 ||  mThreadNumber <= 1) {
-        int length = UP_DIV(size, mThreadNumber);
+    auto activeGroups = _activeGroupRates(mGroupWithComputeRate, effectiveThreads);
+    if (activeGroups.size() <= 1 || effectiveThreads <= 1) {
+        int length = UP_DIV(size, effectiveThreads);
         int cur = length;
-        for (int i = 0; i < mThreadNumber; ++i) {
+        for (int i = 0; i < effectiveThreads; ++i) {
             dst[i] = cur;
-            cur = cur + length;
+            cur += length;
             cur = ALIMIN(cur, size);
         }
-        // 小任务不启用动态调度
+        for (int i = effectiveThreads; i < mThreadNumber; ++i) {
+            dst[i] = size;
+        }
         g_small_task_count++;
         end_trace_marker();
-        return {size, 1};  // 全静态，无动态任务
+        return {size, 1};
     }
 
-        
-    // 3. 计算静态部分的任务数（纯整数运算，不做对齐优化）
-    int total_static = (int)(size * params.static_ratio);
-    
-    // [Phase 2 优化预留] 可在此处将 total_static 对齐到 Cache Line 边界，
-    // 避免静态/动态任务分界处的 False Sharing：
-    // total_static = alignToCacheLineUp(total_static, 4);
-    
-    // 确保静态部分不超过总任务数
+    int total_static = static_cast<int>(size * params.static_ratio);
     if (total_static > size) {
         total_static = size;
     }
-    
-    // 5. 静态部分按 mGroupWithComputeRate 性能比分配
+
     if (total_static > 0) {
         int cur = 0;
         int curPos = 0;
-        for (auto& group : mGroupWithComputeRate) {
-            // 该组承担的静态任务数
-            int currentGroupTotal = (int)(ceilf((float)total_static * group.first));
+        for (const auto& group : activeGroups) {
+            int currentGroupTotal = static_cast<int>(ceilf(static_cast<float>(total_static) * group.first));
             int length = UP_DIV(currentGroupTotal, group.second);
             for (int i = 0; i < group.second; ++i) {
-                cur = cur + length;
+                cur += length;
                 cur = ALIMIN(cur, total_static);
                 dst[curPos + i] = cur;
             }
             curPos += group.second;
         }
-        // 确保最后一个线程的边界不超过静态部分
         if (curPos > 0) {
-            dst[curPos - 1] = ALIMIN(dst[curPos - 1], total_static);
+            dst[curPos - 1] = total_static;
+        }
+        for (int i = curPos; i < mThreadNumber; ++i) {
+            dst[i] = total_static;
         }
     } else {
-        // 全动态调度：所有线程的静态部分为空
         for (int i = 0; i < mThreadNumber; ++i) {
             dst[i] = 0;
         }
     }
-    
-    // 6. 计算动态任务步长（不在这里初始化状态，在执行时初始化）
+
     int dynamic_size = size - total_static;
     int step = 1;
     if (dynamic_size > 0 && params.dynamic_blocks > 0) {
-        // dynamic_blocks 是期望的任务块数，计算每块的实际任务数
-        // 目标是将动态任务分成 dynamic_blocks 个块，让所有线程有机会抢占
         step = UP_DIV(dynamic_size, params.dynamic_blocks);
-        
-        // [Phase 2 优化预留] 动态任务的步长可考虑 Cache Line 对齐
-        
-        // 确保步长不会太大，至少给每个线程一个抢占机会
-        int max_step = UP_DIV(dynamic_size, mThreadNumber);
+        int max_step = UP_DIV(dynamic_size, effectiveThreads);
         if (step > max_step && max_step > 0) {
             step = max_step;
         }
-        if (step < 1) step = 1;
+        if (step < 1) {
+            step = 1;
+        }
     }
-    // dynamic_blocks <= 0 表示最细粒度（step=1，逐任务抢占）
-    
-    // MNN_PRINT("HybridSplit Result - Static End: %d, Dynamic Size: %d, Step: %d, Threads: %d\n",
-    //           total_static, dynamic_size, step, mThreadNumber);
-    
+
     end_trace_marker();
-    return {size, step};  // 返回总任务数和步长，供执行时使用
+    return {size, step};
 }
 
 void CPUBackend::initDynamicTaskState(int static_end, int total_size, int step_size) const {

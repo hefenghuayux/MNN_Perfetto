@@ -9,7 +9,9 @@
 #include <initializer_list>
 #include <rapidjson/document.h>
 #include <thread>
+#include <cmath>
 #include <algorithm>
+#include <map>
 #include <numeric>
 #include "trace_marker_helper.h"
 #include <sys/socket.h>
@@ -36,6 +38,8 @@ struct RuntimeParameters
     std::vector<std::string> model;
     std::vector<int> backends;
     std::vector<int> threads;
+    std::vector<int> prefillThreads;
+    std::vector<int> decodeThreads;
     bool useMmap;
     std::vector<int> power;
     std::vector<int> precision;
@@ -61,6 +65,8 @@ struct CommandParameters
     std::string model;
     int backend;
     int threads;
+    int prefillThreads;
+    int decodeThreads;
     bool useMmap;
     int power;
     int precision;
@@ -81,7 +87,9 @@ struct CommandParameters
 static const RuntimeParameters runtimeParamsDefaults = {
     /* model                */ {"./Qwen2.5-1.5B-Instruct"},
     /* backends             */ {0},
-    /* threads            */ {4},
+    /* threads              */ {4},
+    /* prefillThreads       */ {},
+    /* decodeThreads        */ {},
     /* useMmap             */ false,
     /* power                */ {0},
     /* precision            */ {2},
@@ -110,6 +118,8 @@ struct commandParametersInstance
         mCmdParam.model = cmdParam.model;
         mCmdParam.backend = cmdParam.backend;
         mCmdParam.threads = cmdParam.threads;
+        mCmdParam.prefillThreads = cmdParam.prefillThreads;
+        mCmdParam.decodeThreads = cmdParam.decodeThreads;
         mCmdParam.useMmap = cmdParam.useMmap;
         mCmdParam.power = cmdParam.power;
         mCmdParam.precision = cmdParam.precision;
@@ -136,6 +146,9 @@ struct commandParametersInstance
     {
         return mCmdParam.model == other.mCmdParam.model &&
                mCmdParam.useMmap == other.mCmdParam.useMmap &&
+               mCmdParam.threads == other.mCmdParam.threads &&
+               mCmdParam.prefillThreads == other.mCmdParam.prefillThreads &&
+               mCmdParam.decodeThreads == other.mCmdParam.decodeThreads &&
                mCmdParam.power == other.mCmdParam.power &&
                mCmdParam.precision == other.mCmdParam.precision &&
                mCmdParam.memory == other.mCmdParam.memory &&
@@ -210,7 +223,8 @@ struct TestInstance
     {
 
         modelConfigFile = instance.mCmdParam.model;
-        threads = instance.mCmdParam.threads;
+        threads = std::max(instance.mCmdParam.threads,
+                           std::max(instance.mCmdParam.prefillThreads, instance.mCmdParam.decodeThreads));
         useMmap = instance.mCmdParam.useMmap;
         nPrompt = instance.mCmdParam.nPrompt;
         nGenerate = instance.mCmdParam.nGenerate;
@@ -595,6 +609,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
     for (const auto & memory : rp.memory)
     for (const auto & power : rp.power)
     for (const auto & nt : rp.threads)
+    for (const auto & prefillNt : rp.prefillThreads)
+    for (const auto & decodeNt : rp.decodeThreads)
     for (const auto & dyop : rp.dynamicOption)
         if (tp.kvCache == "true") { // MNN llm_demo test standard
             for (const auto & nPrompt : tp.nPrompt) {
@@ -609,6 +625,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.model = m;
                     tmpParam.backend = backend;
                     tmpParam.threads = nt;
+                    tmpParam.prefillThreads = prefillNt;
+                    tmpParam.decodeThreads = decodeNt;
                     tmpParam.power = power;
                     tmpParam.precision = precision;
                     tmpParam.memory = memory;
@@ -636,6 +654,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nPrompt = nPrompt;
                 tmpParam.nGenerate = 0;
                 tmpParam.threads = nt;
+                tmpParam.prefillThreads = prefillNt;
+                tmpParam.decodeThreads = decodeNt;
                 tmpParam.useMmap = rp.useMmap;
                 tmpParam.backend = backend;
                 tmpParam.power = power;
@@ -657,6 +677,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nPrompt = 0;
                 tmpParam.nGenerate = nGenerate;
                 tmpParam.threads = nt;
+                tmpParam.prefillThreads = prefillNt;
+                tmpParam.decodeThreads = decodeNt;
                 tmpParam.useMmap = rp.useMmap;
                 tmpParam.backend = backend;
                 tmpParam.power = power;
@@ -681,6 +703,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nPrompt = nPrompGen.first;
                 tmpParam.nGenerate = nPrompGen.second;
                 tmpParam.threads = nt;
+                tmpParam.prefillThreads = prefillNt;
+                tmpParam.decodeThreads = decodeNt;
                 tmpParam.useMmap = rp.useMmap;
                 tmpParam.backend = backend;
                 tmpParam.power = power;
@@ -734,6 +758,8 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -a, --backends <cpu,opencl,metal>         (default: %s)\n", "cpu");
     printf("  -c, --precision <n>                       (default: %s) | Note: (0:Normal(for cpu bakend, 'Nornal' is 'High'),1:High,2:Low)\n", join(runtimeParamsDefaults.precision, ",").c_str());
     printf("  -t, --threads <n>                         (default: %s)\n", join(runtimeParamsDefaults.threads, ",").c_str());
+    printf("  -pt, --prefill-threads <n>                (default: inherit --threads)\n");
+    printf("  -dt, --decode-threads <n>                 (default: inherit --threads)\n");
     printf("  -p, --n-prompt <n>                        (default: %s)\n", join(testParamsDefaults.nPrompt, ",").c_str());
     printf("  -n, --n-gen <n>                           (default: %s)\n", join(testParamsDefaults.nGenerate, ",").c_str());
     printf("  -pg <pp,tg>                               (default: %s)\n", join(transform2String(testParamsDefaults.nPrompGen, pairString), ",").c_str());
@@ -826,6 +852,22 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             auto p = splitString<int>(argv[i], splitDelim);
             std::sort(p.begin(), p.end(), std::greater<int>());
             runtimeParams.threads.insert(runtimeParams.threads.end(), p.begin(), p.end());
+        } else if (arg == "-pt" || arg == "--prefill-threads") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            std::sort(p.begin(), p.end(), std::greater<int>());
+            runtimeParams.prefillThreads.insert(runtimeParams.prefillThreads.end(), p.begin(), p.end());
+        } else if (arg == "-dt" || arg == "--decode-threads") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            std::sort(p.begin(), p.end(), std::greater<int>());
+            runtimeParams.decodeThreads.insert(runtimeParams.decodeThreads.end(), p.begin(), p.end());
         } else if (arg == "-mmp" || arg == "--mmap") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -956,6 +998,21 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (runtimeParams.threads.empty()) {
         runtimeParams.threads = runtimeParamsDefaults.threads;
     }
+    for (auto& value : runtimeParams.threads) {
+        value = std::max(1, value);
+    }
+    if (runtimeParams.prefillThreads.empty()) {
+        runtimeParams.prefillThreads = runtimeParams.threads;
+    }
+    if (runtimeParams.decodeThreads.empty()) {
+        runtimeParams.decodeThreads = runtimeParams.threads;
+    }
+    for (auto& value : runtimeParams.prefillThreads) {
+        value = std::max(1, value);
+    }
+    for (auto& value : runtimeParams.decodeThreads) {
+        value = std::max(1, value);
+    }
     if (runtimeParams.dynamicOption.empty()) {
         runtimeParams.dynamicOption = runtimeParamsDefaults.dynamicOption;
     }
@@ -971,12 +1028,62 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (testParams.nRepeat.empty()) {
         testParams.nRepeat = testParamsDefaults.nRepeat;
     }
+    if (!runtimeParams.prefillCpuIds.empty()) {
+        for (const auto& value : runtimeParams.prefillThreads) {
+            if (value > runtimeParams.prefillCpuIds.size()) {
+                fprintf(stderr, "error: prefill threads (%d) exceed prefill cpu ids size (%zu)\n",
+                        value, runtimeParams.prefillCpuIds.size());
+                return false;
+            }
+        }
+    }
+    if (!runtimeParams.decodeCpuIds.empty()) {
+        for (const auto& value : runtimeParams.decodeThreads) {
+            if (value > runtimeParams.decodeCpuIds.size()) {
+                fprintf(stderr, "error: decode threads (%d) exceed decode cpu ids size (%zu)\n",
+                        value, runtimeParams.decodeCpuIds.size());
+                return false;
+            }
+        }
+    }
 
     return true;
 }
 
 
-static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads, int power, int dynamic_option, bool use_mmap, const std::vector<int>& cpu_ids) {
+static std::string cpuIdsToJson(const std::vector<int>& cpu_ids) {
+    std::string ids_json = "[";
+    for (size_t i = 0; i < cpu_ids.size(); ++i) {
+        ids_json += std::to_string(cpu_ids[i]);
+        if (i + 1 < cpu_ids.size()) {
+            ids_json += ",";
+        }
+    }
+    ids_json += "]";
+    return ids_json;
+}
+
+static void appendUniqueCpuIds(std::vector<int>& dst, const std::vector<int>& src) {
+    for (const auto& value : src) {
+        if (std::find(dst.begin(), dst.end(), value) == dst.end()) {
+            dst.push_back(value);
+        }
+    }
+}
+
+static std::vector<int> mergeCpuIds(const std::vector<int>& cpu_ids,
+                                    const std::vector<int>& prefill_cpu_ids,
+                                    const std::vector<int>& decode_cpu_ids) {
+    std::vector<int> merged = cpu_ids;
+    appendUniqueCpuIds(merged, prefill_cpu_ids);
+    appendUniqueCpuIds(merged, decode_cpu_ids);
+    return merged;
+}
+
+static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads,
+                     int prefill_threads, int decode_threads, int power, int dynamic_option, bool use_mmap,
+                     const std::vector<int>& cpu_ids, const std::vector<int>& prefill_cpu_ids,
+                     const std::vector<int>& decode_cpu_ids) {
     auto llmPtr = Llm::createLLM(config_path);
     llmPtr->set_config(R"({
         "async":false
@@ -1011,6 +1118,16 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
         MNN_ERROR("thread_num for LLM config set error\n");
         return nullptr;
     }
+    setSuccess &= llmPtr->set_config("{\"prefill_thread_num\":" + std::to_string(prefill_threads) + "}");
+    if (!setSuccess) {
+        MNN_ERROR("prefill_thread_num for LLM config set error\n");
+        return nullptr;
+    }
+    setSuccess &= llmPtr->set_config("{\"decode_thread_num\":" + std::to_string(decode_threads) + "}");
+    if (!setSuccess) {
+        MNN_ERROR("decode_thread_num for LLM config set error\n");
+        return nullptr;
+    }
     setSuccess &= llmPtr->set_config("{\"dynamic_option\":" + std::to_string(dynamic_option) + "}");
     if (!setSuccess) {
         MNN_ERROR("dynamic_option for LLM config set error\n");
@@ -1021,16 +1138,8 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
         MNN_ERROR("use_mmap for LLM config set error\n");
         return nullptr;
     }
-    // --- 绑核修改 ---
     if (!cpu_ids.empty()) {
-        std::string ids_json = "[";
-        for (size_t i = 0; i < cpu_ids.size(); ++i) {
-            ids_json += std::to_string(cpu_ids[i]);
-            if (i < cpu_ids.size() - 1) {
-                ids_json += ",";
-            }
-        }
-        ids_json += "]";
+        auto ids_json = cpuIdsToJson(cpu_ids);
         MNN_PRINT("Binding to CPU Core IDs: %s\n", ids_json.c_str());
         setSuccess &= llmPtr->set_config("{\"cpu_core_ids\":" + ids_json + "}");
         if (!setSuccess) {
@@ -1038,13 +1147,26 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
             return nullptr;
         }
     }
-    // --- 修改结束 ---
+    if (!prefill_cpu_ids.empty()) {
+        setSuccess &= llmPtr->set_config("{\"prefill_cpu_core_ids\":" + cpuIdsToJson(prefill_cpu_ids) + "}");
+        if (!setSuccess) {
+            MNN_ERROR("prefill_cpu_core_ids for LLM config set error\n");
+            return nullptr;
+        }
+    }
+    if (!decode_cpu_ids.empty()) {
+        setSuccess &= llmPtr->set_config("{\"decode_cpu_core_ids\":" + cpuIdsToJson(decode_cpu_ids) + "}");
+        if (!setSuccess) {
+            MNN_ERROR("decode_cpu_core_ids for LLM config set error\n");
+            return nullptr;
+        }
+    }
     setSuccess &= llmPtr->set_config("{\"tmp_path\":\"tmp\"}");
     if (!setSuccess) {
         MNN_ERROR("tmp_path for LLM config set error\n");
         return nullptr;
     }
-    setSuccess &= llmPtr->set_config("{\"prefer_decode\": false}"); // llm_bench use dynamic_option(-dyo) to control whether to use 'prefer_decode'
+    setSuccess &= llmPtr->set_config("{\"prefer_decode\": false}");
     if (!setSuccess) {
         MNN_ERROR("prefer_decode for LLM config set error\n");
         return nullptr;
@@ -1154,10 +1276,6 @@ int main(int argc, char ** argv) {
     if (parseSuccess && helpInfo) {
         return 0;
     }
-    if (runtimeParams.cpuIds.empty() && (!runtimeParams.prefillCpuIds.empty() || !runtimeParams.decodeCpuIds.empty())) {
-    // 优先用 prefill 的核心数来初始化底层 ThreadPool 的基本规模
-    runtimeParams.cpuIds = runtimeParams.prefillCpuIds.empty() ? runtimeParams.decodeCpuIds : runtimeParams.prefillCpuIds;
-}
     std::vector<commandParametersInstance> paramsInstances = get_cmd_params_instances(runtimeParams, testParams);
     std::unique_ptr<Printer> printer_(new markdownPrinter());
     bool printHeader = true;
@@ -1173,28 +1291,32 @@ int main(int argc, char ** argv) {
         auto executor = MNN::Express::Executor::newExecutor(MNN_FORWARD_CPU, backendConfig, 1);
         MNN::Express::ExecutorScope scope(executor);
 
-        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, instance.mCmdParam.cpuIds);
+        int pool_threads = std::max(instance.mCmdParam.threads,
+                                    std::max(instance.mCmdParam.prefillThreads, instance.mCmdParam.decodeThreads));
+        auto pool_cpu_ids = mergeCpuIds(instance.mCmdParam.cpuIds,
+                                        instance.mCmdParam.prefillCpuIds,
+                                        instance.mCmdParam.decodeCpuIds);
+        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory,
+                               instance.mCmdParam.precision, pool_threads, instance.mCmdParam.prefillThreads,
+                               instance.mCmdParam.decodeThreads, instance.mCmdParam.power,
+                               instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, pool_cpu_ids,
+                               instance.mCmdParam.prefillCpuIds, instance.mCmdParam.decodeCpuIds);
         std::unique_ptr<Llm> llm(llmPtr);
-    
-    // 1. 获取当前测试的线程数
-    int current_threads = t.threads; 
 
-    // 2. 根据你的想法设置 AutoTuner
-    //    将 step_size 设置为 current_threads
-    
-    // // Prefill: 静态 0.8，步长 = 线程数 (例如 4 或 8)
-    // MNN::AutoTuner::getInstance()->setPrefillParams(0.8f, current_threads);
-    
-    // // Decode: 静态 0.0 (或 0.2)，步长 = 线程数 (!!! 风险操作，建议改为 1)
-    // // 如果你坚持要试：
-    // MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads);
+        int current_threads = pool_threads;
+        auto pool_affinity_mask = cpuIdsToMask(pool_cpu_ids);
         auto prefill_affinity_mask = cpuIdsToMask(instance.mCmdParam.prefillCpuIds);
         auto decode_affinity_mask = cpuIdsToMask(instance.mCmdParam.decodeCpuIds);
-        MNN::AutoTuner::getInstance()->setPrefillParams(0.8f, current_threads, prefill_affinity_mask);
-        MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads, decode_affinity_mask);
+        MNN::AutoTuner::getInstance()->setPrefillParams(0.8f, current_threads);
+        MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads);
+        MNN::AutoTuner::getInstance()->setDefaultExecution(pool_threads, pool_affinity_mask);
+        MNN::AutoTuner::getInstance()->setPrefillExecution(instance.mCmdParam.prefillThreads, prefill_affinity_mask);
+        MNN::AutoTuner::getInstance()->setDecodeExecution(instance.mCmdParam.decodeThreads, decode_affinity_mask);
+        MNN_PRINT("[llm_bench] Thread config: pool=%d, prefill=%d, decode=%d\n",
+                  pool_threads, instance.mCmdParam.prefillThreads, instance.mCmdParam.decodeThreads);
+        MNN_PRINT("[llm_bench] Pool    cpu ids: %s | affinity mask: 0x%lX\n", join(pool_cpu_ids, ",").c_str(), pool_affinity_mask);
         MNN_PRINT("[llm_bench] Prefill cpu ids: %s | affinity mask: 0x%lX\n", join(instance.mCmdParam.prefillCpuIds, ",").c_str(), prefill_affinity_mask);
         MNN_PRINT("[llm_bench] Decode  cpu ids: %s | affinity mask: 0x%lX\n", join(instance.mCmdParam.decodeCpuIds, ",").c_str(), decode_affinity_mask);
-        // --- ATrace 修改 (if 块) ---
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;

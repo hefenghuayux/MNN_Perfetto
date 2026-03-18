@@ -345,6 +345,14 @@ public:
         return config_.value("thread_num", 4);
     }
 
+    int prefill_thread_num() const {
+        return config_.value("prefill_thread_num", thread_num());
+    }
+
+    int decode_thread_num() const {
+        return config_.value("decode_thread_num", thread_num());
+    }
+
     std::string precision(bool mllm = false) const {
         if (mllm) return mllm_config_.value("precision", "low");
         return config_.value("precision", "low");

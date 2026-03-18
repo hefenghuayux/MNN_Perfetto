@@ -2,16 +2,17 @@
 //  AutoTuner.cpp
 //  MNN
 //
-//  Created for MNN Heterogeneous Scheduling Optimization
-//  Copyright © 2024, Alibaba Group Holding Limited
+//  Created for MNN heterogeneous scheduling optimization.
 //
 
 #include "AutoTuner.hpp"
+
+#include <algorithm>
+
 #include <MNN/MNNDefine.h>
 
 namespace MNN {
 
-// 静态成员初始化
 AutoTuner* AutoTuner::sInstance = nullptr;
 std::mutex AutoTuner::sInstanceMutex;
 
@@ -34,31 +35,74 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(0.0f, 0xFFFFFFFF, 60)    // Prefill: 80% 静态，动态部分分成8块（每线程可抢约2块）
-    , mDecodeParams(0.9f, 0xFFFFFFFF, 2)    // Decode: 全动态，最细粒度（step=1，逐任务抢占）
-    , mCurrentPhase(InferencePhase::UNKNOWN)  // 默认未知阶段
-    , mCoreRatios({4, 2, 1})     // 默认大:中:小 = 4:2:1
+    : mPrefillParams(0.0f, 60)
+    , mDecodeParams(0.9f, 2)
+    , mDefaultExecution(1, 0)
+    , mPrefillExecution(1, 0)
+    , mDecodeExecution(1, 0)
+    , mCurrentPhase(InferencePhase::UNKNOWN)
+    , mCoreRatios({4, 2, 1})
     , mPanicMode(false) {
-    MNN_PRINT("[AutoTuner] Initialized with default params:\n");
-    MNN_PRINT("  Prefill: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n", 
-              mPrefillParams.static_ratio, mPrefillParams.dynamic_blocks, mPrefillParams.affinity_mask);
-    MNN_PRINT("  Decode:  static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n", 
-              mDecodeParams.static_ratio, mDecodeParams.dynamic_blocks, mDecodeParams.affinity_mask);
+    refreshFallbackExecutionState();
+    updateFastPhaseState(InferencePhase::UNKNOWN);
+    MNN_PRINT("[AutoTuner] Initialized. Default(threads=%d, affinity=0x%lX) Prefill(static=%.2f, blocks=%d, threads=%d, affinity=0x%lX) Decode(static=%.2f, blocks=%d, threads=%d, affinity=0x%lX)\n",
+              mDefaultExecution.active_threads,
+              mDefaultExecution.affinity_mask,
+              mPrefillParams.static_ratio,
+              mPrefillParams.dynamic_blocks,
+              mPrefillExecution.active_threads,
+              mPrefillExecution.affinity_mask,
+              mDecodeParams.static_ratio,
+              mDecodeParams.dynamic_blocks,
+              mDecodeExecution.active_threads,
+              mDecodeExecution.affinity_mask);
+}
+
+void AutoTuner::refreshFallbackExecutionState() {
+    int fallbackThreads = std::max(mDefaultExecution.active_threads,
+                                   std::max(mPrefillExecution.active_threads, mDecodeExecution.active_threads));
+    if (fallbackThreads < 1) {
+        fallbackThreads = 1;
+    }
+    unsigned long fallbackMask = mDefaultExecution.affinity_mask;
+    if (fallbackMask == 0) {
+        fallbackMask = mPrefillExecution.affinity_mask | mDecodeExecution.affinity_mask;
+    }
+    mFallbackActiveThreadCount.store(fallbackThreads, std::memory_order_relaxed);
+    mFallbackAffinityMask.store(fallbackMask, std::memory_order_relaxed);
+}
+
+void AutoTuner::updateFastPhaseState(InferencePhase phase) {
+    switch (phase) {
+        case InferencePhase::PREFILL:
+            mCurrentAffinityMask.store(mPrefillExecution.affinity_mask, std::memory_order_relaxed);
+            mCurrentActiveThreadCount.store(std::max(1, mPrefillExecution.active_threads), std::memory_order_relaxed);
+            break;
+        case InferencePhase::DECODE:
+            mCurrentAffinityMask.store(mDecodeExecution.affinity_mask, std::memory_order_relaxed);
+            mCurrentActiveThreadCount.store(std::max(1, mDecodeExecution.active_threads), std::memory_order_relaxed);
+            break;
+        case InferencePhase::UNKNOWN:
+        default:
+            mCurrentAffinityMask.store(mFallbackAffinityMask.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            mCurrentActiveThreadCount.store(std::max(1, mFallbackActiveThreadCount.load(std::memory_order_relaxed)), std::memory_order_relaxed);
+            break;
+    }
 }
 
 void AutoTuner::setPhase(InferencePhase phase) {
     InferencePhase oldPhase = mCurrentPhase.exchange(phase, std::memory_order_release);
+    updateFastPhaseState(phase);
     if (oldPhase != phase) {
-        if (phase == InferencePhase::PREFILL) {
-            mCurrentAffinityMask.store(mPrefillParams.affinity_mask, std::memory_order_relaxed);
-        } else if (phase == InferencePhase::DECODE) {
-            mCurrentAffinityMask.store(mDecodeParams.affinity_mask, std::memory_order_relaxed);
-        }
-        const char* oldName = (oldPhase == InferencePhase::PREFILL) ? "PREFILL" : 
+        const char* oldName = (oldPhase == InferencePhase::PREFILL) ? "PREFILL" :
                               (oldPhase == InferencePhase::DECODE) ? "DECODE" : "UNKNOWN";
-        const char* newName = (phase == InferencePhase::PREFILL) ? "PREFILL" : 
+        const char* newName = (phase == InferencePhase::PREFILL) ? "PREFILL" :
                               (phase == InferencePhase::DECODE) ? "DECODE" : "UNKNOWN";
-        MNN_PRINT("[AutoTuner] Phase changed: %s -> %s\n", oldName, newName);
+        MNN_PRINT("[AutoTuner] Phase changed: %s -> %s (threads=%d, affinity=0x%lX)\n",
+                  oldName,
+                  newName,
+                  getActiveThreadCount(),
+                  getFastAffinityMask());
     }
 }
 
@@ -67,64 +111,113 @@ InferencePhase AutoTuner::getPhase() const {
 }
 
 TuningParams AutoTuner::getTuningParams() const {
-    // Phase 2 预留: 急停模式下返回保守参数
     if (mPanicMode.load(std::memory_order_relaxed)) {
-        // 急停模式：全静态均匀分配，禁用动态调度
         return TuningParams(1.0f, 0);
     }
-    
-    InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
-    
-    // 根据当前阶段返回对应参数
-    switch (phase) {
+
+    switch (mCurrentPhase.load(std::memory_order_acquire)) {
         case InferencePhase::PREFILL:
             return mPrefillParams;
         case InferencePhase::DECODE:
-        MNN_PRINT("AutoTuner: Returning Decode params: static_ratio=%.2f, dynamic_blocks=%d\n", 
-                  mDecodeParams.static_ratio, mDecodeParams.dynamic_blocks);
             return mDecodeParams;
         case InferencePhase::UNKNOWN:
         default:
-            // 未知阶段默认使用 Prefill 参数（保守策略）
             return mPrefillParams;
     }
-    
 }
 
-void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask) {
-    // 参数合法性检查
-    if (static_ratio < 0.0f) static_ratio = 0.0f;
-    if (static_ratio > 1.0f) static_ratio = 1.0f;
-    if (dynamic_blocks < 0) dynamic_blocks = 0;
-    
+void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks) {
+    if (static_ratio < 0.0f) {
+        static_ratio = 0.0f;
+    }
+    if (static_ratio > 1.0f) {
+        static_ratio = 1.0f;
+    }
+    if (dynamic_blocks < 0) {
+        dynamic_blocks = 0;
+    }
+
     mPrefillParams.static_ratio = static_ratio;
     mPrefillParams.dynamic_blocks = dynamic_blocks;
-    mPrefillParams.affinity_mask = affinity_mask;
-    mCurrentAffinityMask.store(mPrefillParams.affinity_mask, std::memory_order_relaxed);
-    MNN_PRINT("[AutoTuner] Prefill params updated: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n",
-              static_ratio, dynamic_blocks, affinity_mask);
+    MNN_PRINT("[AutoTuner] Prefill tuning updated: static_ratio=%.2f, dynamic_blocks=%d\n",
+              static_ratio,
+              dynamic_blocks);
 }
 
-void AutoTuner::setDecodeParams(float static_ratio, int dynamic_blocks, unsigned long affinity_mask) {
-    if (static_ratio < 0.0f) static_ratio = 0.0f;
-    if (static_ratio > 1.0f) static_ratio = 1.0f;
-    if (dynamic_blocks < 0) dynamic_blocks = 0;
-    
+void AutoTuner::setDecodeParams(float static_ratio, int dynamic_blocks) {
+    if (static_ratio < 0.0f) {
+        static_ratio = 0.0f;
+    }
+    if (static_ratio > 1.0f) {
+        static_ratio = 1.0f;
+    }
+    if (dynamic_blocks < 0) {
+        dynamic_blocks = 0;
+    }
+
     mDecodeParams.static_ratio = static_ratio;
     mDecodeParams.dynamic_blocks = dynamic_blocks;
-    mDecodeParams.affinity_mask = affinity_mask;
-    mCurrentAffinityMask.store(mDecodeParams.affinity_mask, std::memory_order_relaxed);
-    MNN_PRINT("[AutoTuner] Decode params updated: static_ratio=%.2f, dynamic_blocks=%d, affinity=0x%lX\n",
-              static_ratio, dynamic_blocks, affinity_mask);
+    MNN_PRINT("[AutoTuner] Decode tuning updated: static_ratio=%.2f, dynamic_blocks=%d\n",
+              static_ratio,
+              dynamic_blocks);
+}
+
+void AutoTuner::setDefaultExecution(int active_threads, unsigned long affinity_mask) {
+    if (active_threads < 1) {
+        active_threads = 1;
+    }
+    mDefaultExecution.active_threads = active_threads;
+    mDefaultExecution.affinity_mask = affinity_mask;
+    refreshFallbackExecutionState();
+
+    InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
+    if (phase == InferencePhase::UNKNOWN) {
+        updateFastPhaseState(phase);
+    }
+    MNN_PRINT("[AutoTuner] Default execution updated: threads=%d, affinity=0x%lX\n",
+              active_threads,
+              affinity_mask);
+}
+
+void AutoTuner::setPrefillExecution(int active_threads, unsigned long affinity_mask) {
+    if (active_threads < 1) {
+        active_threads = 1;
+    }
+    mPrefillExecution.active_threads = active_threads;
+    mPrefillExecution.affinity_mask = affinity_mask;
+    refreshFallbackExecutionState();
+
+    InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
+    if (phase == InferencePhase::PREFILL || phase == InferencePhase::UNKNOWN) {
+        updateFastPhaseState(phase);
+    }
+    MNN_PRINT("[AutoTuner] Prefill execution updated: threads=%d, affinity=0x%lX\n",
+              active_threads,
+              affinity_mask);
+}
+
+void AutoTuner::setDecodeExecution(int active_threads, unsigned long affinity_mask) {
+    if (active_threads < 1) {
+        active_threads = 1;
+    }
+    mDecodeExecution.active_threads = active_threads;
+    mDecodeExecution.affinity_mask = affinity_mask;
+    refreshFallbackExecutionState();
+
+    InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
+    if (phase == InferencePhase::DECODE || phase == InferencePhase::UNKNOWN) {
+        updateFastPhaseState(phase);
+    }
+    MNN_PRINT("[AutoTuner] Decode execution updated: threads=%d, affinity=0x%lX\n",
+              active_threads,
+              affinity_mask);
 }
 
 void AutoTuner::setCoreRatios(const std::vector<int>& ratios) {
     mCoreRatios = ratios;
-    
-    // 打印核心比例信息
     MNN_PRINT("[AutoTuner] Core ratios set to: [");
     for (size_t i = 0; i < ratios.size(); ++i) {
-        MNN_PRINT("%d%s", ratios[i], (i < ratios.size() - 1) ? ":" : "");
+        MNN_PRINT("%d%s", ratios[i], (i + 1 < ratios.size()) ? ":" : "");
     }
     MNN_PRINT("]\n");
 }
@@ -133,36 +226,14 @@ const std::vector<int>& AutoTuner::getCoreRatios() const {
     return mCoreRatios;
 }
 
-// ===================== Phase 2 预留接口实现 =====================
-
 void AutoTuner::feedback(float cost_time) {
-    // Phase 1: 空实现
-    // Phase 2 TODO: 
-    // 1. 将 cost_time 添加到历史队列
-    // 2. 计算性能趋势（梯度）
-    // 3. 使用 Hill Climbing 微调 static_ratio
-    //
-    // 示例伪代码:
-    // InferencePhase phase = mCurrentPhase.load(std::memory_order_acquire);
-    // auto& history = (phase == InferencePhase::PREFILL) ? mPrefillHistory : mDecodeHistory;
-    // history.push_back(cost_time);
-    // if (history.size() >= WINDOW_SIZE) {
-    //     float gradient = computeGradient(history);
-    //     adjustStaticRatio(phase, gradient);
-    //     history.pop_front();
-    // }
-    
     (void)cost_time;
 }
 
 void AutoTuner::setPanicMode(bool enable) {
-    bool expected = !enable;
-    if (mPanicMode.compare_exchange_strong(expected, enable, std::memory_order_release)) {
-        if (enable) {
-            MNN_PRINT("[AutoTuner] PANIC MODE ENABLED - Switching to conservative scheduling\n");
-        } else {
-            MNN_PRINT("[AutoTuner] Panic mode disabled - Resuming normal scheduling\n");
-        }
+    bool oldValue = mPanicMode.exchange(enable, std::memory_order_release);
+    if (oldValue != enable) {
+        MNN_PRINT(enable ? "[AutoTuner] Panic mode enabled\n" : "[AutoTuner] Panic mode disabled\n");
     }
 }
 
@@ -171,24 +242,23 @@ bool AutoTuner::isPanicMode() const {
 }
 
 void AutoTuner::reset() {
-    // 恢复默认参数
-    mPrefillParams = TuningParams(0.8f, 0xFFFFFFFF, 8);
-    mDecodeParams = TuningParams(0.0f, 0xFFFFFFFF, 0);
+    mPrefillParams = TuningParams(0.8f, 8);
+    mDecodeParams = TuningParams(0.0f, 0);
+    mDefaultExecution = ExecutionParams(1, 0);
+    mPrefillExecution = ExecutionParams(1, 0);
+    mDecodeExecution = ExecutionParams(1, 0);
+    mCurrentPhase.store(InferencePhase::UNKNOWN, std::memory_order_release);
     mPanicMode.store(false, std::memory_order_release);
-    
-    // Phase 2 TODO: 清除历史数据
-    // mPrefillHistory.clear();
-    // mDecodeHistory.clear();
-    
-    MNN_PRINT("[AutoTuner] Reset to default parameters\n");
+    refreshFallbackExecutionState();
+    updateFastPhaseState(InferencePhase::UNKNOWN);
+    MNN_PRINT("[AutoTuner] Reset to defaults\n");
 }
+
 TuningParams AutoTuner::getDecodeParams() const {
-    // 直接返回成员变量 mDecodeParams，不依赖 mCurrentPhase
     return mDecodeParams;
 }
 
 TuningParams AutoTuner::getPrefillParams() const {
-    // 直接返回成员变量 mPrefillParams
     return mPrefillParams;
 }
 
