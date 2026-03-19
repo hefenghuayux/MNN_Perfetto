@@ -1,0 +1,48 @@
+# 1. 配置抓取时长 (修改为 30000ms = 30s)
+duration_ms: 30000
+
+# 2. 配置缓冲区
+buffers: {
+    size_kb: 2048000
+    fill_policy: DISCARD
+}
+
+# 3. 配置核心数据源: Ftrace
+data_sources: {
+    config {
+        name: "linux.ftrace"
+        ftrace_config {
+            atrace_apps: "*"
+            # === 指定的关键事件 ===
+            # 追踪频率变化 (验证是否降频)
+            ftrace_events: "power/cpu_frequency"
+            
+            # 追踪 CPU 空闲状态
+            ftrace_events: "power/cpu_idle"
+            
+            # 追踪线程调度 (查看哪个线程在跑)
+            ftrace_events: "sched/sched_switch"
+        }
+    }
+}
+
+data_sources: {
+    config {
+        name: "linux.sys_stats"
+        sys_stats_config {
+            # 每 100ms 读取一次当前频率
+            cpufreq_period_ms: 100 
+        }
+    }
+}
+
+# 4. 配置辅助数据源
+# 作用：让 Trace 中能显示进程名和线程名，而不是只有 PID
+data_sources: {
+    config {
+        name: "linux.process_stats"
+        process_stats_config {
+            scan_all_processes_on_start: true
+        }
+    }
+}
