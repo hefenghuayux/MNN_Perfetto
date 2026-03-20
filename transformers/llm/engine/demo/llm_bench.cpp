@@ -1,4 +1,5 @@
 #include "llm/llm.hpp"
+#include "aecs_tuner.hpp"
 #include "core/MNNFileUtils.h"
 #include <MNN/AutoTime.hpp>
 #include <MNN/expr/ExecutorScope.hpp>
@@ -13,13 +14,14 @@
 #include <algorithm>
 #include <map>
 #include <numeric>
+#include <chrono>
 #include "trace_marker_helper.h"
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <string.h>
 #include <atomic>
-#include "backend/cpu/AutoTuner.hpp"  // 添加 AutoTuner 头文件
+#include "backend/cpu/AutoTuner.hpp"
 #define MNN_OPEN_TIME_TRACE
 
 
@@ -48,6 +50,11 @@ struct RuntimeParameters
     std::vector<int> cpuIds;
     std::vector<int> prefillCpuIds;
     std::vector<int> decodeCpuIds;
+    AecsTuningConfig tuningConfig;
+    AecsHeuristicParams heuristicParams;
+    bool hasLegacyCpuIds;
+    bool hasPrefillCpuIds;
+    bool hasDecodeCpuIds;
 };
 
 struct TestParameters
@@ -82,6 +89,11 @@ struct CommandParameters
     std::vector<int> cpuIds;
     std::vector<int> prefillCpuIds;
     std::vector<int> decodeCpuIds;
+    AecsTuningConfig tuningConfig;
+    AecsHeuristicParams heuristicParams;
+    bool hasLegacyCpuIds;
+    bool hasPrefillCpuIds;
+    bool hasDecodeCpuIds;
 };
 
 static const RuntimeParameters runtimeParamsDefaults = {
@@ -97,7 +109,12 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* dynamicOption       */ {0},
     /* cpuIds              */ {},
     /* prefillCpuIds       */ {},
-    /* decodeCpuIds        */ {}
+    /* decodeCpuIds        */ {},
+    /* tuningConfig        */ AecsTuningConfig(),
+    /* heuristicParams     */ AecsHeuristicParams(),
+    /* hasLegacyCpuIds     */ false,
+    /* hasPrefillCpuIds    */ false,
+    /* hasDecodeCpuIds     */ false
 };
 
 static const TestParameters testParamsDefaults = {
@@ -135,6 +152,11 @@ struct commandParametersInstance
         mCmdParam.cpuIds = cmdParam.cpuIds;
         mCmdParam.prefillCpuIds = cmdParam.prefillCpuIds;
         mCmdParam.decodeCpuIds = cmdParam.decodeCpuIds;
+        mCmdParam.tuningConfig = cmdParam.tuningConfig;
+        mCmdParam.heuristicParams = cmdParam.heuristicParams;
+        mCmdParam.hasLegacyCpuIds = cmdParam.hasLegacyCpuIds;
+        mCmdParam.hasPrefillCpuIds = cmdParam.hasPrefillCpuIds;
+        mCmdParam.hasDecodeCpuIds = cmdParam.hasDecodeCpuIds;
     }
 
     CommandParameters get_cmd_parameters() const
@@ -155,7 +177,10 @@ struct commandParametersInstance
                mCmdParam.dynamicOption == other.mCmdParam.dynamicOption &&
                mCmdParam.cpuIds == other.mCmdParam.cpuIds &&
                mCmdParam.prefillCpuIds == other.mCmdParam.prefillCpuIds &&
-               mCmdParam.decodeCpuIds == other.mCmdParam.decodeCpuIds;
+               mCmdParam.decodeCpuIds == other.mCmdParam.decodeCpuIds &&
+               mCmdParam.tuningConfig.prefill_auto_bind == other.mCmdParam.tuningConfig.prefill_auto_bind &&
+               mCmdParam.tuningConfig.decode_aecs == other.mCmdParam.tuningConfig.decode_aecs &&
+               mCmdParam.tuningConfig.force_retune == other.mCmdParam.tuningConfig.force_retune;
     }
 };
 
@@ -640,6 +665,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.cpuIds = rp.cpuIds;
                     tmpParam.prefillCpuIds = rp.prefillCpuIds;
                     tmpParam.decodeCpuIds = rp.decodeCpuIds;
+                    tmpParam.tuningConfig = rp.tuningConfig;
+                    tmpParam.heuristicParams = rp.heuristicParams;
+                    tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
+                    tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
+                    tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                     auto instance = commandParametersInstance(tmpParam);
                     instances.push_back(instance);
                 }
@@ -668,6 +698,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.cpuIds = rp.cpuIds;
                 tmpParam.prefillCpuIds = rp.prefillCpuIds;
                 tmpParam.decodeCpuIds = rp.decodeCpuIds;
+                tmpParam.tuningConfig = rp.tuningConfig;
+                tmpParam.heuristicParams = rp.heuristicParams;
+                tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
+                tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
+                tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -691,6 +726,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.cpuIds = rp.cpuIds;
                 tmpParam.prefillCpuIds = rp.prefillCpuIds;
                 tmpParam.decodeCpuIds = rp.decodeCpuIds;
+                tmpParam.tuningConfig = rp.tuningConfig;
+                tmpParam.heuristicParams = rp.heuristicParams;
+                tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
+                tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
+                tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -717,6 +757,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.cpuIds = rp.cpuIds;
                 tmpParam.prefillCpuIds = rp.prefillCpuIds;
                 tmpParam.decodeCpuIds = rp.decodeCpuIds;
+                tmpParam.tuningConfig = rp.tuningConfig;
+                tmpParam.heuristicParams = rp.heuristicParams;
+                tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
+                tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
+                tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -772,6 +817,20 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -pids, --prefill-cpu-ids <n,n,n>          (default: %s) | Note: set prefill phase cpu core ids, e.g. 4,5,6,7\n", "none");
     printf("  -dids, --decode-cpu-ids <n,n,n>           (default: %s) | Note: set decode phase cpu core ids, e.g. 0,1,2,3\n", "none");
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
+    printf("      --prefill-auto-bind                   (default: false) | search prefill cpu ids from highest-performance core\n");
+    printf("      --decode-aecs                         (default: false) | run AECS decode search and persist result\n");
+    printf("      --force-retune                        (default: false) | ignore cached AECS result and search again\n");
+    printf("      --aecs-cache-file <path>              (default: %s)\n", runtimeParamsDefaults.tuningConfig.cache_file.c_str());
+    printf("      --prefill-start-cpu <id>              (default: %d)\n", runtimeParamsDefaults.tuningConfig.prefill_start_cpu);
+    printf("      --prefill-stop-gain <ratio>           (default: %.3f)\n", runtimeParamsDefaults.tuningConfig.prefill_stop_gain);
+    printf("      --decode-search-tokens <n>            (default: %d)\n", runtimeParamsDefaults.tuningConfig.decode_search_tokens);
+    printf("      --thermal-high-c <degC>               (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.thermal_high_c);
+    printf("      --thermal-resume-c <degC>             (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.thermal_resume_c);
+    printf("      --battery-high-c <degC>               (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.battery_high_c);
+    printf("      --battery-resume-c <degC>             (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.battery_resume_c);
+    printf("      --heuristic-alpha <ratio>             (default: %.3f)\n", runtimeParamsDefaults.heuristicParams.alpha);
+    printf("      --heuristic-idle-factor <ratio>       (default: %.3f)\n", runtimeParamsDefaults.heuristicParams.idle_factor);
+    printf("      --heuristic-static-power <power>      (default: %.3f)\n", runtimeParamsDefaults.heuristicParams.static_power);
 }
 
 
@@ -784,6 +843,11 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.useMmap = runtimeParamsDefaults.useMmap;
     testParams.kvCache = testParamsDefaults.kvCache;
     testParams.loadTime = testParamsDefaults.loadTime;
+    runtimeParams.tuningConfig = runtimeParamsDefaults.tuningConfig;
+    runtimeParams.heuristicParams = runtimeParamsDefaults.heuristicParams;
+    runtimeParams.hasLegacyCpuIds = false;
+    runtimeParams.hasPrefillCpuIds = false;
+    runtimeParams.hasDecodeCpuIds = false;
 
     for (int i = 1; i < argc; i++) {
         arg = argv[i];
@@ -942,6 +1006,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.cpuIds.insert(runtimeParams.cpuIds.end(), p.begin(), p.end());
+            runtimeParams.hasLegacyCpuIds = true;
         } else if (arg == "-pids" || arg == "--prefill-cpu-ids") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -949,6 +1014,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.prefillCpuIds.insert(runtimeParams.prefillCpuIds.end(), p.begin(), p.end());
+            runtimeParams.hasPrefillCpuIds = true;
         } else if (arg == "-dids" || arg == "--decode-cpu-ids") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -956,8 +1022,90 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.decodeCpuIds.insert(runtimeParams.decodeCpuIds.end(), p.begin(), p.end());
-        }
-        else {
+            runtimeParams.hasDecodeCpuIds = true;
+        } else if (arg == "--prefill-auto-bind") {
+            runtimeParams.tuningConfig.prefill_auto_bind = true;
+        } else if (arg == "--decode-aecs") {
+            runtimeParams.tuningConfig.decode_aecs = true;
+        } else if (arg == "--force-retune") {
+            runtimeParams.tuningConfig.force_retune = true;
+        } else if (arg == "--aecs-cache-file") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.tuningConfig.cache_file = argv[i];
+        } else if (arg == "--prefill-start-cpu") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.prefill_start_cpu = p[0];
+        } else if (arg == "--prefill-stop-gain") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.prefill_stop_gain = p[0];
+        } else if (arg == "--decode-search-tokens") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.decode_search_tokens = p[0];
+        } else if (arg == "--thermal-high-c") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.thermal_high_c = p[0];
+        } else if (arg == "--thermal-resume-c") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.thermal_resume_c = p[0];
+        } else if (arg == "--battery-high-c") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.battery_high_c = p[0];
+        } else if (arg == "--battery-resume-c") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.battery_resume_c = p[0];
+        } else if (arg == "--heuristic-alpha") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.heuristicParams.alpha = p[0];
+        } else if (arg == "--heuristic-idle-factor") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.heuristicParams.idle_factor = p[0];
+        } else if (arg == "--heuristic-static-power") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<double>(argv[i], splitDelim);
+            runtimeParams.heuristicParams.static_power = p[0];
+        } else {
             invalidParam = true;
             break;
         }
@@ -1047,6 +1195,18 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
         }
     }
 
+    runtimeParams.tuningConfig.prefill_stop_gain = std::max(0.0, runtimeParams.tuningConfig.prefill_stop_gain);
+    runtimeParams.tuningConfig.decode_search_tokens = std::max(1, runtimeParams.tuningConfig.decode_search_tokens);
+    runtimeParams.tuningConfig.thermal_sample_ms = std::max(100, runtimeParams.tuningConfig.thermal_sample_ms);
+    runtimeParams.tuningConfig.power_sample_ms = std::max(10, runtimeParams.tuningConfig.power_sample_ms);
+    runtimeParams.tuningConfig.thermal_resume_c = std::min(runtimeParams.tuningConfig.thermal_resume_c,
+                                                           runtimeParams.tuningConfig.thermal_high_c);
+    runtimeParams.tuningConfig.battery_resume_c = std::min(runtimeParams.tuningConfig.battery_resume_c,
+                                                           runtimeParams.tuningConfig.battery_high_c);
+    runtimeParams.heuristicParams.alpha = std::min(1.0, std::max(0.0, runtimeParams.heuristicParams.alpha));
+    runtimeParams.heuristicParams.idle_factor = std::max(0.0, runtimeParams.heuristicParams.idle_factor);
+    runtimeParams.heuristicParams.static_power = std::max(0.0, runtimeParams.heuristicParams.static_power);
+
     return true;
 }
 
@@ -1078,6 +1238,24 @@ static std::vector<int> mergeCpuIds(const std::vector<int>& cpu_ids,
     appendUniqueCpuIds(merged, prefill_cpu_ids);
     appendUniqueCpuIds(merged, decode_cpu_ids);
     return merged;
+}
+
+static std::string summarizeDecodeCandidates(const std::vector<AecsCandidateResult>& candidates, bool feasible_only) {
+    std::ostringstream stream;
+    bool first = true;
+    for (const auto& candidate : candidates) {
+        if (feasible_only && !candidate.feasible) {
+            continue;
+        }
+        if (!first) {
+            stream << "; ";
+        }
+        first = false;
+        stream << "[" << join(candidate.cpu_ids, ",")
+               << "] speed=" << candidate.measurement.speed_tok_s
+               << " objective=" << candidate.objective;
+    }
+    return first ? "none" : stream.str();
 }
 
 static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads,
@@ -1182,6 +1360,146 @@ static unsigned long cpuIdsToMask(const std::vector<int>& cpu_ids) {
         }
     }
     return mask;
+}
+
+template <typename T>
+static T medianValue(std::vector<T> values) {
+    if (values.empty()) {
+        return T();
+    }
+    std::sort(values.begin(), values.end());
+    const size_t mid = values.size() / 2;
+    if ((values.size() & 1U) == 1U) {
+        return values[mid];
+    }
+    return (values[mid - 1] + values[mid]) / static_cast<T>(2);
+}
+
+static void configureExecutionPlan(int pool_threads,
+                                   const std::vector<int>& pool_cpu_ids,
+                                   int prefill_threads,
+                                   const std::vector<int>& prefill_cpu_ids,
+                                   int decode_threads,
+                                   const std::vector<int>& decode_cpu_ids,
+                                   bool verbose = true) {
+    auto pool_affinity_mask = cpuIdsToMask(pool_cpu_ids);
+    auto prefill_affinity_mask = cpuIdsToMask(prefill_cpu_ids);
+    auto decode_affinity_mask = cpuIdsToMask(decode_cpu_ids);
+    MNN::AutoTuner::getInstance()->setPrefillParams(0.0f, std::max(1, pool_threads) * 50);
+    MNN::AutoTuner::getInstance()->setDecodeParams(0.0f, std::max(1, decode_threads));
+    MNN::AutoTuner::getInstance()->setDefaultExecution(std::max(1, pool_threads), pool_affinity_mask);
+    MNN::AutoTuner::getInstance()->setPrefillExecution(std::max(1, prefill_threads), prefill_affinity_mask);
+    MNN::AutoTuner::getInstance()->setDecodeExecution(std::max(1, decode_threads), decode_affinity_mask);
+    if (verbose) {
+        MNN_PRINT("[llm_bench] Thread config: pool=%d, prefill=%d, decode=%d\n",
+                  pool_threads, prefill_threads, decode_threads);
+        MNN_PRINT("[llm_bench] Pool    cpu ids: %s | affinity mask: 0x%lX\n", join(pool_cpu_ids, ",").c_str(), pool_affinity_mask);
+        MNN_PRINT("[llm_bench] Prefill cpu ids: %s | affinity mask: 0x%lX\n", join(prefill_cpu_ids, ",").c_str(), prefill_affinity_mask);
+        MNN_PRINT("[llm_bench] Decode  cpu ids: %s | affinity mask: 0x%lX\n", join(decode_cpu_ids, ",").c_str(), decode_affinity_mask);
+    }
+}
+
+static AecsMeasurement measurePrefillCandidate(Llm* llm,
+                                               int prompt_tokens,
+                                               int warmup_runs,
+                                               int measure_runs,
+                                               const std::vector<int>& candidate_cpu_ids,
+                                               int candidate_threads,
+                                               int decode_threads,
+                                               const std::vector<int>& decode_cpu_ids,
+                                               int pool_threads,
+                                               const std::vector<int>& pool_cpu_ids,
+                                               ThermalGuard* thermal_guard) {
+    std::vector<double> speed_samples;
+    std::vector<double> time_samples;
+    const std::vector<int> tokens(std::max(1, prompt_tokens), 16);
+
+    for (int i = 0; i < warmup_runs + measure_runs; ++i) {
+        if (thermal_guard != nullptr) {
+            thermal_guard->checkAndPause("prefill candidate");
+        }
+        llm->reset();
+        configureExecutionPlan(pool_threads, pool_cpu_ids,
+                               candidate_threads, candidate_cpu_ids,
+                               decode_threads, decode_cpu_ids,
+                               false);
+        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+        llm->response(tokens, nullptr, nullptr, 1);
+        auto context = llm->getContext();
+        if (i >= warmup_runs && context->prefill_us > 0) {
+            time_samples.push_back(static_cast<double>(context->prefill_us) / 1e6);
+            speed_samples.push_back(1e6 * static_cast<double>(tokens.size()) / static_cast<double>(context->prefill_us));
+        }
+    }
+
+    AecsMeasurement measurement;
+    measurement.speed_tok_s = medianValue(speed_samples);
+    measurement.time_s = medianValue(time_samples);
+    return measurement;
+}
+
+static AecsMeasurement measureDecodeCandidate(Llm* llm,
+                                              int prompt_tokens,
+                                              int decode_tokens,
+                                              int warmup_runs,
+                                              int measure_runs,
+                                              const std::vector<int>& prefill_cpu_ids,
+                                              int prefill_threads,
+                                              const std::vector<int>& decode_cpu_ids,
+                                              int decode_threads,
+                                              int pool_threads,
+                                              const std::vector<int>& pool_cpu_ids,
+                                              ThermalGuard* thermal_guard,
+                                              EnergyProfiler* energy_profiler) {
+    std::vector<double> speed_samples;
+    std::vector<double> time_samples;
+    std::vector<double> energy_samples;
+    std::vector<double> power_samples;
+    const std::vector<int> prompt(std::max(1, prompt_tokens), 16);
+    const std::vector<int> decode_seed(1, 16);
+
+    for (int i = 0; i < warmup_runs + measure_runs; ++i) {
+        if (thermal_guard != nullptr) {
+            thermal_guard->checkAndPause("decode candidate");
+        }
+        llm->reset();
+        configureExecutionPlan(pool_threads, pool_cpu_ids,
+                               prefill_threads, prefill_cpu_ids,
+                               decode_threads, decode_cpu_ids,
+                               false);
+        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+        llm->response(prompt, nullptr, nullptr, 1);
+
+        if (energy_profiler != nullptr && energy_profiler->available()) {
+            energy_profiler->begin();
+        }
+        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
+        llm->response(decode_seed, nullptr, nullptr, std::max(1, decode_tokens));
+        auto power_result = (energy_profiler != nullptr && energy_profiler->available())
+                                ? energy_profiler->end()
+                                : PowerSampleResult();
+
+        auto context = llm->getContext();
+        if (i >= warmup_runs && context->decode_us > 0) {
+            time_samples.push_back(static_cast<double>(context->decode_us) / 1e6);
+            speed_samples.push_back(1e6 * static_cast<double>(std::max(1, decode_tokens)) /
+                                    static_cast<double>(context->decode_us));
+            if (power_result.valid) {
+                energy_samples.push_back(power_result.energy_j);
+                power_samples.push_back(power_result.avg_power_w);
+            }
+        }
+    }
+
+    AecsMeasurement measurement;
+    measurement.speed_tok_s = medianValue(speed_samples);
+    measurement.time_s = medianValue(time_samples);
+    if (!energy_samples.empty()) {
+        measurement.energy_j = medianValue(energy_samples);
+        measurement.avg_power_w = medianValue(power_samples);
+        measurement.energy_valid = true;
+    }
+    return measurement;
 }
 
 static void tuning_prepare(Llm* llm) {
@@ -1291,32 +1609,35 @@ int main(int argc, char ** argv) {
         auto executor = MNN::Express::Executor::newExecutor(MNN_FORWARD_CPU, backendConfig, 1);
         MNN::Express::ExecutorScope scope(executor);
 
+        const bool prefill_manual = instance.mCmdParam.hasLegacyCpuIds || instance.mCmdParam.hasPrefillCpuIds;
+        const bool decode_manual = instance.mCmdParam.hasLegacyCpuIds || instance.mCmdParam.hasDecodeCpuIds;
+        const bool use_prefill_auto = instance.mCmdParam.tuningConfig.prefill_auto_bind && !prefill_manual;
+        const bool use_decode_auto = instance.mCmdParam.tuningConfig.decode_aecs && !decode_manual;
+        auto topology = AecsCpuInspector::inspect(instance.mCmdParam.tuningConfig.prefill_start_cpu);
+
         int pool_threads = std::max(instance.mCmdParam.threads,
                                     std::max(instance.mCmdParam.prefillThreads, instance.mCmdParam.decodeThreads));
         auto pool_cpu_ids = mergeCpuIds(instance.mCmdParam.cpuIds,
                                         instance.mCmdParam.prefillCpuIds,
                                         instance.mCmdParam.decodeCpuIds);
-        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory,
-                               instance.mCmdParam.precision, pool_threads, instance.mCmdParam.prefillThreads,
-                               instance.mCmdParam.decodeThreads, instance.mCmdParam.power,
-                               instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, pool_cpu_ids,
-                               instance.mCmdParam.prefillCpuIds, instance.mCmdParam.decodeCpuIds);
-        std::unique_ptr<Llm> llm(llmPtr);
+        if (use_prefill_auto || use_decode_auto) {
+            appendUniqueCpuIds(pool_cpu_ids, topology.all_cpu_ids_desc);
+            pool_threads = std::max(pool_threads, static_cast<int>(pool_cpu_ids.size()));
+        }
 
-        int current_threads = pool_threads;
-        auto pool_affinity_mask = cpuIdsToMask(pool_cpu_ids);
-        auto prefill_affinity_mask = cpuIdsToMask(instance.mCmdParam.prefillCpuIds);
-        auto decode_affinity_mask = cpuIdsToMask(instance.mCmdParam.decodeCpuIds);
-        MNN::AutoTuner::getInstance()->setPrefillParams(0.0f, current_threads*50);
-        MNN::AutoTuner::getInstance()->setDecodeParams(0.0f, current_threads);
-        MNN::AutoTuner::getInstance()->setDefaultExecution(pool_threads, pool_affinity_mask);
-        MNN::AutoTuner::getInstance()->setPrefillExecution(instance.mCmdParam.prefillThreads, prefill_affinity_mask);
-        MNN::AutoTuner::getInstance()->setDecodeExecution(instance.mCmdParam.decodeThreads, decode_affinity_mask);
-        MNN_PRINT("[llm_bench] Thread config: pool=%d, prefill=%d, decode=%d\n",
-                  pool_threads, instance.mCmdParam.prefillThreads, instance.mCmdParam.decodeThreads);
-        MNN_PRINT("[llm_bench] Pool    cpu ids: %s | affinity mask: 0x%lX\n", join(pool_cpu_ids, ",").c_str(), pool_affinity_mask);
-        MNN_PRINT("[llm_bench] Prefill cpu ids: %s | affinity mask: 0x%lX\n", join(instance.mCmdParam.prefillCpuIds, ",").c_str(), prefill_affinity_mask);
-        MNN_PRINT("[llm_bench] Decode  cpu ids: %s | affinity mask: 0x%lX\n", join(instance.mCmdParam.decodeCpuIds, ",").c_str(), decode_affinity_mask);
+        const int build_prefill_threads = use_prefill_auto ? pool_threads : instance.mCmdParam.prefillThreads;
+        const int build_decode_threads = use_decode_auto ? pool_threads : instance.mCmdParam.decodeThreads;
+        const std::vector<int> build_prefill_cpu_ids =
+            use_prefill_auto ? pool_cpu_ids : instance.mCmdParam.prefillCpuIds;
+        const std::vector<int> build_decode_cpu_ids =
+            use_decode_auto ? pool_cpu_ids : instance.mCmdParam.decodeCpuIds;
+
+        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory,
+                               instance.mCmdParam.precision, pool_threads, build_prefill_threads,
+                               build_decode_threads, instance.mCmdParam.power,
+                               instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, pool_cpu_ids,
+                               build_prefill_cpu_ids, build_decode_cpu_ids);
+        std::unique_ptr<Llm> llm(llmPtr);
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;
@@ -1342,23 +1663,150 @@ int main(int argc, char ** argv) {
         
         auto prompt_tokens = instance.mCmdParam.nPrompt;
         auto decodeTokens = instance.mCmdParam.nGenerate;
+        auto final_prefill_cpu_ids = instance.mCmdParam.prefillCpuIds;
+        auto final_decode_cpu_ids = instance.mCmdParam.decodeCpuIds;
+        int final_prefill_threads = instance.mCmdParam.prefillThreads;
+        int final_decode_threads = instance.mCmdParam.decodeThreads;
+        std::unique_ptr<ThermalGuard> thermal_guard;
+
+        if (use_prefill_auto || use_decode_auto) {
+            thermal_guard.reset(new ThermalGuard(instance.mCmdParam.tuningConfig));
+            std::unique_ptr<EnergyProfiler> energy_profiler(new EnergyProfiler(instance.mCmdParam.tuningConfig));
+            AecsTuner tuner(topology, instance.mCmdParam.tuningConfig, instance.mCmdParam.heuristicParams);
+            AecsCacheKey cache_key;
+            cache_key.device_fingerprint = topology.device_fingerprint;
+            cache_key.model_path = instance.mCmdParam.model;
+            cache_key.mnn_version = MNN_VERSION;
+            cache_key.backend = instance.mCmdParam.backend;
+            cache_key.precision = instance.mCmdParam.precision;
+            cache_key.memory = instance.mCmdParam.memory;
+            cache_key.power = instance.mCmdParam.power;
+            cache_key.dynamic_option = instance.mCmdParam.dynamicOption;
+            cache_key.use_mmap = instance.mCmdParam.useMmap;
+            cache_key.n_prompt = prompt_tokens;
+
+            const int tuning_prompt_tokens = std::max(1, prompt_tokens);
+            const int tuning_decode_tokens = std::max(1, instance.mCmdParam.tuningConfig.decode_search_tokens);
+            if (prompt_tokens <= 0) {
+                MNN_PRINT("[AECS] prompt_tokens=%d, fallback to %d token for tuning representative workload\n",
+                          prompt_tokens,
+                          tuning_prompt_tokens);
+            }
+            auto tuned = tuner.tune(
+                cache_key,
+                prefill_manual ? instance.mCmdParam.prefillCpuIds : std::vector<int>(),
+                decode_manual ? instance.mCmdParam.decodeCpuIds : std::vector<int>(),
+                final_prefill_threads,
+                final_decode_threads,
+                [&](const std::vector<int>& cpu_ids, int threads) {
+                    return measurePrefillCandidate(llm.get(),
+                                                   tuning_prompt_tokens,
+                                                   instance.mCmdParam.tuningConfig.warmup_runs,
+                                                   instance.mCmdParam.tuningConfig.measure_runs,
+                                                   cpu_ids,
+                                                   threads,
+                                                   pool_threads,
+                                                   pool_cpu_ids,
+                                                   pool_threads,
+                                                   pool_cpu_ids,
+                                                   thermal_guard.get());
+                },
+                [&](const std::vector<int>& prefill_cpu_ids, int prefill_threads,
+                    const std::vector<int>& decode_cpu_ids, int decode_threads) {
+                    return measureDecodeCandidate(llm.get(),
+                                                  tuning_prompt_tokens,
+                                                  tuning_decode_tokens,
+                                                  instance.mCmdParam.tuningConfig.warmup_runs,
+                                                  instance.mCmdParam.tuningConfig.measure_runs,
+                                                  prefill_cpu_ids,
+                                                  prefill_threads,
+                                                  decode_cpu_ids,
+                                                  decode_threads,
+                                                  pool_threads,
+                                                  pool_cpu_ids,
+                                                  thermal_guard.get(),
+                                                  energy_profiler.get());
+                });
+
+            if (!tuned.prefill_cpu_ids.empty()) {
+                final_prefill_cpu_ids = tuned.prefill_cpu_ids;
+                final_prefill_threads = std::max(1, tuned.prefill_threads);
+            }
+            if (!tuned.decode_cpu_ids.empty()) {
+                final_decode_cpu_ids = tuned.decode_cpu_ids;
+                final_decode_threads = std::max(1, tuned.decode_threads);
+            }
+
+            if (!tuned.fastest_decode_candidate.cpu_ids.empty()) {
+                MNN_PRINT("[AECS] Fastest decode candidate=%s speed=%.3f tok/s\n",
+                          join(tuned.fastest_decode_candidate.cpu_ids, ",").c_str(),
+                          tuned.fastest_decode_candidate.measurement.speed_tok_s);
+            }
+            if (!tuned.selected_decode_candidate.cpu_ids.empty()) {
+                MNN_PRINT("[AECS] Selected decode candidate=%s speed=%.3f tok/s objective=%.6f\n",
+                          join(tuned.selected_decode_candidate.cpu_ids, ",").c_str(),
+                          tuned.selected_decode_candidate.measurement.speed_tok_s,
+                          tuned.selected_decode_candidate.objective);
+            }
+            if (!tuned.decode_candidates.empty()) {
+                MNN_PRINT("[AECS] Feasible decode candidates: %s\n",
+                          summarizeDecodeCandidates(tuned.decode_candidates, true).c_str());
+                MNN_PRINT("[AECS] All decode candidates: %s\n",
+                          summarizeDecodeCandidates(tuned.decode_candidates, false).c_str());
+            }
+        }
+
+        configureExecutionPlan(pool_threads, pool_cpu_ids,
+                               final_prefill_threads, final_prefill_cpu_ids,
+                               final_decode_threads, final_decode_cpu_ids,
+                               true);
+        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
+        llm->reset();
+        if (use_prefill_auto || use_decode_auto) {
+            t.threads = std::max(final_prefill_threads, final_decode_threads);
+            t.cpuIds = mergeCpuIds(pool_cpu_ids, final_prefill_cpu_ids, final_decode_cpu_ids);
+        }
 
         // llm_demo test
         if (instance.mCmdParam.kvCache == "true") {
             std::vector<int> tokens(prompt_tokens, 16);
+            std::vector<int> tokens1(1, 16);
+            const bool use_split_phase_bench = use_prefill_auto || use_decode_auto;
             
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
-                
-                // --- ATrace 修改 (response 块) ---
-                begin_trace_marker("llm->response (prefill+decode)"); // <--- ATrace 开始
-                llm->response(tokens, nullptr, nullptr, decodeTokens);
-                end_trace_marker(); // <--- ATrace 结束
-
-                auto prefillTime = context->prefill_us;
-                auto decodeTime = context->decode_us;
+                int64_t prefillTime = 0;
+                int64_t decodeTime = 0;
+                if (use_split_phase_bench) {
+                    llm->reset();
+                    if (prompt_tokens > 0) {
+                        if (thermal_guard != nullptr) {
+                            thermal_guard->checkAndPause("benchmark prefill");
+                        }
+                        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+                        begin_trace_marker("llm->response (prefill_only)");
+                        llm->response(tokens, nullptr, nullptr, 1);
+                        end_trace_marker();
+                        prefillTime = context->prefill_us;
+                    }
+                    if (decodeTokens > 0) {
+                        if (thermal_guard != nullptr) {
+                            thermal_guard->checkAndPause("benchmark decode");
+                        }
+                        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
+                        begin_trace_marker("llm->response (decode_only)");
+                        llm->response(tokens1, nullptr, nullptr, decodeTokens);
+                        end_trace_marker();
+                        decodeTime = context->decode_us;
+                    }
+                    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
+                } else {
+                    begin_trace_marker("llm->response (prefill+decode)");
+                    llm->response(tokens, nullptr, nullptr, decodeTokens);
+                    end_trace_marker();
+                    prefillTime = context->prefill_us;
+                    decodeTime = context->decode_us;
+                }
                 if (i > 0) { // Exclude the first performance value.
-                
-                    
                     t.prefillUs.push_back(prefillTime);
                     t.decodeUs.push_back(decodeTime);
                 }
@@ -1387,6 +1835,9 @@ int main(int argc, char ** argv) {
                 MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
                 if (prompt_tokens) {
+                    if (thermal_guard != nullptr) {
+                        thermal_guard->checkAndPause("benchmark prefill");
+                    }
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
                     int p_start_total = g_task_count.load();
                     int p_start_small = g_small_task_count.load();
@@ -1408,6 +1859,9 @@ int main(int argc, char ** argv) {
                 }
 
                 if (decodeTokens) {
+                    if (thermal_guard != nullptr) {
+                        thermal_guard->checkAndPause("benchmark decode");
+                    }
                     // ============ 设置 Decode 阶段 ============
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
                    

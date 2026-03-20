@@ -26,7 +26,7 @@ if (MNN_BUILD_AUDIO)
 endif()
 
 # include dir
-include_directories(${CMAKE_CURRENT_LIST_DIR}/include/)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/include/ ${CMAKE_CURRENT_LIST_DIR}/src/)
 
 # source files
 FILE(GLOB_RECURSE SRCS ${CMAKE_CURRENT_LIST_DIR}/src/*)
@@ -91,17 +91,10 @@ target_link_libraries(llm_demo ${LLM_DEPS})
 target_link_libraries(embedding_demo ${LLM_DEPS})
 target_link_libraries(reranker_demo ${LLM_DEPS})
 target_link_libraries(rollback_demo ${LLM_DEPS})
-# -----------------------------------------------------
-# (!! MODIFY THIS LINE) 淇敼 llm_bench 鐨勯摼鎺?
-# -----------------------------------------------------
-# 鍘熷琛? target_link_libraries(llm_bench ${LLM_DEPS})
-#
-# 淇敼涓?
 target_link_libraries(llm_bench
     ${LLM_DEPS}
     ${LLM_PLATFORM_LIBS}
 )
-# -----------------------------------------------------
 
 
 if (BUILD_MLS)
