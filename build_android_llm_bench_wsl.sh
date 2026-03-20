@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# wsl -d Ubuntu -- bash -lc 'cd ~/MNN_WSL2 && CLEAN_BUILD=1 bash ./build_android_llm_bench_wsl.sh'
 
 set -euo pipefail
 
@@ -11,6 +12,10 @@ ANDROID_ABI="${ANDROID_ABI:-arm64-v8a}"
 ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-29}"
 ANDROID_NATIVE_API_LEVEL="${ANDROID_NATIVE_API_LEVEL:-android-21}"
 JOBS="${JOBS:-$(nproc)}"
+CLEAN_BUILD="${CLEAN_BUILD:-0}"
+MNN_BUILD_TEST="${MNN_BUILD_TEST:-0}"
+MNN_OPENCL="${MNN_OPENCL:-0}"
+RUN_PERFETTO_AFTER_BUILD="${RUN_PERFETTO_AFTER_BUILD:-1}"
 NDK_SHIM_ROOT="${NDK_SHIM_ROOT:-$HOME/.cache/codex-ndk-shims}"
 NDK_CANDIDATES=(
     "${ANDROID_NDK:-}"
@@ -27,8 +32,40 @@ require_cmd() {
     fi
 }
 
+cmake_bool() {
+    case "${1,,}" in
+        1|on|true|yes) echo "ON" ;;
+        0|off|false|no|"") echo "OFF" ;;
+        *)
+            echo "Invalid boolean value: $1" >&2
+            exit 1
+            ;;
+    esac
+}
+
+detect_existing_generator() {
+    if [[ -f "$BUILD_WORK_DIR/build.ninja" ]]; then
+        echo "Ninja"
+    elif [[ -f "$BUILD_WORK_DIR/Makefile" ]]; then
+        echo "Unix Makefiles"
+    fi
+}
+
+select_build_generator() {
+    if [[ -n "${BUILD_GENERATOR:-}" ]]; then
+        echo "$BUILD_GENERATOR"
+        return 0
+    fi
+
+    if command -v ninja >/dev/null 2>&1 || command -v ninja-build >/dev/null 2>&1; then
+        echo "Ninja"
+        return 0
+    fi
+
+    echo "Unix Makefiles"
+}
+
 require_cmd cmake
-require_cmd make
 require_cmd c++
 require_cmd sed
 
@@ -82,14 +119,19 @@ prepare_ndk_for_wsl() {
 copy_outputs() {
     rm -rf "$OUTPUT_DIR"
     mkdir -p "$OUTPUT_DIR/model_dir"
-
+    if [[ -d "$MODEL_SOURCE_DIR" ]]; then
+        # 核心修改点：使用 ! -name "llm.mnn.weight" 排除了权重文件的拷贝
+        find "$MODEL_SOURCE_DIR" -maxdepth 1 -type f ! -name "llm.mnn.weight" -exec cp -t "$OUTPUT_DIR/model_dir" {} +
+        echo ">>> Model files copied to package directory (excluding llm.mnn.weight)."
+    else
+        echo ">>> [Warning] MODEL_SOURCE_DIR not found, skipping model files."
+    fi
     cp "$BUILD_WORK_DIR/libMNN.so" "$OUTPUT_DIR/"
     cp "$BUILD_WORK_DIR/libMNN_Express.so" "$OUTPUT_DIR/"
     cp "$BUILD_WORK_DIR/libllm.so" "$OUTPUT_DIR/"
     if [[ -f "$BUILD_WORK_DIR/libMNN_CL.so" ]]; then cp "$BUILD_WORK_DIR/libMNN_CL.so" "$OUTPUT_DIR/"; fi
     cp "$BUILD_WORK_DIR/llm_demo" "$OUTPUT_DIR/"
     cp "$BUILD_WORK_DIR/llm_bench" "$OUTPUT_DIR/"
-    cp "$MODEL_SOURCE_DIR"/* "$OUTPUT_DIR/model_dir/"
 }
 
 NDK_PATH="$(find_ndk || true)"
@@ -102,37 +144,84 @@ NDK_PATH="$(prepare_ndk_for_wsl "$NDK_PATH")"
 export ANDROID_NDK="$NDK_PATH"
 echo "Using Android NDK: $ANDROID_NDK"
 
-if [[ "${CLEAN_BUILD:-1}" == "1" ]]; then
+BUILD_GENERATOR="$(select_build_generator)"
+if [[ "$BUILD_GENERATOR" == "Unix Makefiles" ]]; then
+    require_cmd make
+elif [[ "$BUILD_GENERATOR" == "Ninja" ]]; then
+    if command -v ninja >/dev/null 2>&1; then
+        CMAKE_MAKE_PROGRAM_OVERRIDE="$(command -v ninja)"
+    elif command -v ninja-build >/dev/null 2>&1; then
+        CMAKE_MAKE_PROGRAM_OVERRIDE="$(command -v ninja-build)"
+    else
+        echo "Ninja generator selected but ninja was not found." >&2
+        exit 1
+    fi
+else
+    echo "Unsupported build generator: $BUILD_GENERATOR" >&2
+    exit 1
+fi
+
+EXISTING_GENERATOR="$(detect_existing_generator)"
+CLEAN_BUILD_CMAKE="$(cmake_bool "$CLEAN_BUILD")"
+RUN_PERFETTO_AFTER_BUILD_CMAKE="$(cmake_bool "$RUN_PERFETTO_AFTER_BUILD")"
+
+if [[ "$CLEAN_BUILD_CMAKE" == "ON" ]]; then
+    rm -rf "$BUILD_WORK_DIR"
+elif [[ -n "$EXISTING_GENERATOR" && "$EXISTING_GENERATOR" != "$BUILD_GENERATOR" ]]; then
+    echo ">>> Build generator changed ($EXISTING_GENERATOR -> $BUILD_GENERATOR), recreating build directory."
     rm -rf "$BUILD_WORK_DIR"
 fi
 mkdir -p "$BUILD_WORK_DIR"
 
-cmake -S "$PROJECT_ROOT" -B "$BUILD_WORK_DIR" \
-    -G "Unix Makefiles" \
-    -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-    -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=true \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DANDROID_ABI="$ANDROID_ABI" \
-    -DANDROID_STL=c++_static \
-    -DANDROID_PLATFORM="$ANDROID_PLATFORM" \
-    -DANDROID_NATIVE_API_LEVEL="$ANDROID_NATIVE_API_LEVEL" \
-    -DMNN_BUILD_BENCHMARK=ON \
-    -DMNN_USE_SSE=OFF \
-    -DMNN_BUILD_TEST=ON \
-    -DMNN_BUILD_FOR_ANDROID_COMMAND=true \
-    -DNATIVE_LIBRARY_OUTPUT=. \
-    -DNATIVE_INCLUDE_OUTPUT=. \
-    -DMNN_LOW_MEMORY=true \
-    -DMNN_CPU_WEIGHT_DEQUANT_GEMM=true \
-    -DMNN_BUILD_LLM=true \
-    -DMNN_SUPPORT_TRANSFORMER_FUSE=true \
-    -DMNN_ARM82=true \
-    -DMNN_OPENCL=true \
-    -DMNN_USE_LOGCAT=true \
-    -DMNN_BUILD_DEMO=ON \
-    -DCMAKE_CXX_STANDARD=17
+MNN_BUILD_TEST_CMAKE="$(cmake_bool "$MNN_BUILD_TEST")"
+MNN_OPENCL_CMAKE="$(cmake_bool "$MNN_OPENCL")"
 
-cmake --build "$BUILD_WORK_DIR" -- -j"$JOBS"
+CMAKE_ARGS=(
+    -S "$PROJECT_ROOT"
+    -B "$BUILD_WORK_DIR"
+    -G "$BUILD_GENERATOR"
+    -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"
+    -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=true
+    -DCMAKE_BUILD_TYPE=Release
+    -DANDROID_ABI="$ANDROID_ABI"
+    -DANDROID_STL=c++_static
+    -DANDROID_PLATFORM="$ANDROID_PLATFORM"
+    -DANDROID_NATIVE_API_LEVEL="$ANDROID_NATIVE_API_LEVEL"
+    -DMNN_BUILD_BENCHMARK=ON
+    -DMNN_USE_SSE=OFF
+    -DMNN_BUILD_TEST="$MNN_BUILD_TEST_CMAKE"
+    -DMNN_BUILD_FOR_ANDROID_COMMAND=true
+    -DNATIVE_LIBRARY_OUTPUT=.
+    -DNATIVE_INCLUDE_OUTPUT=.
+    -DMNN_LOW_MEMORY=true
+    -DMNN_CPU_WEIGHT_DEQUANT_GEMM=true
+    -DMNN_BUILD_LLM=true
+    -DMNN_SUPPORT_TRANSFORMER_FUSE=true
+    -DMNN_ARM82=true
+    -DMNN_OPENCL="$MNN_OPENCL_CMAKE"
+    -DMNN_USE_LOGCAT=true
+    -DMNN_BUILD_DEMO=ON
+    -DCMAKE_CXX_STANDARD=17
+)
+
+if [[ -n "${CMAKE_MAKE_PROGRAM_OVERRIDE:-}" ]]; then
+    CMAKE_ARGS+=(-DCMAKE_MAKE_PROGRAM="$CMAKE_MAKE_PROGRAM_OVERRIDE")
+fi
+
+if [[ -n "${BUILD_TARGETS:-}" ]]; then
+    read -r -a BUILD_TARGETS_ARRAY <<< "$BUILD_TARGETS"
+else
+    BUILD_TARGETS_ARRAY=(llm_bench llm_demo)
+fi
+
+echo "Using build generator: $BUILD_GENERATOR"
+echo "Incremental build enabled: $([[ "$CLEAN_BUILD_CMAKE" == "ON" ]] && echo no || echo yes)"
+echo "MNN_BUILD_TEST: $MNN_BUILD_TEST_CMAKE"
+echo "MNN_OPENCL: $MNN_OPENCL_CMAKE"
+echo "Build targets: ${BUILD_TARGETS_ARRAY[*]}"
+
+cmake "${CMAKE_ARGS[@]}"
+cmake --build "$BUILD_WORK_DIR" --parallel "$JOBS" --target "${BUILD_TARGETS_ARRAY[@]}"
 
 for required in libMNN.so libMNN_Express.so libllm.so llm_bench llm_demo; do
     if [[ ! -f "$BUILD_WORK_DIR/$required" ]]; then
@@ -141,7 +230,7 @@ for required in libMNN.so libMNN_Express.so libllm.so llm_bench llm_demo; do
     fi
 done
 
-for model_file in config.json llm.mnn llm.mnn.weight llm_config.json tokenizer.txt; do
+for model_file in config.json llm.mnn llm_config.json tokenizer.txt; do
     if [[ ! -f "$MODEL_SOURCE_DIR/$model_file" ]]; then
         echo "Missing model file: $MODEL_SOURCE_DIR/$model_file" >&2
         exit 1
@@ -151,3 +240,15 @@ done
 copy_outputs
 
 echo "Package prepared: $OUTPUT_DIR"
+
+# --- 编译完成后自动运行 run_perfetto_batch.sh ---
+PERFETTO_SCRIPT="$PROJECT_ROOT/run_perfetto_batch.sh"
+
+if [[ "$RUN_PERFETTO_AFTER_BUILD_CMAKE" == "ON" && -f "$PERFETTO_SCRIPT" ]]; then
+    echo ">>> [Auto Run] Starting run_perfetto_batch.sh..."
+    bash "$PERFETTO_SCRIPT"
+elif [[ "$RUN_PERFETTO_AFTER_BUILD_CMAKE" != "ON" ]]; then
+    echo ">>> [Skip] RUN_PERFETTO_AFTER_BUILD=$RUN_PERFETTO_AFTER_BUILD, skipping run_perfetto_batch.sh"
+else
+    echo ">>> [Warning] run_perfetto_batch.sh not found at $PERFETTO_SCRIPT"
+fi

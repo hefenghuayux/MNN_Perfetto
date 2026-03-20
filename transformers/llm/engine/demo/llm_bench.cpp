@@ -1307,8 +1307,8 @@ int main(int argc, char ** argv) {
         auto pool_affinity_mask = cpuIdsToMask(pool_cpu_ids);
         auto prefill_affinity_mask = cpuIdsToMask(instance.mCmdParam.prefillCpuIds);
         auto decode_affinity_mask = cpuIdsToMask(instance.mCmdParam.decodeCpuIds);
-        MNN::AutoTuner::getInstance()->setPrefillParams(0.8f, current_threads);
-        MNN::AutoTuner::getInstance()->setDecodeParams(0.4f, current_threads);
+        MNN::AutoTuner::getInstance()->setPrefillParams(0.0f, current_threads*50);
+        MNN::AutoTuner::getInstance()->setDecodeParams(0.0f, current_threads);
         MNN::AutoTuner::getInstance()->setDefaultExecution(pool_threads, pool_affinity_mask);
         MNN::AutoTuner::getInstance()->setPrefillExecution(instance.mCmdParam.prefillThreads, prefill_affinity_mask);
         MNN::AutoTuner::getInstance()->setDecodeExecution(instance.mCmdParam.decodeThreads, decode_affinity_mask);

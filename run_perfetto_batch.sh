@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#wsl -d Ubuntu -- bash -lc 'cd /mnt/e/workspacce/WSL2/MNN_WSL2 && THREADS=4 PROMPT_TOKENS=8 GEN_TOKENS=8 REPEAT=1 bash ./run_android_llm_bench_wsl.sh'
 
 set -euo pipefail
 
@@ -10,11 +11,13 @@ TRACE_REMOTE_BASE="${TRACE_REMOTE_BASE:-/data/misc/perfetto-traces}"
 DEST_BASE="${DEST_BASE:-$PROJECT_ROOT/perfetto_traces}"
 DATE_FOLDER="$(date +"%Y%m%d")"
 FINAL_DEST_DIR="$DEST_BASE/$DATE_FOLDER"
-BACKEND="${BACKEND:-cpu}"
-PROMPT_TOKENS="${PROMPT_TOKENS:-8}"
-GEN_TOKENS="${GEN_TOKENS:-8}"
-REPEAT="${REPEAT:-1}"
-DYNAMIC_OPTION="${DYNAMIC_OPTION:-0}"
+# --- 以下为同步 llm_bench.cpp 后的默认配置 ---
+BACKEND="${BACKEND:-cpu}"           # 对应 backends {0}
+THREADS="${THREADS:-4}"             # 对应 threads {4}
+PROMPT_TOKENS="${PROMPT_TOKENS:-512}" # 对应 nPrompt {512}
+GEN_TOKENS="${GEN_TOKENS:-128}"      # 对应 nGenerate {128}
+REPEAT="${REPEAT:-5}"               # 对应 nRepeat {5}
+DYNAMIC_OPTION="${DYNAMIC_OPTION:-0}" # 对应 dynamicOption {0}
 AUTO_BUILD="${AUTO_BUILD:-0}"
 
 ENABLE_TRACE=false
@@ -37,7 +40,7 @@ if [[ -n "${TEST_CASES_OVERRIDE:-}" ]]; then
     IFS=';' read -r -a TEST_CASES <<< "$TEST_CASES_OVERRIDE"
 else
     TEST_CASES=(
-        "4:4,5,6,7:2,3,4,7"
+        "6:2,3,4,5,6,7:2,3,4,7"
     )
 fi
 
@@ -80,11 +83,17 @@ for case_item in "${TEST_CASES[@]}"; do
     fi
 
     cmd="cd $REMOTE_DIR && LD_LIBRARY_PATH=. ./llm_bench -m ./model_dir/config.json -a $BACKEND -t $threads -p $PROMPT_TOKENS -n $GEN_TOKENS -rep $REPEAT -dyo $DYNAMIC_OPTION"
+    
     if [[ -n "${p_ids:-}" && "$p_ids" != "none" ]]; then
-        cmd+=" -pids $p_ids"
+        # 自动计算 p_ids 里用逗号隔开的核心数量
+        p_count=$(IFS=','; set -- $p_ids; echo $#)
+        cmd+=" -pids $p_ids -pt $p_count"
     fi
+    
     if [[ -n "${d_ids:-}" && "$d_ids" != "none" ]]; then
-        cmd+=" -dids $d_ids"
+        # 自动计算 d_ids 里用逗号隔开的核心数量
+        d_count=$(IFS=','; set -- $d_ids; echo $#)
+        cmd+=" -dids $d_ids -dt $d_count"
     fi
 
     echo ">>> [Step 2] Running llm_bench..."
