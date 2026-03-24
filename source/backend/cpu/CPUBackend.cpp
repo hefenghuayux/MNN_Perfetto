@@ -157,10 +157,10 @@ std::pair<int, int> CPUBackend::computeDivideSizesHybrid(int size, int* dst, flo
     bool isDecodeFeatures = (avgDiv > 0 && avgDiv < mComputeI);
     if (isDecodeFeatures) {
         params = tuner->getDecodeParams();
-        MNN_PRINT("[Hybrid] Auto-detected DECODE pattern: avgDiv=%.2f < %.2f static ratio: %.2f\n", avgDiv, mComputeI, params.static_ratio);
+        // MNN_PRINT("[Hybrid] Auto-detected DECODE pattern: avgDiv=%.2f < %.2f static ratio: %.2f\n", avgDiv, mComputeI, params.static_ratio);
     } else {
         params = tuner->getPrefillParams();
-        MNN_PRINT("[Hybrid] Auto-detected PREFILL pattern: avgDiv=%.2f static ratio: %.2f\n", avgDiv, params.static_ratio);
+        // MNN_PRINT("[Hybrid] Auto-detected PREFILL pattern: avgDiv=%.2f static ratio: %.2f\n", avgDiv, params.static_ratio);
     }
 
     auto activeGroups = _activeGroupRates(mGroupWithComputeRate, effectiveThreads);

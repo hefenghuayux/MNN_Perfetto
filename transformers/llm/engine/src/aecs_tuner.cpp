@@ -205,6 +205,28 @@ static bool containsIgnoreCase(const std::string& text, const std::string& patte
     return lower(text).find(lower(pattern)) != std::string::npos;
 }
 
+static bool shouldIgnoreThermalZone(const std::string& zone_type, double temperature_c) {
+    if (!std::isfinite(temperature_c) || temperature_c <= 0.0 || temperature_c > 200.0) {
+        return true;
+    }
+    static const std::vector<std::string> ignored_patterns = {
+        "battery",
+        "bcl",
+        "vbat",
+        "ibat",
+        "current",
+        "voltage",
+        "lvl",
+        "charger",
+    };
+    for (const auto& pattern : ignored_patterns) {
+        if (containsIgnoreCase(zone_type, pattern)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static ThermalSample sampleThermalState(const AecsTuningConfig& config) {
     ThermalSample sample;
 
@@ -221,11 +243,8 @@ static ThermalSample sampleThermalState(const AecsTuningConfig& config) {
             continue;
         }
         const std::string trimmed_type = trim(type_text);
-        if (containsIgnoreCase(trimmed_type, "battery")) {
-            continue;
-        }
         const double thermal_c = normalizeTemperature(raw_temp);
-        if (!std::isfinite(thermal_c)) {
+        if (shouldIgnoreThermalZone(trimmed_type, thermal_c)) {
             continue;
         }
         if (thermal_c > max_thermal_c) {
@@ -380,6 +399,13 @@ static std::vector<int> removeCpuIdsInCluster(const std::vector<int>& cpu_ids,
     return result;
 }
 
+static int maxCpuId(const std::vector<int>& cpu_ids) {
+    if (cpu_ids.empty()) {
+        return -1;
+    }
+    return *std::max_element(cpu_ids.begin(), cpu_ids.end());
+}
+
 } // namespace
 
 AecsCpuTopology AecsCpuInspector::inspect(int preferred_prefill_start_cpu) {
@@ -418,8 +444,8 @@ AecsCpuTopology AecsCpuInspector::inspect(int preferred_prefill_start_cpu) {
     }
 
     if (raw_clusters.empty()) {
-        std::map<uint32_t, std::vector<int>> cpu_groups;
         const auto cpu_dirs = listDirectories("/sys/devices/system/cpu", "cpu");
+        AecsClusterInfo cluster;
         for (const auto& dir : cpu_dirs) {
             const auto pos = dir.find_last_of("cpu");
             if (pos == std::string::npos) {
@@ -430,19 +456,20 @@ AecsCpuTopology AecsCpuInspector::inspect(int preferred_prefill_start_cpu) {
                 continue;
             }
             const int cpu_id = atoi(suffix.c_str());
+            cluster.cpu_ids.push_back(cpu_id);
             long long max_freq = 0;
-            if (!readLongLongFile(dir + "/cpufreq/cpuinfo_max_freq", &max_freq) || max_freq <= 0) {
-                continue;
+            if (readLongLongFile(dir + "/cpufreq/cpuinfo_max_freq", &max_freq) && max_freq > 0) {
+                cluster.max_freq = std::max(cluster.max_freq, static_cast<uint32_t>(max_freq));
+                if (cluster.min_freq == 0) {
+                    cluster.min_freq = static_cast<uint32_t>(max_freq);
+                } else {
+                    cluster.min_freq = std::min(cluster.min_freq, static_cast<uint32_t>(max_freq));
+                }
             }
-            cpu_groups[static_cast<uint32_t>(max_freq)].push_back(cpu_id);
+            cluster.capacity = std::max(cluster.capacity, readCpuCapacity(cpu_id));
         }
-        for (auto& iter : cpu_groups) {
-            AecsClusterInfo cluster;
-            cluster.max_freq = iter.first;
-            cluster.cpu_ids = sortedUniqueDesc(iter.second);
-            for (auto cpu_id : cluster.cpu_ids) {
-                cluster.capacity = std::max(cluster.capacity, readCpuCapacity(cpu_id));
-            }
+        cluster.cpu_ids = sortedUniqueDesc(cluster.cpu_ids);
+        if (!cluster.cpu_ids.empty()) {
             if (cluster.capacity <= 0) {
                 cluster.capacity = static_cast<int>(cluster.max_freq);
             }
@@ -456,8 +483,10 @@ AecsCpuTopology AecsCpuInspector::inspect(int preferred_prefill_start_cpu) {
     }
 
     std::sort(raw_clusters.begin(), raw_clusters.end(), [](const AecsClusterInfo& left, const AecsClusterInfo& right) {
-        if (left.max_freq != right.max_freq) {
-            return left.max_freq > right.max_freq;
+        const int left_max_cpu = maxCpuId(left.cpu_ids);
+        const int right_max_cpu = maxCpuId(right.cpu_ids);
+        if (left_max_cpu != right_max_cpu) {
+            return left_max_cpu > right_max_cpu;
         }
         return left.cpu_ids.size() < right.cpu_ids.size();
     });
@@ -532,6 +561,7 @@ ThermalGuard::~ThermalGuard() {
         std::lock_guard<std::mutex> lock(mMutex);
         mStop = true;
     }
+    mCondition.notify_all();
     if (mThread.joinable()) {
         mThread.join();
     }
@@ -545,18 +575,20 @@ ThermalSample ThermalGuard::latestSample() const {
 void ThermalGuard::sampleLoop() {
     double last_log_time_s = -1.0;
     bool last_overheating = false;
+    const auto interval = std::chrono::milliseconds(std::max(50, mConfig.thermal_sample_ms));
     while (true) {
-        ThermalSample latest;
+        ThermalSample latest = sampleThermalState(mConfig);
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::unique_lock<std::mutex> lock(mMutex);
             if (mStop) {
                 return;
             }
-            mLatest = sampleThermalState(mConfig);
+            mLatest = latest;
             latest = mLatest;
         }
+        mCondition.notify_all();
         const double now_s = nowSeconds();
-        const double log_interval_s = std::max(5.0, static_cast<double>(std::max(50, mConfig.thermal_sample_ms)) / 1000.0);
+        const double log_interval_s = std::max(5.0, static_cast<double>(interval.count()) / 1000.0);
         if (last_log_time_s < 0.0 || now_s - last_log_time_s >= log_interval_s ||
             latest.overheating != last_overheating) {
             MNN_PRINT("[AECS][Thermal] %s status=%s\n",
@@ -565,32 +597,36 @@ void ThermalGuard::sampleLoop() {
             last_log_time_s = now_s;
             last_overheating = latest.overheating;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(std::max(50, mConfig.thermal_sample_ms)));
+
+        std::unique_lock<std::mutex> lock(mMutex);
+        if (mCondition.wait_for(lock, interval, [this]() { return mStop; })) {
+            return;
+        }
     }
 }
 
 void ThermalGuard::waitUntilCool(const std::string& reason) const {
-    ThermalSample sample = latestSample();
-    if (!sample.overheating) {
+    auto cooled = [this](const ThermalSample& sample) {
+        const bool thermal_cool = !sample.thermal_valid || sample.thermal_c <= mConfig.thermal_resume_c;
+        const bool battery_cool = !sample.battery_valid || sample.battery_c <= mConfig.battery_resume_c;
+        return thermal_cool && battery_cool;
+    };
+
+    std::unique_lock<std::mutex> lock(mMutex);
+    if (!mLatest.overheating) {
         return;
     }
 
     const double pause_begin_s = nowSeconds();
     MNN_PRINT("[AECS][Thermal] Pause %s because %s exceeded thresholds\n",
               reason.c_str(),
-              sample.summary.c_str());
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(std::max(50, mConfig.thermal_sample_ms)));
-        sample = latestSample();
-        const bool thermal_cool = !sample.thermal_valid || sample.thermal_c <= mConfig.thermal_resume_c;
-        const bool battery_cool = !sample.battery_valid || sample.battery_c <= mConfig.battery_resume_c;
-        if (thermal_cool && battery_cool) {
-            MNN_PRINT("[AECS][Thermal] Resume %s at %s after %.2f s\n",
-                      reason.c_str(),
-                      sample.summary.c_str(),
-                      std::max(0.0, nowSeconds() - pause_begin_s));
-            return;
-        }
+              mLatest.summary.c_str());
+    mCondition.wait(lock, [&]() { return mStop || cooled(mLatest); });
+    if (!mStop) {
+        MNN_PRINT("[AECS][Thermal] Resume %s at %s after %.2f s\n",
+                  reason.c_str(),
+                  mLatest.summary.c_str(),
+                  std::max(0.0, nowSeconds() - pause_begin_s));
     }
 }
 
@@ -632,6 +668,7 @@ EnergyProfiler::~EnergyProfiler() {
         std::lock_guard<std::mutex> lock(mMutex);
         mStop = true;
     }
+    mCondition.notify_all();
     if (mThread.joinable()) {
         mThread.join();
     }
@@ -649,6 +686,9 @@ void EnergyProfiler::begin() {
     mLastSnapshot = Snapshot();
     mMeasureBeginSnapshot = Snapshot();
     mMeasuring = mAvailable;
+    if (mMeasuring) {
+        mCondition.notify_all();
+    }
 }
 
 PowerSampleResult EnergyProfiler::end() {
@@ -668,18 +708,19 @@ PowerSampleResult EnergyProfiler::end() {
     mSampleCount = 0;
     mLastSnapshot = Snapshot();
     mMeasureBeginSnapshot = Snapshot();
+    mCondition.notify_all();
     return result;
 }
 
 void EnergyProfiler::sampleLoop() {
+    const auto interval = std::chrono::milliseconds(std::max(10, mConfig.power_sample_ms));
     while (true) {
-        bool stop = false;
         {
-            std::lock_guard<std::mutex> lock(mMutex);
-            stop = mStop;
-        }
-        if (stop) {
-            return;
+            std::unique_lock<std::mutex> lock(mMutex);
+            mCondition.wait(lock, [this]() { return mStop || mMeasuring; });
+            if (mStop) {
+                return;
+            }
         }
 
         long long current_raw = 0;
@@ -708,7 +749,10 @@ void EnergyProfiler::sampleLoop() {
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(std::max(10, mConfig.power_sample_ms)));
+        std::unique_lock<std::mutex> lock(mMutex);
+        if (mCondition.wait_for(lock, interval, [this]() { return mStop || !mMeasuring; }) && mStop) {
+            return;
+        }
     }
 }
 

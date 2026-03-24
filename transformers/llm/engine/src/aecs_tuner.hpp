@@ -2,6 +2,7 @@
 #define LLM_AECS_TUNER_HPP
 
 #include <cstdint>
+#include <condition_variable>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -152,6 +153,7 @@ private:
 private:
     AecsTuningConfig mConfig;
     mutable std::mutex mMutex;
+    mutable std::condition_variable mCondition;
     ThermalSample mLatest;
     bool mStop = false;
     std::thread mThread;
@@ -181,6 +183,7 @@ private:
 private:
     AecsTuningConfig mConfig;
     mutable std::mutex mMutex;
+    std::condition_variable mCondition;
     std::string mCurrentPath;
     std::string mVoltagePath;
     bool mStop = false;
