@@ -98,6 +98,23 @@ static bool readLongLongFile(const std::string& path, long long* output) {
     return true;
 }
 
+static bool runCommand(const std::string& command, std::string* output) {
+    if (!output) {
+        return false;
+    }
+    output->clear();
+    FILE* pipe = ::popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        return false;
+    }
+    char buffer[512] = {0};
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output->append(buffer);
+    }
+    const int status = ::pclose(pipe);
+    return status != -1 && !output->empty();
+}
+
 static std::vector<int> parseIntList(const std::string& content) {
     std::vector<int> values;
     std::istringstream stream(content);
@@ -205,6 +222,259 @@ static bool containsIgnoreCase(const std::string& text, const std::string& patte
     return lower(text).find(lower(pattern)) != std::string::npos;
 }
 
+static bool parseBoolString(const std::string& text, bool* output) {
+    if (!output) {
+        return false;
+    }
+    std::string lowered = trim(text);
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    if (lowered == "true") {
+        *output = true;
+        return true;
+    }
+    if (lowered == "false") {
+        *output = false;
+        return true;
+    }
+    return false;
+}
+
+static bool parseKeyValueLine(const std::string& line, std::string* key, std::string* value) {
+    if (!key || !value) {
+        return false;
+    }
+    const auto pos = line.find(':');
+    if (pos == std::string::npos) {
+        return false;
+    }
+    *key = trim(line.substr(0, pos));
+    *value = trim(line.substr(pos + 1));
+    return !key->empty();
+}
+
+static bool parseLongLongText(const std::string& text, long long* output) {
+    if (!output) {
+        return false;
+    }
+    const std::string trimmed_text = trim(text);
+    if (trimmed_text.empty()) {
+        return false;
+    }
+    char* end = nullptr;
+    const long long value = strtoll(trimmed_text.c_str(), &end, 10);
+    if (end == trimmed_text.c_str()) {
+        return false;
+    }
+    *output = value;
+    return true;
+}
+
+static bool extractFieldValue(const std::string& line, const std::string& field, std::string* value) {
+    if (!value) {
+        return false;
+    }
+    const std::string token = field + "=";
+    const auto begin = line.find(token);
+    if (begin == std::string::npos) {
+        return false;
+    }
+    const auto value_begin = begin + token.size();
+    auto value_end = line.find(',', value_begin);
+    if (value_end == std::string::npos) {
+        value_end = line.find('}', value_begin);
+    }
+    if (value_end == std::string::npos) {
+        value_end = line.size();
+    }
+    *value = trim(line.substr(value_begin, value_end - value_begin));
+    return !value->empty();
+}
+
+static double normalizeSysfsPower(long long raw) {
+    const double abs_raw = std::fabs(static_cast<double>(raw));
+    if (abs_raw >= 1000000.0) {
+        return static_cast<double>(raw) / 1.0e6;
+    }
+    if (abs_raw >= 1000.0) {
+        return static_cast<double>(raw) / 1000.0;
+    }
+    return static_cast<double>(raw);
+}
+
+static double normalizeSysfsCurrent(long long raw) {
+    const double abs_raw = std::fabs(static_cast<double>(raw));
+    if (abs_raw >= 1000000.0) {
+        return static_cast<double>(raw) / 1.0e6;
+    }
+    if (abs_raw >= 1000.0) {
+        return static_cast<double>(raw) / 1000.0;
+    }
+    return static_cast<double>(raw);
+}
+
+static double normalizeSysfsVoltage(long long raw) {
+    const double abs_raw = std::fabs(static_cast<double>(raw));
+    if (abs_raw >= 1000000.0) {
+        return static_cast<double>(raw) / 1.0e6;
+    }
+    if (abs_raw >= 1000.0) {
+        return static_cast<double>(raw) / 1000.0;
+    }
+    return static_cast<double>(raw);
+}
+
+struct DumpsysBatteryInfo {
+    bool valid = false;
+    bool voltage_valid = false;
+    bool current_valid = false;
+    bool charge_counter_valid = false;
+    bool battery_temp_valid = false;
+    bool external_power_valid = false;
+    bool external_power = false;
+    double voltage_v = 0.0;
+    double current_a = 0.0;
+    long long charge_counter_uah = 0;
+    double battery_c = 0.0;
+};
+
+static bool parseDumpsysBattery(const std::string& text, DumpsysBatteryInfo* output) {
+    if (!output) {
+        return false;
+    }
+    DumpsysBatteryInfo info;
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line)) {
+        std::string key;
+        std::string value;
+        if (!parseKeyValueLine(line, &key, &value)) {
+            continue;
+        }
+        long long number = 0;
+        if (key == "voltage" || key == "Charger voltage" || key == "Charge counter" ||
+            key == "temperature" || key == "Battery current" || key == "PhoneTemp") {
+            if (!parseLongLongText(value, &number)) {
+                continue;
+            }
+        }
+        if (key == "voltage") {
+            info.voltage_valid = true;
+            info.voltage_v = normalizeSysfsVoltage(number);
+        } else if (key == "Charger voltage" && !info.voltage_valid) {
+            info.voltage_valid = true;
+            info.voltage_v = normalizeSysfsVoltage(number);
+        } else if (key == "Charge counter") {
+            info.charge_counter_valid = true;
+            info.charge_counter_uah = number;
+        } else if (key == "temperature") {
+            info.battery_temp_valid = true;
+            info.battery_c = normalizeTemperature(number);
+        } else if (key == "PhoneTemp" && !info.battery_temp_valid) {
+            info.battery_temp_valid = true;
+            info.battery_c = normalizeTemperature(number);
+        } else if (key == "Battery current") {
+            info.current_valid = true;
+            info.current_a = static_cast<double>(number) / 1000.0;
+        } else if (key == "AC powered" || key == "USB powered" ||
+                   key == "Wireless powered" || key == "Dock powered") {
+            bool powered = false;
+            if (parseBoolString(value, &powered)) {
+                info.external_power_valid = true;
+                info.external_power = info.external_power || powered;
+            }
+        }
+    }
+    info.valid = info.voltage_valid || info.current_valid || info.charge_counter_valid || info.battery_temp_valid;
+    *output = info;
+    return info.valid;
+}
+
+static bool sampleDumpsysBattery(DumpsysBatteryInfo* output) {
+    std::string text;
+    if (!runCommand("dumpsys battery", &text)) {
+        return false;
+    }
+    return parseDumpsysBattery(text, output);
+}
+
+struct ThermalServiceInfo {
+    bool cpu_valid = false;
+    bool battery_valid = false;
+    double cpu_c = 0.0;
+    double battery_c = 0.0;
+    std::string cpu_name;
+};
+
+static bool parseThermalServiceTemperatures(const std::string& text, ThermalServiceInfo* output) {
+    if (!output) {
+        return false;
+    }
+    struct Candidate {
+        bool cpu_valid = false;
+        bool battery_valid = false;
+        double cpu_c = 0.0;
+        double battery_c = 0.0;
+        std::string cpu_name;
+    };
+    Candidate cached;
+    Candidate hal;
+    Candidate* active = nullptr;
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line)) {
+        const std::string trimmed = trim(line);
+        if (trimmed == "Cached temperatures:") {
+            active = &cached;
+            continue;
+        }
+        if (trimmed == "Current temperatures from HAL:") {
+            active = &hal;
+            continue;
+        }
+        if (active == nullptr || trimmed.find("Temperature{") != 0) {
+            continue;
+        }
+        std::string value_text;
+        std::string type_text;
+        std::string name_text;
+        if (!extractFieldValue(trimmed, "mValue", &value_text) ||
+            !extractFieldValue(trimmed, "mType", &type_text) ||
+            !extractFieldValue(trimmed, "mName", &name_text)) {
+            continue;
+        }
+        const double value_c = atof(value_text.c_str());
+        const int type = atoi(type_text.c_str());
+        if (type == 0) {
+            if (!active->cpu_valid || value_c > active->cpu_c) {
+                active->cpu_valid = true;
+                active->cpu_c = value_c;
+                active->cpu_name = name_text;
+            }
+        } else if (type == 2 && !active->battery_valid) {
+            active->battery_valid = true;
+            active->battery_c = value_c;
+        }
+    }
+
+    const Candidate& best = hal.cpu_valid || hal.battery_valid ? hal : cached;
+    output->cpu_valid = best.cpu_valid;
+    output->battery_valid = best.battery_valid;
+    output->cpu_c = best.cpu_c;
+    output->battery_c = best.battery_c;
+    output->cpu_name = best.cpu_name;
+    return output->cpu_valid || output->battery_valid;
+}
+
+static bool sampleThermalService(ThermalServiceInfo* output) {
+    std::string text;
+    if (!runCommand("dumpsys thermalservice", &text)) {
+        return false;
+    }
+    return parseThermalServiceTemperatures(text, output);
+}
+
 static bool shouldIgnoreThermalZone(const std::string& zone_type, double temperature_c) {
     if (!std::isfinite(temperature_c) || temperature_c <= 0.0 || temperature_c > 200.0) {
         return true;
@@ -233,6 +503,8 @@ static ThermalSample sampleThermalState(const AecsTuningConfig& config) {
     const auto thermal_dirs = listDirectories("/sys/class/thermal", "thermal_zone");
     double max_thermal_c = -std::numeric_limits<double>::infinity();
     std::string hottest_type;
+    std::string thermal_source = "sysfs";
+    std::string battery_source;
     for (const auto& dir : thermal_dirs) {
         std::string type_text;
         long long raw_temp = 0;
@@ -266,7 +538,34 @@ static ThermalSample sampleThermalState(const AecsTuningConfig& config) {
         if (readLongLongFile(path, &raw_temp)) {
             sample.battery_valid = true;
             sample.battery_c = normalizeTemperature(raw_temp);
+            battery_source = path;
             break;
+        }
+    }
+
+    if (!sample.battery_valid) {
+        DumpsysBatteryInfo battery_info;
+        if (sampleDumpsysBattery(&battery_info) && battery_info.battery_temp_valid) {
+            sample.battery_valid = true;
+            sample.battery_c = battery_info.battery_c;
+            battery_source = "dumpsys battery";
+        }
+    }
+
+    if (!sample.thermal_valid || !sample.battery_valid) {
+        ThermalServiceInfo service_info;
+        if (sampleThermalService(&service_info)) {
+            if (!sample.thermal_valid && service_info.cpu_valid) {
+                sample.thermal_valid = true;
+                sample.thermal_c = service_info.cpu_c;
+                hottest_type = service_info.cpu_name;
+                thermal_source = "thermalservice";
+            }
+            if (!sample.battery_valid && service_info.battery_valid) {
+                sample.battery_valid = true;
+                sample.battery_c = service_info.battery_c;
+                battery_source = "thermalservice";
+            }
         }
     }
 
@@ -280,12 +579,18 @@ static ThermalSample sampleThermalState(const AecsTuningConfig& config) {
         if (!hottest_type.empty()) {
             summary << "(" << hottest_type << ")";
         }
+        if (!thermal_source.empty()) {
+            summary << "[" << thermal_source << "]";
+        }
     } else {
         summary << "thermal=n/a";
     }
     summary << ", ";
     if (sample.battery_valid) {
         summary << "battery=" << sample.battery_c << "C";
+        if (!battery_source.empty()) {
+            summary << "[" << battery_source << "]";
+        }
     } else {
         summary << "battery=n/a";
     }
@@ -636,31 +941,93 @@ void ThermalGuard::checkAndPause(const std::string& reason) const {
 
 EnergyProfiler::EnergyProfiler(const AecsTuningConfig& config)
     : mConfig(config) {
-    const auto supplies = listDirectories("/sys/class/power_supply", "");
+    std::vector<std::string> supplies = listDirectories("/sys/class/power_supply", "");
+    auto battery_iter = std::find(supplies.begin(), supplies.end(), "/sys/class/power_supply/battery");
+    if (battery_iter != supplies.end() && battery_iter != supplies.begin()) {
+        std::rotate(supplies.begin(), battery_iter, battery_iter + 1);
+    }
+
+    auto readableValue = [](const std::string& path, long long* value) {
+        return readLongLongFile(path, value);
+    };
+
+    long long probe = 0;
     for (const auto& dir : supplies) {
-        const std::string current_now = dir + "/current_now";
-        const std::string current_avg = dir + "/current_avg";
-        const std::string voltage_now = dir + "/voltage_now";
-        if (mCurrentPath.empty() && fileExists(current_now)) {
-            mCurrentPath = current_now;
+        const std::vector<std::string> power_candidates = {
+            dir + "/power_now",
+            dir + "/power_avg",
+        };
+        for (const auto& power_path : power_candidates) {
+            if (readableValue(power_path, &probe)) {
+                mSourceType = SourceType::SYSFS_POWER;
+                mPowerPath = power_path;
+                mAvailable = true;
+                break;
+            }
         }
-        if (mCurrentPath.empty() && fileExists(current_avg)) {
-            mCurrentPath = current_avg;
+        if (mAvailable) {
+            break;
         }
-        if (mVoltagePath.empty() && fileExists(voltage_now)) {
-            mVoltagePath = voltage_now;
+
+        const std::vector<std::string> current_candidates = {
+            dir + "/current_now",
+            dir + "/current_avg",
+        };
+        const std::vector<std::string> voltage_candidates = {
+            dir + "/voltage_now",
+            dir + "/voltage_ocv",
+        };
+        for (const auto& current_path : current_candidates) {
+            if (!readableValue(current_path, &probe)) {
+                continue;
+            }
+            for (const auto& voltage_path : voltage_candidates) {
+                if (!readableValue(voltage_path, &probe)) {
+                    continue;
+                }
+                mSourceType = SourceType::SYSFS_CURRENT_VOLTAGE;
+                mCurrentPath = current_path;
+                mVoltagePath = voltage_path;
+                mAvailable = true;
+                break;
+            }
+            if (mAvailable) {
+                break;
+            }
         }
-        if (!mCurrentPath.empty() && !mVoltagePath.empty()) {
+        if (mAvailable) {
             break;
         }
     }
-    mAvailable = !mCurrentPath.empty() && !mVoltagePath.empty();
-    if (mAvailable) {
-        MNN_PRINT("[AECS][Power] Using current=%s, voltage=%s\n", mCurrentPath.c_str(), mVoltagePath.c_str());
-    } else {
-        MNN_PRINT("[AECS][Power] current_now/voltage_now unavailable, energy measurement disabled\n");
+
+    if (!mAvailable) {
+        DumpsysBatteryInfo info;
+        if (sampleDumpsysBattery(&info) && info.voltage_valid &&
+            (info.charge_counter_valid || info.current_valid)) {
+            mSourceType = SourceType::DUMPSYS_BATTERY;
+            mAvailable = true;
+            MNN_PRINT("[AECS][Power] Using dumpsys battery fallback: voltage=%.3f V%s%s\n",
+                      info.voltage_v,
+                      info.charge_counter_valid ? ", charge_counter=on" : "",
+                      info.current_valid ? ", battery_current=on" : "");
+            if (info.external_power_valid && info.external_power) {
+                MNN_PRINT("[AECS][Power] External power is attached; dumpsys battery energy is net battery-side only and may be inaccurate\n");
+            }
+        }
     }
-    mThread = std::thread(&EnergyProfiler::sampleLoop, this);
+
+    if (!mAvailable) {
+        MNN_PRINT("[AECS][Power] No accessible power source found; energy measurement disabled\n");
+        return;
+    }
+
+    if (mSourceType == SourceType::SYSFS_POWER) {
+        MNN_PRINT("[AECS][Power] Using direct power path=%s\n", mPowerPath.c_str());
+        mThread = std::thread(&EnergyProfiler::sampleLoop, this);
+    } else if (mSourceType == SourceType::SYSFS_CURRENT_VOLTAGE) {
+        MNN_PRINT("[AECS][Power] Using current=%s, voltage=%s\n", mCurrentPath.c_str(), mVoltagePath.c_str());
+        mThread = std::thread(&EnergyProfiler::sampleLoop, this);
+    }
 }
 
 EnergyProfiler::~EnergyProfiler() {
@@ -680,11 +1047,37 @@ bool EnergyProfiler::available() const {
 }
 
 void EnergyProfiler::begin() {
+    if (mSourceType == SourceType::DUMPSYS_BATTERY) {
+        DumpsysBatteryInfo info;
+        const bool ok = sampleDumpsysBattery(&info);
+        std::lock_guard<std::mutex> lock(mMutex);
+        mAccumulatedEnergyJ = 0.0;
+        mSampleCount = 0;
+        mLastSnapshot = Snapshot();
+        mMeasureBeginSnapshot = Snapshot();
+        mMeasureBeginBatterySnapshot = BatterySnapshot();
+        mMeasuring = mAvailable && ok;
+        if (mMeasuring) {
+            mMeasureBeginBatterySnapshot.valid = true;
+            mMeasureBeginBatterySnapshot.timestamp_s = nowSeconds();
+            mMeasureBeginBatterySnapshot.voltage_valid = info.voltage_valid;
+            mMeasureBeginBatterySnapshot.current_valid = info.current_valid;
+            mMeasureBeginBatterySnapshot.charge_counter_valid = info.charge_counter_valid;
+            mMeasureBeginBatterySnapshot.external_power_valid = info.external_power_valid;
+            mMeasureBeginBatterySnapshot.external_power = info.external_power;
+            mMeasureBeginBatterySnapshot.voltage_v = info.voltage_v;
+            mMeasureBeginBatterySnapshot.current_a = info.current_a;
+            mMeasureBeginBatterySnapshot.charge_counter_uah = info.charge_counter_uah;
+        }
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(mMutex);
     mAccumulatedEnergyJ = 0.0;
     mSampleCount = 0;
     mLastSnapshot = Snapshot();
     mMeasureBeginSnapshot = Snapshot();
+    mMeasureBeginBatterySnapshot = BatterySnapshot();
     mMeasuring = mAvailable;
     if (mMeasuring) {
         mCondition.notify_all();
@@ -692,6 +1085,77 @@ void EnergyProfiler::begin() {
 }
 
 PowerSampleResult EnergyProfiler::end() {
+    if (mSourceType == SourceType::DUMPSYS_BATTERY) {
+        DumpsysBatteryInfo end_info;
+        const bool end_ok = sampleDumpsysBattery(&end_info);
+        std::lock_guard<std::mutex> lock(mMutex);
+        PowerSampleResult result;
+        if (mMeasuring && mMeasureBeginBatterySnapshot.valid && end_ok) {
+            BatterySnapshot end_snapshot;
+            end_snapshot.valid = true;
+            end_snapshot.timestamp_s = nowSeconds();
+            end_snapshot.voltage_valid = end_info.voltage_valid;
+            end_snapshot.current_valid = end_info.current_valid;
+            end_snapshot.charge_counter_valid = end_info.charge_counter_valid;
+            end_snapshot.external_power_valid = end_info.external_power_valid;
+            end_snapshot.external_power = end_info.external_power;
+            end_snapshot.voltage_v = end_info.voltage_v;
+            end_snapshot.current_a = end_info.current_a;
+            end_snapshot.charge_counter_uah = end_info.charge_counter_uah;
+            result.duration_s = std::max(0.0, end_snapshot.timestamp_s - mMeasureBeginBatterySnapshot.timestamp_s);
+
+            const bool external_power = (mMeasureBeginBatterySnapshot.external_power_valid &&
+                                         mMeasureBeginBatterySnapshot.external_power) ||
+                                        (end_snapshot.external_power_valid && end_snapshot.external_power);
+            const bool can_use_counter = mMeasureBeginBatterySnapshot.charge_counter_valid &&
+                                         end_snapshot.charge_counter_valid &&
+                                         mMeasureBeginBatterySnapshot.voltage_valid &&
+                                         end_snapshot.voltage_valid &&
+                                         mMeasureBeginBatterySnapshot.charge_counter_uah != end_snapshot.charge_counter_uah &&
+                                         !external_power;
+            const bool can_use_current = mMeasureBeginBatterySnapshot.current_valid &&
+                                         end_snapshot.current_valid &&
+                                         mMeasureBeginBatterySnapshot.voltage_valid &&
+                                         end_snapshot.voltage_valid &&
+                                         result.duration_s > 0.0;
+            const double avg_current_a = can_use_current
+                                             ? 0.5 * (std::fabs(mMeasureBeginBatterySnapshot.current_a) +
+                                                      std::fabs(end_snapshot.current_a))
+                                             : 0.0;
+            const double avg_voltage_v = (mMeasureBeginBatterySnapshot.voltage_valid && end_snapshot.voltage_valid)
+                                             ? 0.5 * (mMeasureBeginBatterySnapshot.voltage_v + end_snapshot.voltage_v)
+                                             : 0.0;
+            const double current_power_w = can_use_current ? avg_current_a * avg_voltage_v : 0.0;
+            if (can_use_counter && result.duration_s > 0.0) {
+                const long long delta_uah = end_snapshot.charge_counter_uah - mMeasureBeginBatterySnapshot.charge_counter_uah;
+                const double counter_energy_j = std::fabs(static_cast<double>(delta_uah)) * avg_voltage_v * 0.0036;
+                const double counter_power_w = counter_energy_j / result.duration_s;
+                const bool counter_sane = !can_use_current ||
+                                          (counter_power_w <= current_power_w * 4.0 + 1.0 &&
+                                           counter_power_w >= std::max(0.0, current_power_w * 0.25 - 0.25));
+                if (counter_sane) {
+                    result.energy_j = counter_energy_j;
+                    result.avg_power_w = counter_power_w;
+                    result.valid = result.energy_j > 0.0;
+                    result.sample_count = 2;
+                }
+            }
+            if (!result.valid && can_use_current) {
+                result.avg_power_w = current_power_w;
+                result.energy_j = result.avg_power_w * result.duration_s;
+                result.valid = result.energy_j > 0.0;
+                result.sample_count = 2;
+            }
+        }
+        mMeasuring = false;
+        mAccumulatedEnergyJ = 0.0;
+        mSampleCount = 0;
+        mLastSnapshot = Snapshot();
+        mMeasureBeginSnapshot = Snapshot();
+        mMeasureBeginBatterySnapshot = BatterySnapshot();
+        return result;
+    }
+
     std::lock_guard<std::mutex> lock(mMutex);
     PowerSampleResult result;
     result.valid = mMeasuring && mSampleCount > 0;
@@ -713,6 +1177,10 @@ PowerSampleResult EnergyProfiler::end() {
 }
 
 void EnergyProfiler::sampleLoop() {
+    if (mSourceType != SourceType::SYSFS_POWER &&
+        mSourceType != SourceType::SYSFS_CURRENT_VOLTAGE) {
+        return;
+    }
     const auto interval = std::chrono::milliseconds(std::max(10, mConfig.power_sample_ms));
     while (true) {
         {
@@ -723,16 +1191,22 @@ void EnergyProfiler::sampleLoop() {
             }
         }
 
-        long long current_raw = 0;
-        long long voltage_raw = 0;
-        const bool current_ok = readLongLongFile(mCurrentPath, &current_raw);
-        const bool voltage_ok = readLongLongFile(mVoltagePath, &voltage_raw);
-        if (current_ok && voltage_ok) {
-            Snapshot snapshot;
+        Snapshot snapshot;
+        snapshot.timestamp_s = nowSeconds();
+        long long raw_power = 0;
+        long long raw_current = 0;
+        long long raw_voltage = 0;
+        if (mSourceType == SourceType::SYSFS_POWER && readLongLongFile(mPowerPath, &raw_power)) {
             snapshot.valid = true;
-            snapshot.timestamp_s = nowSeconds();
-            snapshot.power_w = std::fabs(static_cast<double>(current_raw) * static_cast<double>(voltage_raw)) / 1.0e12;
-
+            snapshot.power_w = std::fabs(normalizeSysfsPower(raw_power));
+        } else if (mSourceType == SourceType::SYSFS_CURRENT_VOLTAGE &&
+                   readLongLongFile(mCurrentPath, &raw_current) &&
+                   readLongLongFile(mVoltagePath, &raw_voltage)) {
+            snapshot.valid = true;
+            snapshot.power_w = std::fabs(normalizeSysfsCurrent(raw_current) *
+                                         normalizeSysfsVoltage(raw_voltage));
+        }
+        if (snapshot.valid) {
             std::lock_guard<std::mutex> lock(mMutex);
             if (mMeasuring) {
                 if (!mMeasureBeginSnapshot.valid) {

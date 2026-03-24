@@ -172,10 +172,30 @@ public:
     PowerSampleResult end();
 
 private:
+    enum class SourceType : int {
+        NONE = 0,
+        SYSFS_POWER = 1,
+        SYSFS_CURRENT_VOLTAGE = 2,
+        DUMPSYS_BATTERY = 3,
+    };
+
     struct Snapshot {
         bool valid = false;
         double power_w = 0.0;
         double timestamp_s = 0.0;
+    };
+
+    struct BatterySnapshot {
+        bool valid = false;
+        bool voltage_valid = false;
+        bool current_valid = false;
+        bool charge_counter_valid = false;
+        bool external_power_valid = false;
+        bool external_power = false;
+        double timestamp_s = 0.0;
+        double voltage_v = 0.0;
+        double current_a = 0.0;
+        long long charge_counter_uah = 0;
     };
 
     void sampleLoop();
@@ -184,6 +204,8 @@ private:
     AecsTuningConfig mConfig;
     mutable std::mutex mMutex;
     std::condition_variable mCondition;
+    SourceType mSourceType = SourceType::NONE;
+    std::string mPowerPath;
     std::string mCurrentPath;
     std::string mVoltagePath;
     bool mStop = false;
@@ -193,6 +215,7 @@ private:
     int mSampleCount = 0;
     Snapshot mLastSnapshot;
     Snapshot mMeasureBeginSnapshot;
+    BatterySnapshot mMeasureBeginBatterySnapshot;
     std::thread mThread;
 };
 
