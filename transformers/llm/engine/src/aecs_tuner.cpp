@@ -591,9 +591,9 @@ void ThermalGuard::sampleLoop() {
         const double log_interval_s = std::max(5.0, static_cast<double>(interval.count()) / 1000.0);
         if (last_log_time_s < 0.0 || now_s - last_log_time_s >= log_interval_s ||
             latest.overheating != last_overheating) {
-            MNN_PRINT("[AECS][Thermal] %s status=%s\n",
-                      latest.summary.c_str(),
-                      latest.overheating ? "hot" : "cool");
+            // MNN_PRINT("[AECS][Thermal] %s status=%s\n",
+            //           latest.summary.c_str(),
+            //           latest.overheating ? "hot" : "cool");
             last_log_time_s = now_s;
             last_overheating = latest.overheating;
         }

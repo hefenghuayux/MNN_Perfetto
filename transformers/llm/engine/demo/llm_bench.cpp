@@ -1223,6 +1223,21 @@ static std::string cpuIdsToJson(const std::vector<int>& cpu_ids) {
     return ids_json;
 }
 
+static double tokensPerSecond(int n_tokens, int64_t cost_us) {
+    if (n_tokens <= 0 || cost_us <= 0) {
+        return 0.0;
+    }
+    return 1e6 * static_cast<double>(n_tokens) / static_cast<double>(cost_us);
+}
+
+static std::vector<int> cpuIdsForLog(const std::vector<int>& phase_cpu_ids, const std::vector<int>& fallback_cpu_ids) {
+    return phase_cpu_ids.empty() ? fallback_cpu_ids : phase_cpu_ids;
+}
+
+static int threadsForLog(const std::vector<int>& phase_cpu_ids, int phase_threads, int fallback_threads) {
+    return phase_cpu_ids.empty() ? fallback_threads : phase_threads;
+}
+
 static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads,
                      int prefill_threads, int decode_threads, int power, int dynamic_option, bool use_mmap,
                      const std::vector<int>& cpu_ids, const std::vector<int>& prefill_cpu_ids,
@@ -1326,7 +1341,7 @@ static void wait_for_perf_trigger() {
     struct sockaddr_in serv_addr;
     const int PORT = 8888; // 约定端口 8888
 
-    MNN_PRINT(">>> [Sync] 正在连接性能监控 Server (localhost:%d)...\n", PORT);
+    // MNN_PRINT(">>> [Sync] 正在连接性能监控 Server (localhost:%d)...\n", PORT);
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         MNN_ERROR(">>> [Sync] Socket 创建失败 \n");
@@ -1352,12 +1367,13 @@ static void wait_for_perf_trigger() {
     // 1. 发送本机 PID 给 Server
     std::string pid_msg = std::to_string(getpid());
     send(sock, pid_msg.c_str(), pid_msg.length(), 0);
-    MNN_PRINT(">>> [Sync] Prefill 完成! 已发送 PID: %s. 等待 Simpleperf 启动...\n", pid_msg.c_str());
+    // MNN_PRINT(">>> [Sync] Prefill 完成! 已发送 PID: %s. 等待 Simpleperf 启动...\n", pid_msg.c_str());
 
     // 2. 阻塞读取，等待 Server 发回 "GO" 指令
     char buffer[1024] = {0};
     int valread = read(sock, buffer, 1024);
-    MNN_PRINT(">>> [Sync] 收到指令: %s. 立即开始 Decode!\n", buffer);
+    // MNN_PRINT(">>> [Sync] 收到指令: %s. 立即开始 Decode!\n", buffer);
+    (void)valread;
 
     close(sock);
 }
@@ -1378,15 +1394,15 @@ void print_task_stats(const char* phase_name, int start_total, int end_total, in
         ratio = (float)delta_small_ops / delta_total * 100.0f;
     }
 
-    MNN_PRINT("\n[Analyz] === %s Phase Statistics ===\n", phase_name);
-    MNN_PRINT("[Analyz] Total Ops: %d\n", delta_total);
-    MNN_PRINT("[Analyz] Small Ops (Hit Uniform): %d (Raw: %d)\n", delta_small_ops, delta_small_raw);
-    MNN_PRINT("[Analyz] Small Task Ratio: %.2f%%\n", ratio);
+    // MNN_PRINT("\n[Analyz] === %s Phase Statistics ===\n", phase_name);
+    // MNN_PRINT("[Analyz] Total Ops: %d\n", delta_total);
+    // MNN_PRINT("[Analyz] Small Ops (Hit Uniform): %d (Raw: %d)\n", delta_small_ops, delta_small_raw);
+    // MNN_PRINT("[Analyz] Small Task Ratio: %.2f%%\n", ratio);
     
     if (ratio > 90.0f) {
-         MNN_PRINT("[Analyz] [!!CRITICAL!!] %s 阶段绝大多数算子被判定为小任务，多线程收益极低！\n", phase_name);
+         // MNN_PRINT("[Analyz] [!!CRITICAL!!] %s 阶段绝大多数算子被判定为小任务，多线程收益极低！\n", phase_name);
     }
-    MNN_PRINT("[Analyz] =================================\n\n");
+    // MNN_PRINT("[Analyz] =================================\n\n");
 }
 int main(int argc, char ** argv) {
     // ---------------------------------------------------------
@@ -1484,10 +1500,30 @@ int main(int argc, char ** argv) {
         const auto& final_decode_cpu_ids = aecsRuntimePlan.final_decode_cpu_ids;
         const int final_prefill_threads = aecsRuntimePlan.final_prefill_threads;
         const int final_decode_threads = aecsRuntimePlan.final_decode_threads;
+        const auto benchmark_prefill_cpu_ids = cpuIdsForLog(final_prefill_cpu_ids, aecsRuntimePlan.pool_cpu_ids);
+        const auto benchmark_decode_cpu_ids = cpuIdsForLog(final_decode_cpu_ids, aecsRuntimePlan.pool_cpu_ids);
+        const int benchmark_prefill_threads = threadsForLog(final_prefill_cpu_ids, final_prefill_threads,
+                                                            aecsRuntimePlan.pool_threads);
+        const int benchmark_decode_threads = threadsForLog(final_decode_cpu_ids, final_decode_threads,
+                                                           aecsRuntimePlan.pool_threads);
         if (aecsRuntimePlan.split_phase_bench) {
             t.threads = std::max(final_prefill_threads, final_decode_threads);
             t.cpuIds = mergePhaseCpuIds(aecsRuntimePlan.pool_cpu_ids, final_prefill_cpu_ids, final_decode_cpu_ids);
         }
+        MNN_PRINT("[llm_bench] Case model=%s prompt=%d decode=%d repeats=%d kv=%s split_phase=%d\n",
+                  instance.mCmdParam.model.c_str(),
+                  prompt_tokens,
+                  decodeTokens,
+                  instance.mCmdParam.nRepeat,
+                  instance.mCmdParam.kvCache.c_str(),
+                  aecsRuntimePlan.split_phase_bench ? 1 : 0);
+        MNN_PRINT("[llm_bench] Active bindings pool=%d/%s prefill=%d/%s decode=%d/%s\n",
+                  aecsRuntimePlan.pool_threads,
+                  cpuIdsToJson(aecsRuntimePlan.pool_cpu_ids).c_str(),
+                  benchmark_prefill_threads,
+                  cpuIdsToJson(benchmark_prefill_cpu_ids).c_str(),
+                  benchmark_decode_threads,
+                  cpuIdsToJson(benchmark_decode_cpu_ids).c_str());
 
         // llm_demo test
         if (instance.mCmdParam.kvCache == "true") {
@@ -1496,34 +1532,87 @@ int main(int argc, char ** argv) {
             const bool use_split_phase_bench = aecsRuntimePlan.split_phase_bench;
             
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
+                const bool warmup_run = (i == 0);
+                const int run_display_index = warmup_run ? 1 : i;
+                const int run_display_total = warmup_run ? 1 : instance.mCmdParam.nRepeat;
                 int64_t prefillTime = 0;
                 int64_t decodeTime = 0;
                 if (use_split_phase_bench) {
                     llm->reset();
                     if (prompt_tokens > 0) {
+                        MNN_PRINT("[llm_bench][%s %d/%d] start prefill prompt=%d threads=%d bind=%s\n",
+                                  warmup_run ? "warmup" : "measure",
+                                  run_display_index,
+                                  run_display_total,
+                                  prompt_tokens,
+                                  benchmark_prefill_threads,
+                                  cpuIdsToJson(benchmark_prefill_cpu_ids).c_str());
                         aecsController.checkPrefillTemperature();
                         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
                         begin_trace_marker("llm->response (prefill_only)");
                         llm->response(tokens, nullptr, nullptr, 1);
                         end_trace_marker();
                         prefillTime = context->prefill_us;
+                        MNN_PRINT("[llm_bench][%s %d/%d] finish prefill time=%.6f s speed=%.3f tok/s\n",
+                                  warmup_run ? "warmup" : "measure",
+                                  run_display_index,
+                                  run_display_total,
+                                  static_cast<double>(prefillTime) / 1e6,
+                                  tokensPerSecond(prompt_tokens, prefillTime));
                     }
                     if (decodeTokens > 0) {
+                        MNN_PRINT("[llm_bench][%s %d/%d] start decode gen=%d threads=%d bind=%s\n",
+                                  warmup_run ? "warmup" : "measure",
+                                  run_display_index,
+                                  run_display_total,
+                                  decodeTokens,
+                                  benchmark_decode_threads,
+                                  cpuIdsToJson(benchmark_decode_cpu_ids).c_str());
                         aecsController.checkDecodeTemperature();
                         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
                         begin_trace_marker("llm->response (decode_only)");
                         llm->response(tokens1, nullptr, nullptr, decodeTokens);
                         end_trace_marker();
                         decodeTime = context->decode_us;
+                        MNN_PRINT("[llm_bench][%s %d/%d] finish decode time=%.6f s speed=%.3f tok/s\n",
+                                  warmup_run ? "warmup" : "measure",
+                                  run_display_index,
+                                  run_display_total,
+                                  static_cast<double>(decodeTime) / 1e6,
+                                  tokensPerSecond(decodeTokens, decodeTime));
                     }
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
                 } else {
+                    MNN_PRINT("[llm_bench][%s %d/%d] start prefill+decode prompt=%d gen=%d threads=%d bind=%s\n",
+                              warmup_run ? "warmup" : "measure",
+                              run_display_index,
+                              run_display_total,
+                              prompt_tokens,
+                              decodeTokens,
+                              aecsRuntimePlan.pool_threads,
+                              cpuIdsToJson(aecsRuntimePlan.pool_cpu_ids).c_str());
                     begin_trace_marker("llm->response (prefill+decode)");
                     llm->response(tokens, nullptr, nullptr, decodeTokens);
                     end_trace_marker();
                     prefillTime = context->prefill_us;
                     decodeTime = context->decode_us;
+                    MNN_PRINT("[llm_bench][%s %d/%d] finish prefill+decode prefill=%.6f s decode=%.6f s prefill_speed=%.3f tok/s decode_speed=%.3f tok/s\n",
+                              warmup_run ? "warmup" : "measure",
+                              run_display_index,
+                              run_display_total,
+                              static_cast<double>(prefillTime) / 1e6,
+                              static_cast<double>(decodeTime) / 1e6,
+                              tokensPerSecond(prompt_tokens, prefillTime),
+                              tokensPerSecond(decodeTokens, decodeTime));
                 }
+                MNN_PRINT("[llm_bench][%s %d/%d] result prefill=%.6f s decode=%.6f s prefill_bind=%s decode_bind=%s\n",
+                          warmup_run ? "warmup" : "measure",
+                          run_display_index,
+                          run_display_total,
+                          static_cast<double>(prefillTime) / 1e6,
+                          static_cast<double>(decodeTime) / 1e6,
+                          cpuIdsToJson(benchmark_prefill_cpu_ids).c_str(),
+                          cpuIdsToJson(benchmark_decode_cpu_ids).c_str());
                 if (i > 0) { // Exclude the first performance value.
                     t.prefillUs.push_back(prefillTime);
                     t.decodeUs.push_back(decodeTime);
@@ -1535,6 +1624,17 @@ int main(int argc, char ** argv) {
                 printHeader = false;
             }
             printer_->printPerformance(t);
+            const auto prefill_speed = t.getTokensPerSecond(t.nPrompt, t.prefillUs);
+            const auto decode_speed = t.getTokensPerSecond(t.nGenerate, t.decodeUs);
+            MNN_PRINT("[llm_bench] Final result prefill=%.3f +- %.3f tok/s decode=%.3f +- %.3f tok/s prefill=%d/%s decode=%d/%s\n",
+                      t.getAvgUs(prefill_speed),
+                      t.getStdevUs(prefill_speed),
+                      t.getAvgUs(decode_speed),
+                      t.getStdevUs(decode_speed),
+                      benchmark_prefill_threads,
+                      cpuIdsToJson(benchmark_prefill_cpu_ids).c_str(),
+                      benchmark_decode_threads,
+                      cpuIdsToJson(benchmark_decode_cpu_ids).c_str());
             // Cool
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
@@ -1550,7 +1650,7 @@ int main(int argc, char ** argv) {
                 
                 // ============ 设置 Prefill 阶段 ============
                 
-                MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
+                // MNN_PRINT("\n==================== [MARKER] PREFILL START ====================\n"); 
 
                 if (prompt_tokens) {
                     aecsController.checkPrefillTemperature();
@@ -1567,7 +1667,7 @@ int main(int argc, char ** argv) {
                 }
 
                 // --- [修改 2] Prefill 结束后 ---
-                MNN_PRINT("\n==================== [MARKER] PREFILL END ====================\n");
+                // MNN_PRINT("\n==================== [MARKER] PREFILL END ====================\n");
 
 
                 if (i == 0 && decodeTokens > 0) {
@@ -1580,7 +1680,7 @@ int main(int argc, char ** argv) {
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
                    
                     // --- [修改 3] Decode 开始前 ---
-                    MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
+                    // MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
                     int d_start_total = g_task_count.load();
                     int d_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (decode_only)");
@@ -1592,7 +1692,7 @@ int main(int argc, char ** argv) {
                     int d_end_small = g_small_task_count.load();
                     print_task_stats("DECODE", d_start_total, d_end_total, d_start_small, d_end_small);
                     // --- [修改 4] Decode 结束后 ---
-                    MNN_PRINT("\n==================== [MARKER] DECODE END ====================\n");
+                    // MNN_PRINT("\n==================== [MARKER] DECODE END ====================\n");
                 }
                 if (i > 0) {
                     t.samplesUs.push_back(sampler_us);
@@ -1617,19 +1717,19 @@ int main(int argc, char ** argv) {
     }
     
     // 打印任务大小统计信息
-    MNN_PRINT("\n==================== Task Size Statistics ====================\n");
+    // MNN_PRINT("\n==================== Task Size Statistics ====================\n");
     int divide_count = g_divide_size_count.load();
     long long divide_total = g_divide_size_total.load();
     double divide_avg = (divide_count > 0) ? (double)divide_total / divide_count : 0.0;
-    MNN_PRINT("computeDivideSizes - Total calls: %d, Total size: %lld, Average size: %.2f\n", 
-              divide_count, divide_total, divide_avg);
+    // MNN_PRINT("computeDivideSizes - Total calls: %d, Total size: %lld, Average size: %.2f\n", 
+    //           divide_count, divide_total, divide_avg);
     
     int pipeline_count = g_pipeline_task_count.load();
     long long pipeline_total = g_pipeline_task_size_total.load();
     double pipeline_avg = (pipeline_count > 0) ? (double)pipeline_total / pipeline_count : 0.0;
-    MNN_PRINT("Pipeline tasks - Total tasks: %d, Total size: %lld, Average size: %.2f\n", 
-              pipeline_count, pipeline_total, pipeline_avg);
-    MNN_PRINT("==============================================================\n");
+    // MNN_PRINT("Pipeline tasks - Total tasks: %d, Total size: %lld, Average size: %.2f\n", 
+    //           pipeline_count, pipeline_total, pipeline_avg);
+    // MNN_PRINT("==============================================================\n");
     
     return 0;
 }

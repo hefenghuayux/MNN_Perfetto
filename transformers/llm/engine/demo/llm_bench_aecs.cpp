@@ -71,6 +71,10 @@ static std::string summarizeDecodeCandidates(const std::vector<AecsCandidateResu
     return first ? "none" : stream.str();
 }
 
+static const char* runKindLabel(int run_index, int warmup_runs) {
+    return run_index < warmup_runs ? "warmup" : "measure";
+}
+
 static AecsMeasurement measurePrefillCandidate(Llm* llm,
                                                int prompt_tokens,
                                                int warmup_runs,
@@ -98,10 +102,23 @@ static AecsMeasurement measurePrefillCandidate(Llm* llm,
         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
         llm->response(tokens, nullptr, nullptr, 1);
         auto context = llm->getContext();
+        const double time_s = context->prefill_us > 0 ? static_cast<double>(context->prefill_us) / 1e6 : 0.0;
+        const double speed_tok_s = context->prefill_us > 0
+                                       ? 1e6 * static_cast<double>(tokens.size()) /
+                                             static_cast<double>(context->prefill_us)
+                                       : 0.0;
+        MNN_PRINT("[AECS][Prefill][%s %d/%d] candidate=%s threads=%d prompt=%zu time=%.6f s speed=%.3f tok/s\n",
+                  runKindLabel(i, warmup_runs),
+                  (i < warmup_runs ? i + 1 : i - warmup_runs + 1),
+                  (i < warmup_runs ? warmup_runs : measure_runs),
+                  joinCpuIds(candidate_cpu_ids).c_str(),
+                  candidate_threads,
+                  tokens.size(),
+                  time_s,
+                  speed_tok_s);
         if (i >= warmup_runs && context->prefill_us > 0) {
-            time_samples.push_back(static_cast<double>(context->prefill_us) / 1e6);
-            speed_samples.push_back(1e6 * static_cast<double>(tokens.size()) /
-                                    static_cast<double>(context->prefill_us));
+            time_samples.push_back(time_s);
+            speed_samples.push_back(speed_tok_s);
         }
     }
 
@@ -153,13 +170,37 @@ static AecsMeasurement measureDecodeCandidate(Llm* llm,
                                       : PowerSampleResult();
 
         auto context = llm->getContext();
+        const double prefill_time_s = context->prefill_us > 0 ? static_cast<double>(context->prefill_us) / 1e6 : 0.0;
+        const double decode_time_s = context->decode_us > 0 ? static_cast<double>(context->decode_us) / 1e6 : 0.0;
+        const double decode_speed_tok_s = context->decode_us > 0
+                                              ? 1e6 * static_cast<double>(std::max(1, decode_tokens)) /
+                                                    static_cast<double>(context->decode_us)
+                                              : 0.0;
+        MNN_PRINT("[AECS][Decode][%s %d/%d] prefill=%s/%d decode=%s/%d prompt=%zu gen=%d prefill_time=%.6f s decode_time=%.6f s decode_speed=%.3f tok/s%s\n",
+                  runKindLabel(i, warmup_runs),
+                  (i < warmup_runs ? i + 1 : i - warmup_runs + 1),
+                  (i < warmup_runs ? warmup_runs : measure_runs),
+                  joinCpuIds(prefill_cpu_ids).c_str(),
+                  prefill_threads,
+                  joinCpuIds(decode_cpu_ids).c_str(),
+                  decode_threads,
+                  prompt.size(),
+                  std::max(1, decode_tokens),
+                  prefill_time_s,
+                  decode_time_s,
+                  decode_speed_tok_s,
+                  power_result.valid ? "" : " energy=n/a");
         if (i >= warmup_runs && context->decode_us > 0) {
-            time_samples.push_back(static_cast<double>(context->decode_us) / 1e6);
-            speed_samples.push_back(1e6 * static_cast<double>(std::max(1, decode_tokens)) /
-                                    static_cast<double>(context->decode_us));
+            time_samples.push_back(decode_time_s);
+            speed_samples.push_back(decode_speed_tok_s);
             if (power_result.valid) {
                 energy_samples.push_back(power_result.energy_j);
                 power_samples.push_back(power_result.avg_power_w);
+                MNN_PRINT("[AECS][Decode][measure %d/%d] energy=%.6f J avg_power=%.6f W\n",
+                          i - warmup_runs + 1,
+                          measure_runs,
+                          power_result.energy_j,
+                          power_result.avg_power_w);
             }
         }
     }
@@ -256,6 +297,19 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
     mRuntimePlan.split_phase_bench = enabled();
 
     if (enabled()) {
+        MNN_PRINT("[AECS] Start tuning model=%s prompt=%d decode=%d prefill_auto=%d decode_aecs=%d\n",
+                  mParams.model_path.c_str(),
+                  mParams.prompt_tokens,
+                  mParams.decode_tokens,
+                  mBuildPlan.use_prefill_auto ? 1 : 0,
+                  mBuildPlan.use_decode_auto ? 1 : 0);
+        MNN_PRINT("[AECS] Initial execution plan pool=%d pool_cpu_ids=%s build_prefill=%d/%s build_decode=%d/%s\n",
+                  mBuildPlan.pool_threads,
+                  joinCpuIds(mBuildPlan.pool_cpu_ids).c_str(),
+                  mBuildPlan.build_prefill_threads,
+                  joinCpuIds(mBuildPlan.build_prefill_cpu_ids).c_str(),
+                  mBuildPlan.build_decode_threads,
+                  joinCpuIds(mBuildPlan.build_decode_cpu_ids).c_str());
         mThermalGuard.reset(new ThermalGuard(mParams.tuning_config));
         mEnergyProfiler.reset(new EnergyProfiler(mParams.tuning_config));
 
@@ -347,6 +401,12 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
                                 mRuntimePlan.final_prefill_threads, mRuntimePlan.final_prefill_cpu_ids,
                                 mRuntimePlan.final_decode_threads, mRuntimePlan.final_decode_cpu_ids,
                                 true);
+    MNN_PRINT("[AECS] Final execution plan prefill=%s/%d decode=%s/%d split_phase_bench=%d\n",
+              joinCpuIds(mRuntimePlan.final_prefill_cpu_ids).c_str(),
+              mRuntimePlan.final_prefill_threads,
+              joinCpuIds(mRuntimePlan.final_decode_cpu_ids).c_str(),
+              mRuntimePlan.final_decode_threads,
+              mRuntimePlan.split_phase_bench ? 1 : 0);
     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
     llm->reset();
     mPrepared = true;
