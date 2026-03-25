@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================
-# MNN LLM 性能测试自动化脚本 - 阶段化绑核版
+# MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================
 
 # 0. 参数解析
@@ -29,36 +29,38 @@ if [ "$ENABLE_TRACE" = true ]; then
 fi
 
 # 2. 推送与权限
-echo ">>> [Init] 推送测试包..."
-adb push "$LOCAL_PKG" /data/local/tmp/ > /dev/null 2>&1
-adb shell "chmod +x $REMOTE_DIR/llm_bench" 
+# echo ">>> [Init] 推送测试包..."
+# adb push "$LOCAL_PKG" /data/local/tmp/ > /dev/null 2>&1
+# adb shell "chmod +x $REMOTE_DIR/llm_bench" 
 adb shell "killall -9 perfetto > /dev/null 2>&1"
 
 # ---------------------------------------------------------
 # 测试用例定义
-# 格式: "线程数:Prefill核心列表:Decode核心列表"
-# 示例: "4:4,5,6,7:0,1,2,3" -> 4线程，Prefill绑大核，Decode绑小核
+# 格式: "线程数:核心列表"
+# 示例: "4:4,5,6,7" -> 4线程，全局绑在 4,5,6,7 核心上
 # ---------------------------------------------------------
 TEST_CASES=(
-    "4:4,5,6,7:0,1,2,3"
-    # "8:4,5,6,7:0,1,2,3"
-    # "4:4,5,6,7:4,5,6,7" # 对比组：全过程绑大核
+    # "6:2,3,4,5,6,7"
+    # 5:3,4,5,6,7
+
+    # "4:4,5,6,7" 
+    # 3:5,6,7
+    # 2:6,7
+    2:5,6
 )
 
 for case in "${TEST_CASES[@]}"; do
-    # 解析三段参数
-    IFS=":" read -r threads p_ids d_ids <<< "$case"
+    # 解析两段参数
+    IFS=":" read -r threads ids <<< "$case"
     
     TIMESTAMP=$(date +"%H%M%S")
-    # 生成文件名：包含 P(Prefill) 和 D(Decode) 的核心信息
-    P_NAME=${p_ids//,/_}
-    D_NAME=${d_ids//,/_}
-    LOCAL_TRACE_NAME="${TIMESTAMP}_${threads}T_P${P_NAME}_D${D_NAME}.perfetto-trace"
+    # 生成文件名：包含全局绑核信息
+    IDS_NAME=${ids//,/_}
+    LOCAL_TRACE_NAME="${TIMESTAMP}_${threads}T_IDS_${IDS_NAME}.perfetto-trace"
     
     echo "============================================================"
     echo "正在运行: 线程=$threads"
-    echo "Prefill Ids: $p_ids"
-    echo "Decode  Ids: $d_ids"
+    echo "全局绑核 Ids: $ids"
     echo "============================================================"
 
     # 步骤 1: 启动 Perfetto
@@ -70,14 +72,13 @@ for case in "${TEST_CASES[@]}"; do
     fi
 
     # 步骤 2: 运行 llm_bench
-    # 使用新参数 --prefill-cpu-ids (-pids) 和 --decode-cpu-ids (-dids)
+    # 使用基线参数 -t 和 -ids
     echo ">>> [Step 2] 运行 llm_bench..."
     adb shell "cd $REMOTE_DIR && LD_LIBRARY_PATH=./ ./llm_bench \
         -m ./model_dir/config.json \
         -a cpu \
         -t $threads \
-        -pids $p_ids \
-        -dids $d_ids"
+        -ids $ids"
 
     # 步骤 3, 4, 5: 停止/等待/拉取
     if [ "$ENABLE_TRACE" = true ]; then
