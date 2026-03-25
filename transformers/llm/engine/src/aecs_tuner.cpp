@@ -1415,7 +1415,26 @@ AecsCandidateResult AecsTuner::tunePrefill(const PrefillMeasureFn& prefill_measu
         return best;
     }
 
-    for (const auto& candidate_cpu_ids : candidates) {
+    const auto warmup_cpu_ids = normalizeCpuIds(candidates.back());
+    if (!warmup_cpu_ids.empty() && candidates.size() > 1) {
+        const int warmup_threads = static_cast<int>(warmup_cpu_ids.size());
+        MNN_PRINT("[AECS][Prefill] warmup representative candidate=%s threads=%d before exhaustive search\n",
+                  joinCpuIds(warmup_cpu_ids).c_str(),
+                  warmup_threads);
+        const auto warmup_measurement = prefill_measure(warmup_cpu_ids, warmup_threads);
+        MNN_PRINT("[AECS][Prefill] warmup representative result=%s speed=%.3f tok/s time=%.6f s\n",
+                  joinCpuIds(warmup_cpu_ids).c_str(),
+                  warmup_measurement.speed_tok_s,
+                  warmup_measurement.time_s);
+    }
+
+    int best_index = -1;
+    int legacy_stop_index = -1;
+    double legacy_best_speed = 0.0;
+    int legacy_best_index = -1;
+
+    for (size_t index = 0; index < candidates.size(); ++index) {
+        const auto& candidate_cpu_ids = candidates[index];
         AecsCandidateResult candidate;
         candidate.cpu_ids = normalizeCpuIds(candidate_cpu_ids);
         candidate.threads = static_cast<int>(candidate.cpu_ids.size());
@@ -1428,23 +1447,41 @@ AecsCandidateResult AecsTuner::tunePrefill(const PrefillMeasureFn& prefill_measu
 
         if (best.cpu_ids.empty()) {
             best = candidate;
+            best_index = static_cast<int>(index);
+            legacy_best_speed = candidate.measurement.speed_tok_s;
+            legacy_best_index = static_cast<int>(index);
             continue;
         }
 
-        const double improvement =
-            best.measurement.speed_tok_s > 0.0
-                ? (candidate.measurement.speed_tok_s - best.measurement.speed_tok_s) /
-                      best.measurement.speed_tok_s
+        const double legacy_improvement =
+            legacy_best_speed > 0.0
+                ? (candidate.measurement.speed_tok_s - legacy_best_speed) / legacy_best_speed
                 : 1.0;
-        if (improvement <= mConfig.prefill_stop_gain) {
-            MNN_PRINT("[AECS][Prefill] stop at candidate=%s because improvement %.4f <= %.4f\n",
-                      joinCpuIds(candidate.cpu_ids).c_str(),
-                      improvement,
-                      mConfig.prefill_stop_gain);
-            return best;
+        if (legacy_stop_index < 0 && legacy_improvement <= mConfig.prefill_stop_gain) {
+            legacy_stop_index = static_cast<int>(index);
         }
-        best = candidate;
+
+        if (candidate.measurement.speed_tok_s > best.measurement.speed_tok_s) {
+            best = candidate;
+            best_index = static_cast<int>(index);
+        }
+        if (legacy_improvement > mConfig.prefill_stop_gain) {
+            legacy_best_speed = candidate.measurement.speed_tok_s;
+            legacy_best_index = static_cast<int>(index);
+        }
     }
+
+    if (legacy_stop_index >= 0 && best_index >= legacy_stop_index) {
+        MNN_PRINT("[AECS][Prefill] exhaustive search continued past legacy stop index=%d and selected later candidate=%s at index=%d\n",
+                  legacy_stop_index,
+                  joinCpuIds(best.cpu_ids).c_str(),
+                  best_index);
+    }
+    MNN_PRINT("[AECS][Prefill] selected candidate=%s speed=%.3f tok/s after evaluating %zu candidates (legacy_best_index=%d)\n",
+              joinCpuIds(best.cpu_ids).c_str(),
+              best.measurement.speed_tok_s,
+              candidates.size(),
+              legacy_best_index);
     return best;
 }
 
