@@ -104,6 +104,19 @@ private:
     MemChunk mChunk;
     int mSize;
 };
+
+struct DivideSchedulePlan {
+    int total_size = 0;
+    int total_static = 0;
+    int dynamic_size = 0;
+    int step_size = 1;
+    int target_chunks = 0;
+    int theoretical_dynamic_chunks = 0;
+    int active_threads = 1;
+    int min_chunk_size = 1;
+    SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
+};
+
 class CPUBackend : public Backend {
 public:
     CPUBackend(const CPURuntime* runtime, BackendConfig::PrecisionMode precision, BackendConfig::MemoryMode memory, MNNForwardType type = MNN_FORWARD_CPU, size_t flags = 0);
@@ -129,7 +142,7 @@ public:
      * 
      * @return pair<total_size, step> 用于执行时初始化动态状态
      */
-    std::pair<int, int> computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
+    DivideSchedulePlan computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
     
     /**
      * @brief 初始化动态任务调度状态
@@ -137,7 +150,13 @@ public:
      * @param total_size 总任务数
      * @param step_size 每次抢占的步长
      */
-    void initDynamicTaskState(int static_end, int total_size, int step_size) const;
+    void initDynamicTaskState(int static_end,
+                              int total_size,
+                              int step_size,
+                              SchedulerPolicy policy = SchedulerPolicy::DYNAMIC,
+                              int active_threads = 0,
+                              int target_chunks = 0,
+                              int min_chunk_size = 1) const;
     
     /**
      * @brief 抢占下一个动态任务块
@@ -227,7 +246,6 @@ protected:
 private:
     mutable std::shared_ptr<WorkerThread> mInitWorkQueue;
     mutable int mThreadNumber = 1;
-    std::vector<std::pair<float, int>> mGroupWithComputeRate;
     float mComputeI = 0.f;
     
     // ===== 动态调度相关成员（Cache Line 对齐避免 False Sharing）=====

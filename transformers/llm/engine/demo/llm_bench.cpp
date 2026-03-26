@@ -55,6 +55,25 @@ struct RuntimeParameters
     bool hasLegacyCpuIds;
     bool hasPrefillCpuIds;
     bool hasDecodeCpuIds;
+    std::vector<MNN::SchedulerPolicy> schedulerPolicies;
+    std::vector<float> prefillStaticRatios;
+    std::vector<float> decodeStaticRatios;
+    std::vector<int> prefillDynamicBlocks;
+    std::vector<int> decodeDynamicBlocks;
+    MNN::SchedulerPolicy prefillSchedPolicy;
+    MNN::SchedulerPolicy decodeSchedPolicy;
+    int prefillMinChunk;
+    int decodeMinChunk;
+    bool hasSchedPolicy;
+    bool hasPrefillSchedPolicy;
+    bool hasDecodeSchedPolicy;
+    bool hasPrefillStaticRatio;
+    bool hasDecodeStaticRatio;
+    bool hasPrefillDynamicBlocks;
+    bool hasDecodeDynamicBlocks;
+    bool hasPrefillMinChunk;
+    bool hasDecodeMinChunk;
+    bool splitPhaseBench;
 };
 
 struct TestParameters
@@ -94,6 +113,8 @@ struct CommandParameters
     bool hasLegacyCpuIds;
     bool hasPrefillCpuIds;
     bool hasDecodeCpuIds;
+    LlmBenchScheduleConfig scheduleConfig;
+    bool splitPhaseBench;
 };
 
 static const RuntimeParameters runtimeParamsDefaults = {
@@ -102,19 +123,38 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* threads              */ {4},
     /* prefillThreads       */ {},
     /* decodeThreads        */ {},
-    /* useMmap             */ false,
+    /* useMmap              */ false,
     /* power                */ {0},
     /* precision            */ {2},
     /* memory               */ {2},
-    /* dynamicOption       */ {0},
-    /* cpuIds              */ {},
-    /* prefillCpuIds       */ {},
-    /* decodeCpuIds        */ {},
-    /* tuningConfig        */ AecsTuningConfig(),
-    /* heuristicParams     */ AecsHeuristicParams(),
-    /* hasLegacyCpuIds     */ false,
-    /* hasPrefillCpuIds    */ false,
-    /* hasDecodeCpuIds     */ false
+    /* dynamicOption        */ {0},
+    /* cpuIds               */ {},
+    /* prefillCpuIds        */ {},
+    /* decodeCpuIds         */ {},
+    /* tuningConfig         */ AecsTuningConfig(),
+    /* heuristicParams      */ AecsHeuristicParams(),
+    /* hasLegacyCpuIds      */ false,
+    /* hasPrefillCpuIds     */ false,
+    /* hasDecodeCpuIds      */ false,
+    /* schedulerPolicies    */ {MNN::SchedulerPolicy::DYNAMIC},
+    /* prefillStaticRatios  */ {0.0f},
+    /* decodeStaticRatios   */ {0.0f},
+    /* prefillDynamicBlocks */ {0},
+    /* decodeDynamicBlocks  */ {0},
+    /* prefillSchedPolicy   */ MNN::SchedulerPolicy::DYNAMIC,
+    /* decodeSchedPolicy    */ MNN::SchedulerPolicy::DYNAMIC,
+    /* prefillMinChunk      */ 1,
+    /* decodeMinChunk       */ 1,
+    /* hasSchedPolicy       */ false,
+    /* hasPrefillSchedPolicy */ false,
+    /* hasDecodeSchedPolicy */ false,
+    /* hasPrefillStaticRatio */ false,
+    /* hasDecodeStaticRatio */ false,
+    /* hasPrefillDynamicBlocks */ false,
+    /* hasDecodeDynamicBlocks */ false,
+    /* hasPrefillMinChunk   */ false,
+    /* hasDecodeMinChunk    */ false,
+    /* splitPhaseBench      */ false
 };
 
 static const TestParameters testParamsDefaults = {
@@ -157,6 +197,8 @@ struct commandParametersInstance
         mCmdParam.hasLegacyCpuIds = cmdParam.hasLegacyCpuIds;
         mCmdParam.hasPrefillCpuIds = cmdParam.hasPrefillCpuIds;
         mCmdParam.hasDecodeCpuIds = cmdParam.hasDecodeCpuIds;
+        mCmdParam.scheduleConfig = cmdParam.scheduleConfig;
+        mCmdParam.splitPhaseBench = cmdParam.splitPhaseBench;
     }
 
     CommandParameters get_cmd_parameters() const
@@ -180,7 +222,17 @@ struct commandParametersInstance
                mCmdParam.decodeCpuIds == other.mCmdParam.decodeCpuIds &&
                mCmdParam.tuningConfig.prefill_auto_bind == other.mCmdParam.tuningConfig.prefill_auto_bind &&
                mCmdParam.tuningConfig.decode_aecs == other.mCmdParam.tuningConfig.decode_aecs &&
-               mCmdParam.tuningConfig.force_retune == other.mCmdParam.tuningConfig.force_retune;
+               mCmdParam.tuningConfig.force_retune == other.mCmdParam.tuningConfig.force_retune &&
+               mCmdParam.scheduleConfig.policy == other.mCmdParam.scheduleConfig.policy &&
+               mCmdParam.scheduleConfig.prefill.policy == other.mCmdParam.scheduleConfig.prefill.policy &&
+               mCmdParam.scheduleConfig.decode.policy == other.mCmdParam.scheduleConfig.decode.policy &&
+               mCmdParam.scheduleConfig.prefill.static_ratio == other.mCmdParam.scheduleConfig.prefill.static_ratio &&
+               mCmdParam.scheduleConfig.decode.static_ratio == other.mCmdParam.scheduleConfig.decode.static_ratio &&
+               mCmdParam.scheduleConfig.prefill.dynamic_target_chunks == other.mCmdParam.scheduleConfig.prefill.dynamic_target_chunks &&
+               mCmdParam.scheduleConfig.decode.dynamic_target_chunks == other.mCmdParam.scheduleConfig.decode.dynamic_target_chunks &&
+               mCmdParam.scheduleConfig.prefill.min_chunk_size == other.mCmdParam.scheduleConfig.prefill.min_chunk_size &&
+               mCmdParam.scheduleConfig.decode.min_chunk_size == other.mCmdParam.scheduleConfig.decode.min_chunk_size &&
+               mCmdParam.splitPhaseBench == other.mCmdParam.splitPhaseBench;
     }
 };
 
@@ -223,6 +275,8 @@ static std::string join(const std::vector<T> &values, const std::string &delim)
     return str.str();
 }
 
+static std::string scheduleConfigString(const LlmBenchScheduleConfig& config);
+
 struct TestInstance
 {
     //    static const std::string build_commit;
@@ -243,6 +297,7 @@ struct TestInstance
     int memory;
     int dynamicOption;
     std::vector<int> cpuIds;
+    std::string schedulerSummary;
 
     TestInstance(const commandParametersInstance &instance)
     {
@@ -259,6 +314,7 @@ struct TestInstance
         power = instance.mCmdParam.power;
         dynamicOption = instance.mCmdParam.dynamicOption;
         cpuIds = instance.mCmdParam.cpuIds;
+        schedulerSummary = scheduleConfigString(instance.mCmdParam.scheduleConfig);
     }
 
     std::vector<double> getTokensPerSecond(int n_tokens, std::vector<int64_t> cost_us) const
@@ -284,6 +340,10 @@ struct TestInstance
         if (field == "threads")
         {
             return INT;
+        }
+        if (field == "scheduler")
+        {
+            return STRING;
         }
         if (field == "useMmap")
         {
@@ -326,6 +386,77 @@ static std::vector<T> splitString(const std::string &str, char delim)
         values.push_back(value);
     }
     return values;
+}
+
+static bool parseSchedulerPolicyToken(const std::string& token, MNN::SchedulerPolicy* policy) {
+    if (token == "dynamic") {
+        *policy = MNN::SchedulerPolicy::DYNAMIC;
+        return true;
+    }
+    if (token == "hybrid") {
+        *policy = MNN::SchedulerPolicy::HYBRID;
+        return true;
+    }
+    if (token == "guided") {
+        *policy = MNN::SchedulerPolicy::GUIDED;
+        return true;
+    }
+    return false;
+}
+
+static bool parseScheduleSweepSpec(const std::string& spec,
+                                   std::vector<float>* prefill_values,
+                                   std::vector<float>* decode_values) {
+    std::stringstream stream(spec);
+    std::string segment;
+    bool saw_prefill = false;
+    bool saw_decode = false;
+    while (std::getline(stream, segment, ';')) {
+        if (segment.empty()) {
+            continue;
+        }
+        const auto pos = segment.find('=');
+        if (pos == std::string::npos) {
+            return false;
+        }
+        const std::string key = segment.substr(0, pos);
+        const std::string values = segment.substr(pos + 1);
+        if (key == "prefill") {
+            *prefill_values = splitString<float>(values, ',');
+            saw_prefill = !prefill_values->empty();
+        } else if (key == "decode") {
+            *decode_values = splitString<float>(values, ',');
+            saw_decode = !decode_values->empty();
+        } else {
+            return false;
+        }
+    }
+    return saw_prefill || saw_decode;
+}
+
+static std::string scheduleConfigString(const LlmBenchScheduleConfig& config) {
+    std::ostringstream stream;
+    stream << "g=" << MNN::schedulerPolicyName(config.policy)
+           << ",p=" << MNN::schedulerPolicyName(config.prefill.policy)
+           << ",d=" << MNN::schedulerPolicyName(config.decode.policy)
+           << ",ps=" << config.prefill.static_ratio
+           << ",ds=" << config.decode.static_ratio
+           << ",pc=" << config.prefill.dynamic_target_chunks
+           << ",dc=" << config.decode.dynamic_target_chunks
+           << ",pm=" << config.prefill.min_chunk_size
+           << ",dm=" << config.decode.min_chunk_size;
+    return stream.str();
+}
+
+static void printScheduleSummary(MNN::InferencePhase phase, int64_t latency_us, int tokens) {
+    const auto stats = MNN::AutoTuner::getInstance()->formatScheduleStats(phase);
+    const double tok_s = latency_us > 0 ? 1e6 * static_cast<double>(tokens) / static_cast<double>(latency_us) : 0.0;
+    const char* phase_name = phase == MNN::InferencePhase::PREFILL ? "PREFILL" : "DECODE";
+    MNN_PRINT("[llm_bench][sched][%s] %s latency_us=%lld tok_s=%.3f\n",
+              phase_name,
+              stats.c_str(),
+              static_cast<long long>(latency_us),
+              tok_s);
 }
 
 struct Printer
@@ -409,6 +540,16 @@ struct markdownPrinter : public Printer
         if (rp.dynamicOption.size() > 1)
         {
             fields.emplace_back("dynamicOption");
+        }
+        if (rp.hasSchedPolicy || rp.hasPrefillSchedPolicy || rp.hasDecodeSchedPolicy ||
+            rp.hasPrefillStaticRatio || rp.hasDecodeStaticRatio ||
+            rp.hasPrefillDynamicBlocks || rp.hasDecodeDynamicBlocks ||
+            rp.hasPrefillMinChunk || rp.hasDecodeMinChunk ||
+            rp.schedulerPolicies.size() > 1 || rp.prefillStaticRatios.size() > 1 ||
+            rp.decodeStaticRatios.size() > 1 || rp.prefillDynamicBlocks.size() > 1 ||
+            rp.decodeDynamicBlocks.size() > 1)
+        {
+            fields.emplace_back("scheduler");
         }
 
         if (rp.useMmap)
@@ -543,6 +684,10 @@ struct markdownPrinter : public Printer
                 snprintf(buf, sizeof(buf), "%d", t.threads);
                 value = buf;
             }
+            else if (field == "scheduler")
+            {
+                value = t.schedulerSummary;
+            }
             else if (field == "loadingTime(s)")
             {
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f", t.getAvgUs(t.loadingS), t.getStdevUs(t.loadingS));
@@ -637,6 +782,31 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
     for (const auto & prefillNt : rp.prefillThreads)
     for (const auto & decodeNt : rp.decodeThreads)
     for (const auto & dyop : rp.dynamicOption)
+    for (const auto & schedPolicy : rp.schedulerPolicies)
+    for (const auto & prefillStaticRatio : rp.prefillStaticRatios)
+    for (const auto & decodeStaticRatio : rp.decodeStaticRatios)
+    for (const auto & prefillDynamicBlocks : rp.prefillDynamicBlocks)
+    for (const auto & decodeDynamicBlocks : rp.decodeDynamicBlocks)
+    {
+        LlmBenchScheduleConfig scheduleConfig;
+        scheduleConfig.policy = schedPolicy;
+        scheduleConfig.policy_explicit = rp.hasSchedPolicy;
+        scheduleConfig.prefill.policy = rp.hasPrefillSchedPolicy ? rp.prefillSchedPolicy : schedPolicy;
+        scheduleConfig.prefill.policy_explicit = rp.hasPrefillSchedPolicy;
+        scheduleConfig.prefill.static_ratio = prefillStaticRatio;
+        scheduleConfig.prefill.static_ratio_explicit = rp.hasPrefillStaticRatio;
+        scheduleConfig.prefill.dynamic_target_chunks = prefillDynamicBlocks;
+        scheduleConfig.prefill.dynamic_target_chunks_explicit = rp.hasPrefillDynamicBlocks;
+        scheduleConfig.prefill.min_chunk_size = rp.prefillMinChunk;
+        scheduleConfig.prefill.min_chunk_size_explicit = rp.hasPrefillMinChunk;
+        scheduleConfig.decode.policy = rp.hasDecodeSchedPolicy ? rp.decodeSchedPolicy : schedPolicy;
+        scheduleConfig.decode.policy_explicit = rp.hasDecodeSchedPolicy;
+        scheduleConfig.decode.static_ratio = decodeStaticRatio;
+        scheduleConfig.decode.static_ratio_explicit = rp.hasDecodeStaticRatio;
+        scheduleConfig.decode.dynamic_target_chunks = decodeDynamicBlocks;
+        scheduleConfig.decode.dynamic_target_chunks_explicit = rp.hasDecodeDynamicBlocks;
+        scheduleConfig.decode.min_chunk_size = rp.decodeMinChunk;
+        scheduleConfig.decode.min_chunk_size_explicit = rp.hasDecodeMinChunk;
         if (tp.kvCache == "true") { // MNN llm_demo test standard
             for (const auto & nPrompt : tp.nPrompt) {
                 if (nPrompt == 0) {
@@ -670,6 +840,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
                     tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
                     tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
+                    tmpParam.scheduleConfig = scheduleConfig;
+                    tmpParam.splitPhaseBench = rp.splitPhaseBench;
                     auto instance = commandParametersInstance(tmpParam);
                     instances.push_back(instance);
                 }
@@ -703,6 +875,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
                 tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
                 tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
+                tmpParam.scheduleConfig = scheduleConfig;
+                tmpParam.splitPhaseBench = rp.splitPhaseBench;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -731,6 +905,8 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
                 tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
                 tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
+                tmpParam.scheduleConfig = scheduleConfig;
+                tmpParam.splitPhaseBench = rp.splitPhaseBench;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -762,10 +938,13 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.hasLegacyCpuIds = rp.hasLegacyCpuIds;
                 tmpParam.hasPrefillCpuIds = rp.hasPrefillCpuIds;
                 tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
+                tmpParam.scheduleConfig = scheduleConfig;
+                tmpParam.splitPhaseBench = rp.splitPhaseBench;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
         }
+    }
 
     return instances;
 }
@@ -817,6 +996,17 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -pids, --prefill-cpu-ids <n,n,n>          (default: %s) | Note: set prefill phase cpu core ids, e.g. 4,5,6,7\n", "none");
     printf("  -dids, --decode-cpu-ids <n,n,n>           (default: %s) | Note: set decode phase cpu core ids, e.g. 0,1,2,3\n", "none");
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
+    printf("      --sched-policy <dynamic|hybrid|guided> (default: dynamic)\n");
+    printf("      --prefill-sched-policy <dynamic|hybrid|guided> (default: inherit --sched-policy)\n");
+    printf("      --decode-sched-policy <dynamic|hybrid|guided> (default: inherit --sched-policy)\n");
+    printf("      --prefill-static-ratio <f[,f...]>     (default: 0)\n");
+    printf("      --decode-static-ratio <f[,f...]>      (default: 0)\n");
+    printf("      --prefill-dynamic-blocks <n[,n...]>   (default: auto=4T)\n");
+    printf("      --decode-dynamic-blocks <n[,n...]>    (default: auto=2T)\n");
+    printf("      --prefill-min-chunk <n>               (default: guided=32, else 1)\n");
+    printf("      --decode-min-chunk <n>                (default: guided=8, else 1)\n");
+    printf("      --sched-sweep <spec>                  (format: prefill=0,0.02;decode=0,0.02)\n");
+    printf("      --split-phase-bench                   (default: false) | force separate prefill/decode benchmark passes\n");
     printf("      --prefill-auto-bind                   (default: false) | search prefill cpu ids from highest-performance core\n");
     printf("      --decode-aecs                         (default: false) | run AECS decode search and persist result\n");
     printf("      --force-retune                        (default: false) | ignore cached AECS result and search again\n");
@@ -848,6 +1038,25 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.hasLegacyCpuIds = false;
     runtimeParams.hasPrefillCpuIds = false;
     runtimeParams.hasDecodeCpuIds = false;
+    runtimeParams.schedulerPolicies = runtimeParamsDefaults.schedulerPolicies;
+    runtimeParams.prefillStaticRatios = runtimeParamsDefaults.prefillStaticRatios;
+    runtimeParams.decodeStaticRatios = runtimeParamsDefaults.decodeStaticRatios;
+    runtimeParams.prefillDynamicBlocks = runtimeParamsDefaults.prefillDynamicBlocks;
+    runtimeParams.decodeDynamicBlocks = runtimeParamsDefaults.decodeDynamicBlocks;
+    runtimeParams.prefillSchedPolicy = runtimeParamsDefaults.prefillSchedPolicy;
+    runtimeParams.decodeSchedPolicy = runtimeParamsDefaults.decodeSchedPolicy;
+    runtimeParams.prefillMinChunk = runtimeParamsDefaults.prefillMinChunk;
+    runtimeParams.decodeMinChunk = runtimeParamsDefaults.decodeMinChunk;
+    runtimeParams.hasSchedPolicy = false;
+    runtimeParams.hasPrefillSchedPolicy = false;
+    runtimeParams.hasDecodeSchedPolicy = false;
+    runtimeParams.hasPrefillStaticRatio = false;
+    runtimeParams.hasDecodeStaticRatio = false;
+    runtimeParams.hasPrefillDynamicBlocks = false;
+    runtimeParams.hasDecodeDynamicBlocks = false;
+    runtimeParams.hasPrefillMinChunk = false;
+    runtimeParams.hasDecodeMinChunk = false;
+    runtimeParams.splitPhaseBench = false;
 
     for (int i = 1; i < argc; i++) {
         arg = argv[i];
@@ -967,6 +1176,108 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.dynamicOption.insert(runtimeParams.dynamicOption.end(), p.begin(), p.end());
+        } else if (arg == "--sched-policy") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.schedulerPolicies.clear();
+            auto p = splitString<std::string>(argv[i], splitDelim);
+            for (const auto& token : p) {
+                MNN::SchedulerPolicy policy = MNN::SchedulerPolicy::DYNAMIC;
+                if (!parseSchedulerPolicyToken(token, &policy)) {
+                    invalidParam = true;
+                    break;
+                }
+                runtimeParams.schedulerPolicies.push_back(policy);
+            }
+            runtimeParams.hasSchedPolicy = !runtimeParams.schedulerPolicies.empty();
+            if (invalidParam) {
+                break;
+            }
+        } else if (arg == "--prefill-sched-policy") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            if (!parseSchedulerPolicyToken(argv[i], &runtimeParams.prefillSchedPolicy)) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.hasPrefillSchedPolicy = true;
+        } else if (arg == "--decode-sched-policy") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            if (!parseSchedulerPolicyToken(argv[i], &runtimeParams.decodeSchedPolicy)) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.hasDecodeSchedPolicy = true;
+        } else if (arg == "--prefill-static-ratio") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.prefillStaticRatios = splitString<float>(argv[i], splitDelim);
+            runtimeParams.hasPrefillStaticRatio = !runtimeParams.prefillStaticRatios.empty();
+        } else if (arg == "--decode-static-ratio") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.decodeStaticRatios = splitString<float>(argv[i], splitDelim);
+            runtimeParams.hasDecodeStaticRatio = !runtimeParams.decodeStaticRatios.empty();
+        } else if (arg == "--prefill-dynamic-blocks") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.prefillDynamicBlocks = splitString<int>(argv[i], splitDelim);
+            runtimeParams.hasPrefillDynamicBlocks = !runtimeParams.prefillDynamicBlocks.empty();
+        } else if (arg == "--decode-dynamic-blocks") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.decodeDynamicBlocks = splitString<int>(argv[i], splitDelim);
+            runtimeParams.hasDecodeDynamicBlocks = !runtimeParams.decodeDynamicBlocks.empty();
+        } else if (arg == "--prefill-min-chunk") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.prefillMinChunk = p.empty() ? runtimeParams.prefillMinChunk : p[0];
+            runtimeParams.hasPrefillMinChunk = true;
+        } else if (arg == "--decode-min-chunk") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.decodeMinChunk = p.empty() ? runtimeParams.decodeMinChunk : p[0];
+            runtimeParams.hasDecodeMinChunk = true;
+        } else if (arg == "--sched-sweep") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            std::vector<float> prefillSweep = runtimeParams.prefillStaticRatios;
+            std::vector<float> decodeSweep = runtimeParams.decodeStaticRatios;
+            if (!parseScheduleSweepSpec(argv[i], &prefillSweep, &decodeSweep)) {
+                invalidParam = true;
+                break;
+            }
+            if (!prefillSweep.empty()) {
+                runtimeParams.prefillStaticRatios = prefillSweep;
+                runtimeParams.hasPrefillStaticRatio = true;
+            }
+            if (!decodeSweep.empty()) {
+                runtimeParams.decodeStaticRatios = decodeSweep;
+                runtimeParams.hasDecodeStaticRatio = true;
+            }
         } else if (arg == "-rep" || arg == "--n-repeat") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -1023,6 +1334,8 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.decodeCpuIds.insert(runtimeParams.decodeCpuIds.end(), p.begin(), p.end());
             runtimeParams.hasDecodeCpuIds = true;
+        } else if (arg == "--split-phase-bench") {
+            runtimeParams.splitPhaseBench = true;
         } else if (arg == "--prefill-auto-bind") {
             runtimeParams.tuningConfig.prefill_auto_bind = true;
         } else if (arg == "--decode-aecs") {
@@ -1164,6 +1477,21 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (runtimeParams.dynamicOption.empty()) {
         runtimeParams.dynamicOption = runtimeParamsDefaults.dynamicOption;
     }
+    if (runtimeParams.schedulerPolicies.empty()) {
+        runtimeParams.schedulerPolicies = runtimeParamsDefaults.schedulerPolicies;
+    }
+    if (runtimeParams.prefillStaticRatios.empty()) {
+        runtimeParams.prefillStaticRatios = runtimeParamsDefaults.prefillStaticRatios;
+    }
+    if (runtimeParams.decodeStaticRatios.empty()) {
+        runtimeParams.decodeStaticRatios = runtimeParamsDefaults.decodeStaticRatios;
+    }
+    if (runtimeParams.prefillDynamicBlocks.empty()) {
+        runtimeParams.prefillDynamicBlocks = runtimeParamsDefaults.prefillDynamicBlocks;
+    }
+    if (runtimeParams.decodeDynamicBlocks.empty()) {
+        runtimeParams.decodeDynamicBlocks = runtimeParamsDefaults.decodeDynamicBlocks;
+    }
     if (runtimeParams.cpuIds.empty()) {
         runtimeParams.cpuIds = runtimeParamsDefaults.cpuIds;
     }
@@ -1206,6 +1534,20 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.heuristicParams.alpha = std::min(1.0, std::max(0.0, runtimeParams.heuristicParams.alpha));
     runtimeParams.heuristicParams.idle_factor = std::max(0.0, runtimeParams.heuristicParams.idle_factor);
     runtimeParams.heuristicParams.static_power = std::max(0.0, runtimeParams.heuristicParams.static_power);
+    for (auto& value : runtimeParams.prefillStaticRatios) {
+        value = std::min(1.0f, std::max(0.0f, value));
+    }
+    for (auto& value : runtimeParams.decodeStaticRatios) {
+        value = std::min(1.0f, std::max(0.0f, value));
+    }
+    for (auto& value : runtimeParams.prefillDynamicBlocks) {
+        value = std::max(0, value);
+    }
+    for (auto& value : runtimeParams.decodeDynamicBlocks) {
+        value = std::max(0, value);
+    }
+    runtimeParams.prefillMinChunk = std::max(1, runtimeParams.prefillMinChunk);
+    runtimeParams.decodeMinChunk = std::max(1, runtimeParams.decodeMinChunk);
 
     return true;
 }
@@ -1464,8 +1806,17 @@ int main(int argc, char ** argv) {
         aecsSetup.decode_manual = decode_manual;
         aecsSetup.tuning_config = instance.mCmdParam.tuningConfig;
         aecsSetup.heuristic_params = instance.mCmdParam.heuristicParams;
+        aecsSetup.schedule_config = instance.mCmdParam.scheduleConfig;
+        aecsSetup.split_phase_bench = instance.mCmdParam.splitPhaseBench;
         LlmBenchAecsController aecsController(aecsSetup);
         const auto& aecsBuildPlan = aecsController.buildPlan();
+
+        configurePhaseExecutionPlan(aecsBuildPlan.pool_threads, aecsBuildPlan.pool_cpu_ids,
+                                    aecsBuildPlan.build_prefill_threads, aecsBuildPlan.build_prefill_cpu_ids,
+                                    aecsBuildPlan.build_decode_threads, aecsBuildPlan.build_decode_cpu_ids,
+                                    instance.mCmdParam.scheduleConfig, aecsBuildPlan.core_capacities,
+                                    false);
+        MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
 
         auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory,
                                instance.mCmdParam.precision, aecsBuildPlan.pool_threads, aecsBuildPlan.build_prefill_threads,
@@ -1517,6 +1868,8 @@ int main(int argc, char ** argv) {
                   instance.mCmdParam.nRepeat,
                   instance.mCmdParam.kvCache.c_str(),
                   aecsRuntimePlan.split_phase_bench ? 1 : 0);
+        MNN_PRINT("[llm_bench] Scheduler config %s\n",
+                  scheduleConfigString(instance.mCmdParam.scheduleConfig).c_str());
         MNN_PRINT("[llm_bench] Active bindings pool=%d/%s prefill=%d/%s decode=%d/%s\n",
                   aecsRuntimePlan.pool_threads,
                   cpuIdsToJson(aecsRuntimePlan.pool_cpu_ids).c_str(),
@@ -1549,10 +1902,12 @@ int main(int argc, char ** argv) {
                                   cpuIdsToJson(benchmark_prefill_cpu_ids).c_str());
                         aecsController.checkPrefillTemperature();
                         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+                        MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::PREFILL);
                         begin_trace_marker("llm->response (prefill_only)");
                         llm->response(tokens, nullptr, nullptr, 1);
                         end_trace_marker();
                         prefillTime = context->prefill_us;
+                        printScheduleSummary(MNN::InferencePhase::PREFILL, prefillTime, prompt_tokens);
                         MNN_PRINT("[llm_bench][%s %d/%d] finish prefill time=%.6f s speed=%.3f tok/s\n",
                                   warmup_run ? "warmup" : "measure",
                                   run_display_index,
@@ -1570,10 +1925,12 @@ int main(int argc, char ** argv) {
                                   cpuIdsToJson(benchmark_decode_cpu_ids).c_str());
                         aecsController.checkDecodeTemperature();
                         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
+                        MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::DECODE);
                         begin_trace_marker("llm->response (decode_only)");
                         llm->response(tokens1, nullptr, nullptr, decodeTokens);
                         end_trace_marker();
                         decodeTime = context->decode_us;
+                        printScheduleSummary(MNN::InferencePhase::DECODE, decodeTime, decodeTokens);
                         MNN_PRINT("[llm_bench][%s %d/%d] finish decode time=%.6f s speed=%.3f tok/s\n",
                                   warmup_run ? "warmup" : "measure",
                                   run_display_index,
@@ -1591,11 +1948,19 @@ int main(int argc, char ** argv) {
                               decodeTokens,
                               aecsRuntimePlan.pool_threads,
                               cpuIdsToJson(aecsRuntimePlan.pool_cpu_ids).c_str());
+                    MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::PREFILL);
+                    MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::DECODE);
                     begin_trace_marker("llm->response (prefill+decode)");
                     llm->response(tokens, nullptr, nullptr, decodeTokens);
                     end_trace_marker();
                     prefillTime = context->prefill_us;
                     decodeTime = context->decode_us;
+                    if (prefillTime > 0) {
+                        printScheduleSummary(MNN::InferencePhase::PREFILL, prefillTime, prompt_tokens);
+                    }
+                    if (decodeTime > 0) {
+                        printScheduleSummary(MNN::InferencePhase::DECODE, decodeTime, decodeTokens);
+                    }
                     MNN_PRINT("[llm_bench][%s %d/%d] finish prefill+decode prefill=%.6f s decode=%.6f s prefill_speed=%.3f tok/s decode_speed=%.3f tok/s\n",
                               warmup_run ? "warmup" : "measure",
                               run_display_index,
@@ -1655,12 +2020,14 @@ int main(int argc, char ** argv) {
                 if (prompt_tokens) {
                     aecsController.checkPrefillTemperature();
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+                    MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::PREFILL);
                     int p_start_total = g_task_count.load();
                     int p_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (prefill_only)");
                     llm->response(tokens, nullptr, nullptr, 1);
                     end_trace_marker();
                     sampler_us += context->prefill_us;
+                    printScheduleSummary(MNN::InferencePhase::PREFILL, context->prefill_us, prompt_tokens);
                     int p_end_total = g_task_count.load();
                     int p_end_small = g_small_task_count.load();
                     print_task_stats("PREFILL", p_start_total, p_end_total, p_start_small, p_end_small);
@@ -1678,6 +2045,7 @@ int main(int argc, char ** argv) {
                     aecsController.checkDecodeTemperature();
                     // ============ 设置 Decode 阶段 ============
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
+                    MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::DECODE);
                    
                     // --- [修改 3] Decode 开始前 ---
                     // MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
@@ -1688,6 +2056,7 @@ int main(int argc, char ** argv) {
                     end_trace_marker();
 
                     sampler_us += context->decode_us;
+                    printScheduleSummary(MNN::InferencePhase::DECODE, context->decode_us, decodeTokens);
                     int d_end_total = g_task_count.load();
                     int d_end_small = g_small_task_count.load();
                     print_task_stats("DECODE", d_start_total, d_end_total, d_start_small, d_end_small);

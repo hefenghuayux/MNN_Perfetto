@@ -1402,6 +1402,24 @@ static std::vector<int> _readNumber(const char* data, int length) {
     }
     return res;
 }
+static int _readCpuCapacity(int cpuId) {
+    const std::vector<std::string> candidates = {
+        "/sys/devices/system/cpu/cpu" + std::to_string(cpuId) + "/cpu_capacity",
+        "/sys/devices/system/cpu/cpu" + std::to_string(cpuId) + "/capacity",
+        "/sys/devices/system/cpu/cpu" + std::to_string(cpuId) + "/cpufreq/cpuinfo_max_freq",
+    };
+    for (const auto& path : candidates) {
+        MNN::AutoStorage<uint8_t> buffer;
+        if (!_readAll(path, buffer)) {
+            continue;
+        }
+        auto values = _readNumber((const char*)buffer.get(), buffer.size());
+        if (!values.empty() && values[0] > 0) {
+            return values[0];
+        }
+    }
+    return 0;
+}
 static MNNCPUInfo* gCPUInfo = nullptr;
 static void _fillInfo(MNNCPUInfo* cpuInfo);
 const MNNCPUInfo* MNNGetCPUInfo() {
@@ -1444,6 +1462,7 @@ static void _fillInfo(MNNCPUInfo* cpuinfo_isa) {
                 if (group.ids.empty()) {
                     continue;
                 }
+                group.capacity = 0;
                 std::string minfreq = policyName + "/cpuinfo_min_freq";
                 {
                     MNN::AutoStorage<uint8_t> buffer;
@@ -1464,6 +1483,12 @@ static void _fillInfo(MNNCPUInfo* cpuinfo_isa) {
                         }
                     }
                 }
+                for (auto cpuId : group.ids) {
+                    group.capacity = std::max(group.capacity, _readCpuCapacity(cpuId));
+                }
+                if (group.capacity <= 0) {
+                    group.capacity = static_cast<int>(group.maxFreq);
+                }
                 cpuinfo_isa->groups.emplace_back(group);
             }
         }
@@ -1481,6 +1506,7 @@ static void _fillInfo(MNNCPUInfo* cpuinfo_isa) {
                     current = std::move(backupGroups[v]);
                 } else {
                     current.ids.insert(current.ids.end(), backupGroups[v].ids.begin(), backupGroups[v].ids.end());
+                    current.capacity = std::max(current.capacity, backupGroups[v].capacity);
                 }
             }
             cpuinfo_isa->groups.emplace_back(current);
@@ -1492,7 +1518,8 @@ static void _fillInfo(MNNCPUInfo* cpuinfo_isa) {
             for (int v=0; v<group.ids.size(); ++v) {
                 message += " " + std::to_string(group.ids[v]) + " ";
             }
-            message += "], " + std::to_string(group.minFreq) + " - " + std::to_string(group.maxFreq);
+            message += "], " + std::to_string(group.minFreq) + " - " + std::to_string(group.maxFreq) +
+                       ", capacity=" + std::to_string(group.capacity);
             MNN_PRINT("%s\n", message.c_str());
         }
     } while (false);

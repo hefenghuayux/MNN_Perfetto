@@ -1,0 +1,5 @@
+| threads | prefill ids | decode ids | scheduler | prefill tok/s | decode tok/s | log | trace |
+| ---: | --- | --- | --- | ---: | ---: | --- | --- |
+| 8 | 0,1,2,3,4,5,6,7 | 0,1,2,3,4,5,6,7 | dynamic ps=auto ds=auto pc=auto dc=auto | 489.723 ± 4.618 | 22.111 ± 0.079 | /home/hefeng/MNN_WSL2/perfetto_traces/20260326/20260326_135829_mnn_aecs_run_20260326_134936/logs/135846_8T_P0_1_2_3_4_5_6_7_D0_1_2_3_4_5_6_7_poldynamic_psauto_dsauto_pcauto_dcauto.log | - |
+| 8 | 0,1,2,3,4,5,6,7 | 0,1,2,3,4,5,6,7 | hybrid ps=0.05 ds=0.02 pc=auto dc=auto | 489.191 ± 5.139 | 19.343 ± 0.047 | /home/hefeng/MNN_WSL2/perfetto_traces/20260326/20260326_135829_mnn_aecs_run_20260326_134936/logs/135916_8T_P0_1_2_3_4_5_6_7_D0_1_2_3_4_5_6_7_polhybrid_ps0p05_ds0p02_pcauto_dcauto.log | - |
+| 8 | 0,1,2,3,4,5,6,7 | 0,1,2,3,4,5,6,7 | guided ps=auto ds=auto pc=auto dc=auto | 478.658 ± 44.170 | 19.304 ± 0.490 | /home/hefeng/MNN_WSL2/perfetto_traces/20260326/20260326_135829_mnn_aecs_run_20260326_134936/logs/135946_8T_P0_1_2_3_4_5_6_7_D0_1_2_3_4_5_6_7_polguided_psauto_dsauto_pcauto_dcauto.log | - |

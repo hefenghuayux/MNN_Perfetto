@@ -2,6 +2,7 @@
 #define LLM_BENCH_AECS_HPP
 
 #include "aecs_tuner.hpp"
+#include "backend/cpu/AutoTuner.hpp"
 #include "llm/llm.hpp"
 
 #include <memory>
@@ -10,6 +11,24 @@
 
 namespace MNN {
 namespace Transformer {
+
+struct LlmBenchPhaseScheduleConfig {
+    SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
+    float static_ratio = 0.0f;
+    int dynamic_target_chunks = 0;
+    int min_chunk_size = 1;
+    bool policy_explicit = false;
+    bool static_ratio_explicit = false;
+    bool dynamic_target_chunks_explicit = false;
+    bool min_chunk_size_explicit = false;
+};
+
+struct LlmBenchScheduleConfig {
+    SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
+    bool policy_explicit = false;
+    LlmBenchPhaseScheduleConfig prefill;
+    LlmBenchPhaseScheduleConfig decode;
+};
 
 struct LlmBenchAecsSetupParams {
     std::string model_path;
@@ -31,6 +50,8 @@ struct LlmBenchAecsSetupParams {
     bool decode_manual = false;
     AecsTuningConfig tuning_config;
     AecsHeuristicParams heuristic_params;
+    LlmBenchScheduleConfig schedule_config;
+    bool split_phase_bench = false;
 };
 
 struct LlmBenchAecsBuildPlan {
@@ -42,6 +63,7 @@ struct LlmBenchAecsBuildPlan {
     int build_decode_threads = 1;
     std::vector<int> build_prefill_cpu_ids;
     std::vector<int> build_decode_cpu_ids;
+    std::vector<int> core_capacities;
 };
 
 struct LlmBenchAecsRuntimePlan {
@@ -52,6 +74,7 @@ struct LlmBenchAecsRuntimePlan {
     int final_decode_threads = 1;
     std::vector<int> final_decode_cpu_ids;
     bool split_phase_bench = false;
+    std::vector<int> core_capacities;
 };
 
 std::vector<int> mergePhaseCpuIds(const std::vector<int>& cpu_ids,
@@ -64,6 +87,8 @@ void configurePhaseExecutionPlan(int pool_threads,
                                  const std::vector<int>& prefill_cpu_ids,
                                  int decode_threads,
                                  const std::vector<int>& decode_cpu_ids,
+                                 const LlmBenchScheduleConfig& schedule_config,
+                                 const std::vector<int>& core_capacities,
                                  bool verbose = true);
 
 class LlmBenchAecsController {

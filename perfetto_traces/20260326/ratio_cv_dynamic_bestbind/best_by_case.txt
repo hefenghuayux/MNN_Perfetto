@@ -1,0 +1,4 @@
+threads=6, prefill_ids=2,3,4,5,6,7, decode_ids=7
+  best prefill: 553.456 tok/s (dynamic ps=auto ds=auto pc=auto dc=auto)
+  best decode : 51.798 tok/s (dynamic ps=auto ds=auto pc=auto dc=auto)
+

@@ -53,6 +53,54 @@ static unsigned long cpuIdsToMask(const std::vector<int>& cpu_ids) {
     return mask;
 }
 
+static std::vector<int> buildCoreCapacities(const AecsCpuTopology& topology) {
+    int max_cpu_id = -1;
+    for (const auto& cluster : topology.clusters_desc) {
+        for (auto cpu_id : cluster.cpu_ids) {
+            max_cpu_id = std::max(max_cpu_id, cpu_id);
+        }
+    }
+    if (max_cpu_id < 0) {
+        return {};
+    }
+    std::vector<int> capacities(max_cpu_id + 1, 0);
+    for (const auto& cluster : topology.clusters_desc) {
+        const int capacity = std::max(1, cluster.capacity);
+        for (auto cpu_id : cluster.cpu_ids) {
+            if (cpu_id >= 0 && cpu_id < static_cast<int>(capacities.size())) {
+                capacities[cpu_id] = capacity;
+            }
+        }
+    }
+    return capacities;
+}
+
+static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedule_config,
+                                           bool is_prefill,
+                                           int active_threads) {
+    const auto& phase_config = is_prefill ? schedule_config.prefill : schedule_config.decode;
+    const SchedulerPolicy policy = phase_config.policy_explicit ? phase_config.policy : schedule_config.policy;
+    const int default_target_chunks = is_prefill ? std::max(1, active_threads * 4)
+                                                 : std::max(1, active_threads * 2);
+    const int default_min_chunk = policy == SchedulerPolicy::GUIDED ? (is_prefill ? 32 : 8) : 1;
+    TuningParams params;
+    params.policy = policy;
+    params.static_ratio = phase_config.static_ratio_explicit
+        ? phase_config.static_ratio
+        : ((policy == SchedulerPolicy::GUIDED) ? (is_prefill ? 0.05f : 0.02f) : 0.0f);
+    params.dynamic_target_chunks = phase_config.dynamic_target_chunks_explicit
+        ? std::max(1, phase_config.dynamic_target_chunks)
+        : default_target_chunks;
+    params.dynamic_blocks = params.dynamic_target_chunks;
+    params.min_chunk_size = phase_config.min_chunk_size_explicit
+        ? std::max(1, phase_config.min_chunk_size)
+        : default_min_chunk;
+    if (policy == SchedulerPolicy::DYNAMIC) {
+        params.static_ratio = 0.0f;
+    }
+    return params;
+}
+
 static std::string summarizeDecodeCandidates(const std::vector<AecsCandidateResult>& candidates, bool feasible_only) {
     std::ostringstream stream;
     bool first = true;
@@ -85,6 +133,8 @@ static AecsMeasurement measurePrefillCandidate(Llm* llm,
                                                const std::vector<int>& decode_cpu_ids,
                                                int pool_threads,
                                                const std::vector<int>& pool_cpu_ids,
+                                               const LlmBenchScheduleConfig& schedule_config,
+                                               const std::vector<int>& core_capacities,
                                                ThermalGuard* thermal_guard) {
     std::vector<double> speed_samples;
     std::vector<double> time_samples;
@@ -98,6 +148,7 @@ static AecsMeasurement measurePrefillCandidate(Llm* llm,
         configurePhaseExecutionPlan(pool_threads, pool_cpu_ids,
                                     candidate_threads, candidate_cpu_ids,
                                     decode_threads, decode_cpu_ids,
+                                    schedule_config, core_capacities,
                                     false);
         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
         llm->response(tokens, nullptr, nullptr, 1);
@@ -139,6 +190,8 @@ static AecsMeasurement measureDecodeCandidate(Llm* llm,
                                               int decode_threads,
                                               int pool_threads,
                                               const std::vector<int>& pool_cpu_ids,
+                                              const LlmBenchScheduleConfig& schedule_config,
+                                              const std::vector<int>& core_capacities,
                                               ThermalGuard* thermal_guard,
                                               EnergyProfiler* energy_profiler) {
     std::vector<double> speed_samples;
@@ -156,6 +209,7 @@ static AecsMeasurement measureDecodeCandidate(Llm* llm,
         configurePhaseExecutionPlan(pool_threads, pool_cpu_ids,
                                     prefill_threads, prefill_cpu_ids,
                                     decode_threads, decode_cpu_ids,
+                                    schedule_config, core_capacities,
                                     false);
         MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
         llm->response(prompt, nullptr, nullptr, 1);
@@ -233,16 +287,22 @@ void configurePhaseExecutionPlan(int pool_threads,
                                  const std::vector<int>& prefill_cpu_ids,
                                  int decode_threads,
                                  const std::vector<int>& decode_cpu_ids,
+                                 const LlmBenchScheduleConfig& schedule_config,
+                                 const std::vector<int>& core_capacities,
                                  bool verbose) {
     const auto pool_affinity_mask = cpuIdsToMask(pool_cpu_ids);
     const auto prefill_affinity_mask = cpuIdsToMask(prefill_cpu_ids);
     const auto decode_affinity_mask = cpuIdsToMask(decode_cpu_ids);
-    MNN::AutoTuner::getInstance()->setPrefillParams(0.0f, std::max(1, pool_threads) * 50);
-    MNN::AutoTuner::getInstance()->setDecodeParams(0.0f, std::max(1, decode_threads));
-    MNN::AutoTuner::getInstance()->setDefaultExecution(std::max(1, pool_threads), pool_affinity_mask);
-    MNN::AutoTuner::getInstance()->setPrefillExecution(std::max(1, prefill_threads), prefill_affinity_mask);
-    MNN::AutoTuner::getInstance()->setDecodeExecution(std::max(1, decode_threads), decode_affinity_mask);
+    auto* tuner = MNN::AutoTuner::getInstance();
+    tuner->setCoreCapacities(core_capacities);
+    tuner->setPrefillParams(buildPhaseTuningParams(schedule_config, true, std::max(1, prefill_threads)));
+    tuner->setDecodeParams(buildPhaseTuningParams(schedule_config, false, std::max(1, decode_threads)));
+    tuner->setDefaultExecution(std::max(1, pool_threads), pool_affinity_mask);
+    tuner->setPrefillExecution(std::max(1, prefill_threads), prefill_affinity_mask);
+    tuner->setDecodeExecution(std::max(1, decode_threads), decode_affinity_mask);
     if (verbose) {
+        const auto prefill_params = buildPhaseTuningParams(schedule_config, true, std::max(1, prefill_threads));
+        const auto decode_params = buildPhaseTuningParams(schedule_config, false, std::max(1, decode_threads));
         MNN_PRINT("[llm_bench] Thread config: pool=%d, prefill=%d, decode=%d\n",
                   pool_threads, prefill_threads, decode_threads);
         MNN_PRINT("[llm_bench] Pool    cpu ids: %s | affinity mask: 0x%lX\n",
@@ -251,6 +311,16 @@ void configurePhaseExecutionPlan(int pool_threads,
                   joinCpuIds(prefill_cpu_ids).c_str(), prefill_affinity_mask);
         MNN_PRINT("[llm_bench] Decode  cpu ids: %s | affinity mask: 0x%lX\n",
                   joinCpuIds(decode_cpu_ids).c_str(), decode_affinity_mask);
+        MNN_PRINT("[llm_bench] Scheduler global=%s prefill=%s decode=%s prefill_static=%.3f decode_static=%.3f prefill_chunks=%d decode_chunks=%d prefill_min=%d decode_min=%d\n",
+                  schedulerPolicyName(schedule_config.policy),
+                  schedulerPolicyName(prefill_params.policy),
+                  schedulerPolicyName(decode_params.policy),
+                  prefill_params.static_ratio,
+                  decode_params.static_ratio,
+                  prefill_params.dynamic_target_chunks,
+                  decode_params.dynamic_target_chunks,
+                  prefill_params.min_chunk_size,
+                  decode_params.min_chunk_size);
     }
 }
 
@@ -262,9 +332,8 @@ LlmBenchAecsController::LlmBenchAecsController(const LlmBenchAecsSetupParams& pa
 void LlmBenchAecsController::computeBuildPlan() {
     mBuildPlan.use_prefill_auto = mParams.tuning_config.prefill_auto_bind && !mParams.prefill_manual;
     mBuildPlan.use_decode_auto = mParams.tuning_config.decode_aecs && !mParams.decode_manual;
-    if (enabled()) {
-        mTopology = AecsCpuInspector::inspect(mParams.tuning_config.prefill_start_cpu);
-    }
+    mTopology = AecsCpuInspector::inspect(mParams.tuning_config.prefill_start_cpu);
+    mBuildPlan.core_capacities = buildCoreCapacities(mTopology);
 
     mBuildPlan.pool_threads = std::max(mParams.threads, std::max(mParams.prefill_threads, mParams.decode_threads));
     mBuildPlan.pool_cpu_ids = mergePhaseCpuIds(mParams.cpu_ids, mParams.prefill_cpu_ids, mParams.decode_cpu_ids);
@@ -294,7 +363,8 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
     mRuntimePlan.final_prefill_cpu_ids = mParams.prefill_cpu_ids;
     mRuntimePlan.final_decode_threads = std::max(1, mParams.decode_threads);
     mRuntimePlan.final_decode_cpu_ids = mParams.decode_cpu_ids;
-    mRuntimePlan.split_phase_bench = enabled();
+    mRuntimePlan.split_phase_bench = enabled() || mParams.split_phase_bench;
+    mRuntimePlan.core_capacities = mBuildPlan.core_capacities;
 
     if (enabled()) {
         MNN_PRINT("[AECS] Start tuning model=%s prompt=%d decode=%d prefill_auto=%d decode_aecs=%d\n",
@@ -350,6 +420,8 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
                                                mBuildPlan.pool_cpu_ids,
                                                mBuildPlan.pool_threads,
                                                mBuildPlan.pool_cpu_ids,
+                                               mParams.schedule_config,
+                                               mBuildPlan.core_capacities,
                                                mThermalGuard.get());
             },
             [&](const std::vector<int>& prefill_cpu_ids, int prefill_threads,
@@ -365,6 +437,8 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
                                               decode_threads,
                                               mBuildPlan.pool_threads,
                                               mBuildPlan.pool_cpu_ids,
+                                              mParams.schedule_config,
+                                              mBuildPlan.core_capacities,
                                               mThermalGuard.get(),
                                               mEnergyProfiler.get());
             });
@@ -400,6 +474,7 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
     configurePhaseExecutionPlan(mRuntimePlan.pool_threads, mRuntimePlan.pool_cpu_ids,
                                 mRuntimePlan.final_prefill_threads, mRuntimePlan.final_prefill_cpu_ids,
                                 mRuntimePlan.final_decode_threads, mRuntimePlan.final_decode_cpu_ids,
+                                mParams.schedule_config, mRuntimePlan.core_capacities,
                                 true);
     MNN_PRINT("[AECS] Final execution plan prefill=%s/%d decode=%s/%d split_phase_bench=%d\n",
               joinCpuIds(mRuntimePlan.final_prefill_cpu_ids).c_str(),

@@ -80,6 +80,10 @@ for case in "${TEST_CASES[@]}"; do
         -t $threads \
         -ids $ids"
 
+        
+        
+         
+        
     # 步骤 3, 4, 5: 停止/等待/拉取
     if [ "$ENABLE_TRACE" = true ]; then
         echo ">>> [Step 3] 停止 Perfetto..."

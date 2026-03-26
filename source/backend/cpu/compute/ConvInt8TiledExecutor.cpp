@@ -575,9 +575,10 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
     auto output = outputs[0];
     int inputPlane  = batch * inputs[0]->width() * inputs[0]->height();
     auto planeSize = output->width() * output->height() * output->batch();
-    auto core = static_cast<CPUBackend*>(backend())->int8Functions();
-    auto gcore =static_cast<CPUBackend*>(backend())->functions();
-    const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
+    auto cpuBn = static_cast<CPUBackend*>(backend());
+    auto core = cpuBn->int8Functions();
+    auto gcore = cpuBn->functions();
+    const int threads = std::max(1, std::min(cpuBn->threadNumber(), AutoTuner::getInstance()->getActiveThreadCount()));
 
     mRelatedFunctions = *(static_cast<CPUBackend*>(backend())->int8GemmFunctions());
 
@@ -682,12 +683,15 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
 
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        auto hybridResult = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(totalWork, mDivides.data() + 1, flop / ios);
+        auto hybridPlan = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(totalWork, mDivides.data() + 1, flop / ios);
         for (int i = 0; i < mDivides.size(); ++i) {
             mDivides[i] *= part;
         }
-        mTotalTasks = hybridResult.first * part;
-        mDynamicStepSize = hybridResult.second * part;
+        mTotalTasks = hybridPlan.total_size * part;
+        mDynamicStepSize = hybridPlan.step_size * part;
+        mDynamicPolicy = hybridPlan.policy;
+        mDynamicTargetChunks = hybridPlan.target_chunks;
+        mDynamicMinChunkSize = hybridPlan.min_chunk_size * part;
         mUseStaticOnly = (mDivides[threads] >= mTotalTasks);
     }
 
@@ -695,9 +699,12 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
         mThreadNums = ALIMIN(threads, mTileCount);
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        auto hybridResult = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(mTileCount, mDivides.data() + 1, flop / ios);
-        mTotalTasks = hybridResult.first;
-        mDynamicStepSize = hybridResult.second;
+        auto hybridPlan = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(mTileCount, mDivides.data() + 1, flop / ios);
+        mTotalTasks = hybridPlan.total_size;
+        mDynamicStepSize = hybridPlan.step_size;
+        mDynamicPolicy = hybridPlan.policy;
+        mDynamicTargetChunks = hybridPlan.target_chunks;
+        mDynamicMinChunkSize = hybridPlan.min_chunk_size;
         mUseStaticOnly = (mDivides[threads] >= mTotalTasks);
     }
     int ocUp4 = ROUND_UP(outC, gcore->pack);
@@ -1053,8 +1060,9 @@ static void _onlineReorderWeightKernelSum(float* dst, float* src, int blockNum, 
 ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs) {
     const auto input = inputs[0];
     auto output      = outputs[0];
-    auto core = static_cast<CPUBackend*>(backend())->int8Functions();
-    auto gcore = static_cast<CPUBackend*>(backend())->functions();
+    auto cpuBn = static_cast<CPUBackend*>(backend());
+    auto core = cpuBn->int8Functions();
+    auto gcore = cpuBn->functions();
     auto dynamicOption = static_cast<CPUBackend*>(backend())->getRuntime()->hint().dynamicQuantOption % 8;
 
     int UNIT = mGemmUnits[0];
@@ -1554,9 +1562,12 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             } while(realDstCount > 0);
         };
 
-        if (mUseStaticOnly) {
+        const auto phase = AutoTuner::getInstance()->getPhase();
+        const bool useStaticOnly = (mDivides[threads] >= mTotalTasks);
+        if (useStaticOnly) {
             // 原版静态调度路径
             MNN_CONCURRENCY_BEGIN(tId, threads) {
+                AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, mDivides[tId], mDivides[tId + 1]);
                 processOcRange((int)tId, mDivides[tId], mDivides[tId + 1]);
             }
             MNN_CONCURRENCY_END();
@@ -1564,9 +1575,11 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             // Phase 1: 混合调度路径 — 静态区间 + 动态抢占
             MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
                 MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), [&](int start, int end) {
+                    AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, start, end);
                     processOcRange((int)tId, start, end);
                 });
                 MNN_HYBRID_DYNAMIC_RANGE(cpuBn, [&](int start, int end) {
+                    AutoTuner::getInstance()->noteDynamicRange(phase, (int)tId, start, end);
                     processOcRange((int)tId, start, end);
                 });
             }
@@ -1574,12 +1587,15 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
         }
 
     };
-    const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
+    const int threads = std::max(1, std::min(cpuBn->threadNumber(), AutoTuner::getInstance()->getActiveThreadCount()));
     if (!mSplitByOc) {
-        if (mUseStaticOnly) {
+        const auto phase = AutoTuner::getInstance()->getPhase();
+        const bool useStaticOnly = (mDivides[threads] >= mTotalTasks);
+        if (useStaticOnly) {
             // 原版静态调度路径（小任务/单线程回退）
             MNN_CONCURRENCY_BEGIN(tId, threads) {
                 if (mDivides[tId + 1] - mDivides[tId] > 0) {
+                    AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, mDivides[tId], mDivides[tId + 1]);
                     tileSplitFunction((int)tId, mDivides[tId], mDivides[tId + 1], 1);
                 }
             }
@@ -1589,10 +1605,12 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
                 // 阶段1: 执行静态私有区间
                 MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), [&](int start, int end) {
+                    AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, start, end);
                     tileSplitFunction((int)tId, start, end, 1);
                 });
                 // 阶段2: 动态抢占剩余任务
                 MNN_HYBRID_DYNAMIC_RANGE(cpuBn, [&](int start, int end) {
+                    AutoTuner::getInstance()->noteDynamicRange(phase, (int)tId, start, end);
                     tileSplitFunction((int)tId, start, end, 1);
                 });
             }

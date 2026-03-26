@@ -390,3 +390,7 @@ _deps
 
 # 忽略特定的 NDK 文件夹
 android-ndk-*
+
+*.perfetto-trace
+*.safetensors
+*.bin

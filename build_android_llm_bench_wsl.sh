@@ -6,8 +6,13 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_WORK_DIR="${BUILD_WORK_DIR:-$PROJECT_ROOT/project/android/build_64_wsl}"
 MODEL_SOURCE_DIR="${MODEL_SOURCE_DIR:-$PROJECT_ROOT/model_dir}"
-PACKAGE_NAME="${PACKAGE_NAME:-android_demo_package}"
+BUILD_STAMP="${BUILD_STAMP:-$(date +"%Y%m%d_%H%M%S")}"
+PACKAGE_PREFIX="${PACKAGE_PREFIX:-mnn_aecs_run}"
+PACKAGE_NAME="${PACKAGE_NAME:-${PACKAGE_PREFIX}_${BUILD_STAMP}}"
 OUTPUT_DIR="${OUTPUT_DIR:-$PROJECT_ROOT/$PACKAGE_NAME}"
+PACKAGE_METADATA_FILE="${PACKAGE_METADATA_FILE:-$BUILD_WORK_DIR/last_android_package.env}"
+REMOTE_PACKAGE_DIR="${REMOTE_PACKAGE_DIR:-/data/local/tmp/$PACKAGE_NAME}"
+MODEL_REMOTE_PATH="${MODEL_REMOTE_PATH:-$REMOTE_PACKAGE_DIR/model_dir/config.json}"
 ANDROID_ABI="${ANDROID_ABI:-arm64-v8a}"
 ANDROID_PLATFORM="${ANDROID_PLATFORM:-android-29}"
 ANDROID_NATIVE_API_LEVEL="${ANDROID_NATIVE_API_LEVEL:-android-21}"
@@ -120,9 +125,8 @@ copy_outputs() {
     rm -rf "$OUTPUT_DIR"
     mkdir -p "$OUTPUT_DIR/model_dir"
     if [[ -d "$MODEL_SOURCE_DIR" ]]; then
-        # 核心修改点：使用 ! -name "llm.mnn.weight" 排除了权重文件的拷贝
-        find "$MODEL_SOURCE_DIR" -maxdepth 1 -type f ! -name "llm.mnn.weight" -exec cp -t "$OUTPUT_DIR/model_dir" {} +
-        echo ">>> Model files copied to package directory (excluding llm.mnn.weight)."
+        find "$MODEL_SOURCE_DIR" -maxdepth 1 -type f -exec cp -t "$OUTPUT_DIR/model_dir" {} +
+        echo ">>> Model files copied to package directory."
     else
         echo ">>> [Warning] MODEL_SOURCE_DIR not found, skipping model files."
     fi
@@ -132,6 +136,17 @@ copy_outputs() {
     if [[ -f "$BUILD_WORK_DIR/libMNN_CL.so" ]]; then cp "$BUILD_WORK_DIR/libMNN_CL.so" "$OUTPUT_DIR/"; fi
     cp "$BUILD_WORK_DIR/llm_demo" "$OUTPUT_DIR/"
     cp "$BUILD_WORK_DIR/llm_bench" "$OUTPUT_DIR/"
+}
+
+write_package_metadata() {
+    mkdir -p "$(dirname "$PACKAGE_METADATA_FILE")"
+    cat > "$PACKAGE_METADATA_FILE" <<EOF
+PACKAGE_NAME=$PACKAGE_NAME
+OUTPUT_DIR=$OUTPUT_DIR
+REMOTE_DIR=$REMOTE_PACKAGE_DIR
+MODEL_REMOTE=$MODEL_REMOTE_PATH
+BUILD_STAMP=$BUILD_STAMP
+EOF
 }
 
 NDK_PATH="$(find_ndk || true)"
@@ -238,14 +253,22 @@ for model_file in config.json llm.mnn llm_config.json tokenizer.txt; do
 done
 
 copy_outputs
+write_package_metadata
 
 echo "Package prepared: $OUTPUT_DIR"
+echo "Remote package dir: $REMOTE_PACKAGE_DIR"
+echo "Remote model path : $MODEL_REMOTE_PATH"
+echo "Package metadata  : $PACKAGE_METADATA_FILE"
 
 # --- 编译完成后自动运行 run_perfetto_batch.sh ---
 PERFETTO_SCRIPT="$PROJECT_ROOT/run_perfetto_batch.sh"
 
 if [[ "$RUN_PERFETTO_AFTER_BUILD_CMAKE" == "ON" && -f "$PERFETTO_SCRIPT" ]]; then
     echo ">>> [Auto Run] Starting run_perfetto_batch.sh..."
+    LOCAL_PKG="$OUTPUT_DIR" \
+    REMOTE_DIR="$REMOTE_PACKAGE_DIR" \
+    MODEL_REMOTE="$MODEL_REMOTE_PATH" \
+    PACKAGE_METADATA_FILE="$PACKAGE_METADATA_FILE" \
     bash "$PERFETTO_SCRIPT"
 elif [[ "$RUN_PERFETTO_AFTER_BUILD_CMAKE" != "ON" ]]; then
     echo ">>> [Skip] RUN_PERFETTO_AFTER_BUILD=$RUN_PERFETTO_AFTER_BUILD, skipping run_perfetto_batch.sh"
