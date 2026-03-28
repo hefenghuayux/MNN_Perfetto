@@ -7,8 +7,10 @@
 //
 
 #include "backend/cpu/CPUBackend.hpp"
+#include <algorithm>
 #include <cmath>
 #include <mutex>
+#include <numeric>
 #include <unordered_map>
 #include "CPUResizeCache.hpp"
 #include "core/BufferAllocator.hpp"
@@ -44,6 +46,352 @@
 #define MNN_CPU_CHECK_NAN 1
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
 namespace MNN {
+namespace {
+
+static TuningParams sanitizeTuningParams(const TuningParams& input) {
+    TuningParams params = input;
+    params.static_ratio = std::max(0.0f, std::min(1.0f, params.static_ratio));
+    params.dynamic_blocks = std::max(0, params.dynamic_blocks);
+    if (params.dynamic_target_chunks <= 0) {
+        params.dynamic_target_chunks = params.dynamic_blocks;
+    }
+    params.dynamic_target_chunks = std::max(0, params.dynamic_target_chunks);
+    params.min_chunk_size = std::max(1, params.min_chunk_size);
+    return params;
+}
+
+static ExecutionParams sanitizeExecutionParams(int active_threads, unsigned long affinity_mask) {
+    return ExecutionParams(std::max(1, active_threads), affinity_mask);
+}
+
+static int _maxCpuId(const MNNCPUInfo* cpuInfo) {
+    int maxCpu = -1;
+    if (cpuInfo == nullptr) {
+        return maxCpu;
+    }
+    for (const auto& group : cpuInfo->groups) {
+        for (auto cpuId : group.ids) {
+            maxCpu = std::max(maxCpu, cpuId);
+        }
+    }
+    return maxCpu;
+}
+
+static std::vector<int> _defaultCoreCapacities(const MNNCPUInfo* cpuInfo) {
+    std::vector<int> capacities;
+    if (cpuInfo == nullptr) {
+        return capacities;
+    }
+    capacities.resize(_maxCpuId(cpuInfo) + 1, 0);
+    for (const auto& group : cpuInfo->groups) {
+        const int capacity = std::max(1, static_cast<int>(group.maxFreq));
+        for (auto cpuId : group.ids) {
+            if (cpuId >= 0 && cpuId < static_cast<int>(capacities.size())) {
+                capacities[cpuId] = std::max(capacities[cpuId], capacity);
+            }
+        }
+    }
+    return capacities;
+}
+
+static int _cpuCapacity(const std::vector<int>& capacities, int cpuId) {
+    if (cpuId >= 0 && cpuId < static_cast<int>(capacities.size()) && capacities[cpuId] > 0) {
+        return capacities[cpuId];
+    }
+    return 1;
+}
+
+static std::vector<int> _activeCpuIds(const MNNCPUInfo* cpuInfo, unsigned long affinityMask, int effectiveThreads) {
+    std::vector<int> cpuIds;
+    if (affinityMask != 0) {
+        for (int i = static_cast<int>(sizeof(affinityMask) * 8) - 1; i >= 0; --i) {
+            if ((affinityMask >> i) & 1UL) {
+                cpuIds.push_back(i);
+                if (static_cast<int>(cpuIds.size()) >= effectiveThreads) {
+                    return cpuIds;
+                }
+            }
+        }
+    }
+    if (cpuInfo != nullptr) {
+        for (auto groupIter = cpuInfo->groups.rbegin(); groupIter != cpuInfo->groups.rend(); ++groupIter) {
+            auto ids = groupIter->ids;
+            std::sort(ids.begin(), ids.end(), std::greater<int>());
+            for (auto cpuId : ids) {
+                if (std::find(cpuIds.begin(), cpuIds.end(), cpuId) != cpuIds.end()) {
+                    continue;
+                }
+                cpuIds.push_back(cpuId);
+                if (static_cast<int>(cpuIds.size()) >= effectiveThreads) {
+                    return cpuIds;
+                }
+            }
+        }
+    }
+    for (int i = static_cast<int>(cpuIds.size()); i < effectiveThreads; ++i) {
+        cpuIds.push_back(i);
+    }
+    return cpuIds;
+}
+
+static std::vector<float> _activeThreadWeights(const MNNCPUInfo* cpuInfo,
+                                               unsigned long affinityMask,
+                                               int effectiveThreads) {
+    std::vector<float> weights;
+    if (effectiveThreads <= 0) {
+        return weights;
+    }
+    weights.resize(effectiveThreads, 1.0f / static_cast<float>(effectiveThreads));
+    const auto capacities = _defaultCoreCapacities(cpuInfo);
+    const auto activeCpuIds = _activeCpuIds(cpuInfo, affinityMask, effectiveThreads);
+    if (static_cast<int>(activeCpuIds.size()) < effectiveThreads) {
+        return weights;
+    }
+
+    double total = 0.0;
+    for (int i = 0; i < effectiveThreads; ++i) {
+        total += _cpuCapacity(capacities, activeCpuIds[i]);
+    }
+    if (total <= 0.0) {
+        return weights;
+    }
+    for (int i = 0; i < effectiveThreads; ++i) {
+        weights[i] = static_cast<float>(_cpuCapacity(capacities, activeCpuIds[i]) / total);
+    }
+    return weights;
+}
+
+struct WeightDispersion {
+    float min_weight = 0.0f;
+    float max_weight = 0.0f;
+    float ratio = 1.0f;
+    float cv = 0.0f;
+};
+
+static WeightDispersion _weightDispersion(const std::vector<float>& weights) {
+    WeightDispersion dispersion;
+    if (weights.empty()) {
+        return dispersion;
+    }
+    const auto range = std::minmax_element(weights.begin(), weights.end());
+    dispersion.min_weight = *range.first;
+    dispersion.max_weight = *range.second;
+    if (dispersion.min_weight > 0.0f) {
+        dispersion.ratio = dispersion.max_weight / dispersion.min_weight;
+    }
+    const double sum = std::accumulate(weights.begin(), weights.end(), 0.0);
+    const double mean = sum / static_cast<double>(weights.size());
+    if (mean <= 0.0) {
+        return dispersion;
+    }
+    double variance = 0.0;
+    for (const auto weight : weights) {
+        const double diff = static_cast<double>(weight) - mean;
+        variance += diff * diff;
+    }
+    variance /= static_cast<double>(weights.size());
+    dispersion.cv = static_cast<float>(std::sqrt(variance) / mean);
+    return dispersion;
+}
+
+static bool _hasWeightVariance(const std::vector<float>& weights) {
+    if (weights.size() <= 1) {
+        return false;
+    }
+    const auto dispersion = _weightDispersion(weights);
+    return dispersion.ratio >= 1.12f || dispersion.cv >= 0.05f;
+}
+
+static void _fillUniformDivides(int size, int* dst, int effectiveThreads, int totalThreads, int fillValue) {
+    const int length = effectiveThreads > 0 ? UP_DIV(size, effectiveThreads) : size;
+    int cur = length;
+    for (int i = 0; i < effectiveThreads; ++i) {
+        dst[i] = cur;
+        cur += length;
+        cur = ALIMIN(cur, size);
+    }
+    for (int i = effectiveThreads; i < totalThreads; ++i) {
+        dst[i] = fillValue;
+    }
+}
+
+static void _fillWeightedDivides(int size,
+                                 int* dst,
+                                 const std::vector<float>& weights,
+                                 int effectiveThreads,
+                                 int totalThreads,
+                                 int fillValue) {
+    if (effectiveThreads <= 0 || weights.size() < static_cast<size_t>(effectiveThreads)) {
+        _fillUniformDivides(size, dst, effectiveThreads, totalThreads, fillValue);
+        return;
+    }
+    int previous = 0;
+    double cumulative = 0.0;
+    for (int i = 0; i < effectiveThreads; ++i) {
+        cumulative += static_cast<double>(size) * static_cast<double>(weights[i]);
+        int boundary = (i + 1 == effectiveThreads) ? size : static_cast<int>(std::round(cumulative));
+        boundary = std::max(boundary, previous);
+        boundary = std::min(boundary, size);
+        dst[i] = boundary;
+        previous = boundary;
+    }
+    for (int i = effectiveThreads; i < totalThreads; ++i) {
+        dst[i] = fillValue;
+    }
+}
+
+} // namespace
+
+AutoTuner* AutoTuner::sInstance = nullptr;
+std::mutex AutoTuner::sInstanceMutex;
+
+const char* schedulerPolicyName(SchedulerPolicy policy) {
+    switch (policy) {
+        case SchedulerPolicy::HYBRID:
+            return "hybrid";
+        case SchedulerPolicy::GUIDED:
+            return "guided";
+        case SchedulerPolicy::DYNAMIC:
+        default:
+            return "dynamic";
+    }
+}
+
+AutoTuner* AutoTuner::getInstance() {
+    if (sInstance == nullptr) {
+        std::lock_guard<std::mutex> lock(sInstanceMutex);
+        if (sInstance == nullptr) {
+            sInstance = new AutoTuner();
+        }
+    }
+    return sInstance;
+}
+
+void AutoTuner::destroy() {
+    std::lock_guard<std::mutex> lock(sInstanceMutex);
+    delete sInstance;
+    sInstance = nullptr;
+}
+
+AutoTuner::AutoTuner()
+    : mPrefillParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1)
+    , mDecodeParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1)
+    , mDefaultExecution(1, 0)
+    , mPrefillExecution(1, 0)
+    , mDecodeExecution(1, 0)
+    , mCurrentPhase(InferencePhase::UNKNOWN) {
+    refreshFallbackExecutionState();
+    updateFastPhaseState(InferencePhase::UNKNOWN);
+}
+
+void AutoTuner::refreshFallbackExecutionState() {
+    int fallbackThreads = std::max(mDefaultExecution.active_threads,
+                                   std::max(mPrefillExecution.active_threads, mDecodeExecution.active_threads));
+    if (fallbackThreads < 1) {
+        fallbackThreads = 1;
+    }
+    unsigned long fallbackMask = mDefaultExecution.affinity_mask;
+    if (fallbackMask == 0) {
+        fallbackMask = mPrefillExecution.affinity_mask | mDecodeExecution.affinity_mask;
+    }
+    mFallbackActiveThreadCount.store(fallbackThreads, std::memory_order_relaxed);
+    mFallbackAffinityMask.store(fallbackMask, std::memory_order_relaxed);
+}
+
+void AutoTuner::updateFastPhaseState(InferencePhase phase) {
+    switch (phase) {
+        case InferencePhase::PREFILL:
+            mCurrentAffinityMask.store(mPrefillExecution.affinity_mask, std::memory_order_relaxed);
+            mCurrentActiveThreadCount.store(std::max(1, mPrefillExecution.active_threads), std::memory_order_relaxed);
+            break;
+        case InferencePhase::DECODE:
+            mCurrentAffinityMask.store(mDecodeExecution.affinity_mask, std::memory_order_relaxed);
+            mCurrentActiveThreadCount.store(std::max(1, mDecodeExecution.active_threads), std::memory_order_relaxed);
+            break;
+        case InferencePhase::UNKNOWN:
+        default:
+            mCurrentAffinityMask.store(mFallbackAffinityMask.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            mCurrentActiveThreadCount.store(std::max(1, mFallbackActiveThreadCount.load(std::memory_order_relaxed)),
+                                            std::memory_order_relaxed);
+            break;
+    }
+}
+
+void AutoTuner::setPhase(InferencePhase phase) {
+    mCurrentPhase.store(phase, std::memory_order_release);
+    updateFastPhaseState(phase);
+}
+
+InferencePhase AutoTuner::getPhase() const {
+    return mCurrentPhase.load(std::memory_order_acquire);
+}
+
+TuningParams AutoTuner::getTuningParams() const {
+    switch (mCurrentPhase.load(std::memory_order_acquire)) {
+        case InferencePhase::DECODE:
+            return mDecodeParams;
+        case InferencePhase::PREFILL:
+        case InferencePhase::UNKNOWN:
+        default:
+            return mPrefillParams;
+    }
+}
+
+void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks) {
+    setPrefillParams(TuningParams(static_ratio, dynamic_blocks, dynamic_blocks,
+                                  static_ratio > 0.0f ? SchedulerPolicy::HYBRID : SchedulerPolicy::DYNAMIC,
+                                  1));
+}
+
+void AutoTuner::setDecodeParams(float static_ratio, int dynamic_blocks) {
+    setDecodeParams(TuningParams(static_ratio, dynamic_blocks, dynamic_blocks,
+                                 static_ratio > 0.0f ? SchedulerPolicy::HYBRID : SchedulerPolicy::DYNAMIC,
+                                 1));
+}
+
+void AutoTuner::setPrefillParams(const TuningParams& params) {
+    mPrefillParams = sanitizeTuningParams(params);
+}
+
+void AutoTuner::setDecodeParams(const TuningParams& params) {
+    mDecodeParams = sanitizeTuningParams(params);
+}
+
+void AutoTuner::setDefaultExecution(int active_threads, unsigned long affinity_mask) {
+    mDefaultExecution = sanitizeExecutionParams(active_threads, affinity_mask);
+    refreshFallbackExecutionState();
+    if (mCurrentPhase.load(std::memory_order_acquire) == InferencePhase::UNKNOWN) {
+        updateFastPhaseState(InferencePhase::UNKNOWN);
+    }
+}
+
+void AutoTuner::setPrefillExecution(int active_threads, unsigned long affinity_mask) {
+    mPrefillExecution = sanitizeExecutionParams(active_threads, affinity_mask);
+    refreshFallbackExecutionState();
+    if (mCurrentPhase.load(std::memory_order_acquire) == InferencePhase::PREFILL) {
+        updateFastPhaseState(InferencePhase::PREFILL);
+    }
+}
+
+void AutoTuner::setDecodeExecution(int active_threads, unsigned long affinity_mask) {
+    mDecodeExecution = sanitizeExecutionParams(active_threads, affinity_mask);
+    refreshFallbackExecutionState();
+    if (mCurrentPhase.load(std::memory_order_acquire) == InferencePhase::DECODE) {
+        updateFastPhaseState(InferencePhase::DECODE);
+    }
+}
+
+void AutoTuner::reset() {
+    mPrefillParams = TuningParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1);
+    mDecodeParams = TuningParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1);
+    mDefaultExecution = ExecutionParams(1, 0);
+    mPrefillExecution = ExecutionParams(1, 0);
+    mDecodeExecution = ExecutionParams(1, 0);
+    mCurrentPhase.store(InferencePhase::UNKNOWN, std::memory_order_release);
+    refreshFallbackExecutionState();
+    updateFastPhaseState(InferencePhase::UNKNOWN);
+}
+
 void registerCPUOps();
 ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs) {
     auto convertType = mRunType == DataType_DT_INT8 ? CPUCastCreator::FlOAT_TO_INT8 : CPUCastCreator::INT8_TO_FlOAT;
@@ -52,30 +400,16 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
     return NO_ERROR;
 }
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
-    if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
-        // Avg divide
-        int length = UP_DIV(size, mThreadNumber);
-        int cur = length;
-        for (int i=0; i<mThreadNumber; ++i) {
-            dst[i] = cur;
-            cur = cur + length;
-            cur = ALIMIN(cur, size);
-        }
+    const int effectiveThreads = std::max(1, mThreadNumber);
+    const auto* cpuInfo = MNNGetCPUInfo();
+    const auto weights = _activeThreadWeights(cpuInfo,
+                                              mRuntime->mCpuMask,
+                                              effectiveThreads);
+    if (!_hasWeightVariance(weights) || (avgDiv > 0 && avgDiv < mComputeI)) {
+        _fillUniformDivides(size, dst, effectiveThreads, mThreadNumber, size);
         return;
     }
-
-    int cur = 0;
-    int curPos = 0;
-    for (auto& group : mGroupWithComputeRate) {
-        int currentGroupTotal = (int)(ceilf((float)size*group.first));
-        int length = UP_DIV(currentGroupTotal, group.second);
-        for (int i=0; i<group.second; ++i) {
-            cur = cur + length;
-            cur = ALIMIN(cur, size);
-            dst[curPos+i] = cur;
-        }
-        curPos += group.second;
-    }
+    _fillWeightedDivides(size, dst, weights, effectiveThreads, mThreadNumber, size);
 }
 
 void CPURuntime::_bindCPUCore() const {
@@ -216,8 +550,12 @@ void CPURuntime::onReset(int numberThread, const BackendConfig* config, bool ful
     mThreadNumber = numberThread;
     mCpuIds = hint().cpuIds;
     _validateCpuIds();
-    mCpuMask = MNNGetCPUMask(mCpuIds);
+    // mCpuMask = MNNGetCPUMask(mCpuIds);
+    if (mCpuMask == 0) {
+        mCpuMask = MNNGetCPUMask(mCpuIds);
+    }
     _resetThreadPool();
+    AutoTuner::getInstance()->setDefaultExecution(mThreadNumber, mCpuMask);
 }
 
 CPURuntime::CPURuntime(const Backend::Info& info) {
@@ -228,6 +566,9 @@ CPURuntime::CPURuntime(const Backend::Info& info) {
         buf.root = rawAlloc;
     }
     mThreadNumber = info.numThread;
+    mCpuMask = info.cpuMask;
+    MNN_PRINT("DEBUG: CPURuntime::CPURuntime called. cpuMask=%lu (Hex: 0x%lx)\n", mCpuMask, mCpuMask);
+    AutoTuner::getInstance()->setDefaultExecution(std::max(1, mThreadNumber), mCpuMask);
     mPower   = BackendConfig::Power_Normal;
     mMemory  = BackendConfig::Memory_Normal;
     mPrecision = BackendConfig::Precision_Normal;
@@ -269,8 +610,16 @@ Backend* CPURuntime::onCreate(const BackendConfig* config, Backend* origin) cons
     {
         mCpuIds = hint().cpuIds;
         _validateCpuIds();
-        mCpuMask = MNNGetCPUMask(mCpuIds);
+        // 【修改前】
+        // mCpuMask = MNNGetCPUMask(mCpuIds);
+
+        // 【修改后】同样的逻辑，保护 mCpuMask
+        if (mCpuMask == 0) {
+            mCpuMask = MNNGetCPUMask(mCpuIds);
+        }
+        MNN_PRINT("DEBUG: CPURuntime::onCreate called. cpuMask=%lu (Hex: 0x%lx)\n", mCpuMask, mCpuMask);
         _resetThreadPool();
+        AutoTuner::getInstance()->setDefaultExecution(mThreadNumber, mCpuMask);
     }
     if (hint().midMemoryPath.size() > 0) {
         if (mDynamicMmap.empty()) {
@@ -464,46 +813,14 @@ CPUBackend::CPUBackend(const CPURuntime* runtime, BackendConfig::PrecisionMode p
     } else {
         mRelatedFunctions = &core->int8MatmulRelatedFunctions;
     }
-    // Compute Group Rate
-    do {
-        if (mThreadNumber <= 1 || mRuntime->mPower == BackendConfig::Power_Low) {
-            break;
-        }
-        auto rate = mRuntime->hint().cpuDecreaseRate;
-        if (rate >= 100 || rate <= 0) {
-            break;
-        }
-        auto cpuInfo = MNNGetCPUInfo();
-        if (cpuInfo->groups.size() < 2) {
-            break;
-        }
-        if (cpuInfo->i8mm) {
-            mComputeI = 28.f;
-        } else if (cpuInfo->dot) {
-            mComputeI = 14.f;
-        } else {
-            mComputeI = 7.f;
-        }
-        mGroupWithComputeRate.clear();
-        float decreaseRate = (float)(rate) / 100.0f;
-        int validCpuSize = (int)(cpuInfo->groups[cpuInfo->groups.size()-1].ids.size());
-        int groupIndex = (int)cpuInfo->groups.size()-2;
-        validCpuSize = ALIMIN(validCpuSize, mThreadNumber);
-        float totalComputeRate = 1.0f * validCpuSize;
-        mGroupWithComputeRate.emplace_back(std::make_pair(totalComputeRate, validCpuSize));
-        float currentRate = 1.0f;
-        while (validCpuSize < mThreadNumber && groupIndex >= 0) {
-            auto& group = cpuInfo->groups[groupIndex];
-            int selectSize = ALIMIN(mThreadNumber - validCpuSize, (int)group.ids.size());
-            validCpuSize += group.ids.size();
-            currentRate *= decreaseRate;
-            totalComputeRate += currentRate * selectSize;
-            mGroupWithComputeRate.emplace_back(std::make_pair(currentRate * selectSize, selectSize));
-        }
-        for (auto& g : mGroupWithComputeRate) {
-            g.first = g.first / totalComputeRate;
-        }
-    } while (false);
+    const auto* cpuInfo = MNNGetCPUInfo();
+    if (cpuInfo != nullptr && cpuInfo->i8mm) {
+        mComputeI = 28.f;
+    } else if (cpuInfo != nullptr && cpuInfo->dot) {
+        mComputeI = 14.f;
+    } else {
+        mComputeI = 7.f;
+    }
     auto dynamicAlloc = mRuntime->mSharedDmaInfo;
     if (nullptr == dynamicAlloc.get()) {
         mDmaInfo.reset(new CPURuntime::DynamicAllocator);

@@ -643,6 +643,7 @@ RuntimeInfo Interpreter::createRuntime(const std::vector<ScheduleConfig>& config
         Backend::Info compute;
         compute.type      = Schedule::getAppropriateType(config);
         compute.numThread = config.numThread;
+        compute.cpuMask   = config.cpuMask;
         if (config.type == MNN_FORWARD_AUTO) {
             if (compute.type == MNN_FORWARD_OPENCL || compute.type == MNN_FORWARD_METAL) {
                 // AUTO set default gpu-mode MNN_GPU_TUNING_FAST

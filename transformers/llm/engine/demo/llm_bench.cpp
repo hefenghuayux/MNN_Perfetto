@@ -11,215 +11,258 @@
 #include <thread>
 #include <algorithm>
 #include <numeric>
-
-
+#include "trace_marker_helper.h"
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
 #define MNN_OPEN_TIME_TRACE
+
+
 
 
 using namespace MNN::Transformer;
 
-struct RuntimeParameters {
-    std::vector<std::string>         model;
-    std::vector<int>                 backends;
-    std::vector<int>                 threads;
-    bool                             useMmap;
-    std::vector<int>                 power;
-    std::vector<int>                 precision;
-    std::vector<int>                 memory;
-    std::vector<int>                 dynamicOption;
+struct RuntimeParameters
+{
+    std::vector<std::string> model;
+    std::vector<int> backends;
+    std::vector<int> threads;
+    bool useMmap;
+    std::vector<int> power;
+    std::vector<int> precision;
+    std::vector<int> memory;
+    std::vector<int> dynamicOption;
+    std::vector<int> cpuIds;
 };
 
-struct TestParameters {
-    std::vector<int>                 nPrompt;
-    std::vector<int>                 nGenerate;
+struct TestParameters
+{
+    std::vector<int> nPrompt;
+    std::vector<int> nGenerate;
     std::vector<std::pair<int, int>> nPrompGen;
-    std::vector<int>                 nRepeat;
-    std::string                      kvCache;
-    std::string                      loadTime;
+    std::vector<int> nRepeat;
+    std::string kvCache;
+    std::string loadTime;
 };
 
-struct CommandParameters {
-    std::string         model;
-    int                 backend;
-    int                 threads;
-    bool                useMmap;
-    int                 power;
-    int                 precision;
-    int                 memory;
-    int                 dynamicOption;
+struct CommandParameters
+{
+    std::string model;
+    int backend;
+    int threads;
+    bool useMmap;
+    int power;
+    int precision;
+    int memory;
+    int dynamicOption;
 
-    int                 nPrompt;
-    int                 nGenerate;
+    int nPrompt;
+    int nGenerate;
     std::pair<int, int> nPrompGen;
-    int                 nRepeat;
-    std::string         kvCache;
-    std::string         loadingTime;
-
+    int nRepeat;
+    std::string kvCache;
+    std::string loadingTime;
+    std::vector<int> cpuIds;
 };
-
 
 static const RuntimeParameters runtimeParamsDefaults = {
-    /* model                */ { "./Qwen2.5-1.5B-Instruct" },
-    /* backends             */ { 0 },
-    /* threads            */ { 4 },
+    /* model                */ {"./Qwen2.5-1.5B-Instruct"},
+    /* backends             */ {0},
+    /* threads            */ {4},
     /* useMmap             */ false,
-    /* power                */ { 0 },
-    /* precision            */ { 2 },
-    /* memory               */ { 2 },
-    /* dynamicOption       */ { 0 }
+    /* power                */ {0},
+    /* precision            */ {2},
+    /* memory               */ {2},
+    /* dynamicOption       */ {0},
+    /* cpuIds              */ {}
 };
-
 
 static const TestParameters testParamsDefaults = {
-    /* nPrompt             */ { 512 },
-    /* nGenerate           */ { 128 },
+    /* nPrompt             */ {512},
+    /* nGenerate           */ {128},
     /* nPrompGen           */ {std::make_pair(0, 0)},
-    /* nRepeat             */ { 5 },
-    /* kvCache             */ { "false" },
-    /* loadingTime         */ {"false"}
-};
+    /* nRepeat             */ {5},
+    /* kvCache             */ {"false"},
+    /* loadingTime         */ {"false"}};
 
-
-struct commandParametersInstance {
+struct commandParametersInstance
+{
 
     CommandParameters mCmdParam;
 
-    commandParametersInstance(CommandParameters cmdParam) {
-        mCmdParam.model          = cmdParam.model;
-        mCmdParam.backend        = cmdParam.backend;
-        mCmdParam.threads        = cmdParam.threads;
-        mCmdParam.useMmap        = cmdParam.useMmap;
-        mCmdParam.power          = cmdParam.power;
-        mCmdParam.precision      = cmdParam.precision;
-        mCmdParam.memory         = cmdParam.memory;
-        mCmdParam.dynamicOption  = cmdParam.dynamicOption;
+    commandParametersInstance(CommandParameters cmdParam)
+    {
+        mCmdParam.model = cmdParam.model;
+        mCmdParam.backend = cmdParam.backend;
+        mCmdParam.threads = cmdParam.threads;
+        mCmdParam.useMmap = cmdParam.useMmap;
+        mCmdParam.power = cmdParam.power;
+        mCmdParam.precision = cmdParam.precision;
+        mCmdParam.memory = cmdParam.memory;
+        mCmdParam.dynamicOption = cmdParam.dynamicOption;
 
-        mCmdParam.nPrompt        = cmdParam.nPrompt;
-        mCmdParam.nGenerate      = cmdParam.nGenerate;
-        mCmdParam.nPrompGen      = cmdParam.nPrompGen;
-        mCmdParam.nRepeat        = cmdParam.nRepeat;
-        mCmdParam.kvCache        = cmdParam.kvCache;
-        mCmdParam.loadingTime    = cmdParam.loadingTime;
+        mCmdParam.nPrompt = cmdParam.nPrompt;
+        mCmdParam.nGenerate = cmdParam.nGenerate;
+        mCmdParam.nPrompGen = cmdParam.nPrompGen;
+        mCmdParam.nRepeat = cmdParam.nRepeat;
+        mCmdParam.kvCache = cmdParam.kvCache;
+        mCmdParam.loadingTime = cmdParam.loadingTime;
+        mCmdParam.cpuIds = cmdParam.cpuIds;
     }
 
-    CommandParameters get_cmd_parameters() const {
+    CommandParameters get_cmd_parameters() const
+    {
         return mCmdParam;
     }
 
-    bool equal_runtime_params(const commandParametersInstance & other) const {
+    bool equal_runtime_params(const commandParametersInstance &other) const
+    {
         return mCmdParam.model == other.mCmdParam.model &&
-        mCmdParam.useMmap == other.mCmdParam.useMmap &&
-        mCmdParam.power == other.mCmdParam.power &&
-        mCmdParam.precision == other.mCmdParam.precision &&
-        mCmdParam.memory == other.mCmdParam.memory &&
-        mCmdParam.dynamicOption == other.mCmdParam.dynamicOption;
+               mCmdParam.useMmap == other.mCmdParam.useMmap &&
+               mCmdParam.power == other.mCmdParam.power &&
+               mCmdParam.precision == other.mCmdParam.precision &&
+               mCmdParam.memory == other.mCmdParam.memory &&
+               mCmdParam.dynamicOption == other.mCmdParam.dynamicOption &&
+               mCmdParam.cpuIds == other.mCmdParam.cpuIds;
     }
 };
 
-template <typename T> static T avg(const std::vector<T> & v) {
-    if (v.empty()) {
+template <typename T>
+static T avg(const std::vector<T> &v)
+{
+    if (v.empty())
+    {
         return 0;
     }
     T sum = std::accumulate(v.begin(), v.end(), T(0));
-    return sum / (T) v.size();
+    return sum / (T)v.size();
 }
 
-template <typename T> static T stdev(const std::vector<T> & v) {
-    if (v.size() <= 1) {
+template <typename T>
+static T stdev(const std::vector<T> &v)
+{
+    if (v.size() <= 1)
+    {
         return 0;
     }
-    T mean   = avg(v);
+    T mean = avg(v);
     T sq_sum = std::inner_product(v.begin(), v.end(), v.begin(), T(0));
-    T stdev  = std::sqrt(sq_sum / (T) (v.size() - 1) - mean * mean * (T) v.size() / (T) (v.size() - 1));
+    T stdev = std::sqrt(sq_sum / (T)(v.size() - 1) - mean * mean * (T)v.size() / (T)(v.size() - 1));
     return stdev;
 }
 
-template <class T> static std::string join(const std::vector<T> & values, const std::string & delim) {
+template <class T>
+static std::string join(const std::vector<T> &values, const std::string &delim)
+{
     std::ostringstream str;
-    for (size_t i = 0; i < values.size(); i++) {
+    for (size_t i = 0; i < values.size(); i++)
+    {
         str << values[i];
-        if (i < values.size() - 1) {
+        if (i < values.size() - 1)
+        {
             str << delim;
         }
     }
     return str.str();
 }
 
-struct TestInstance {
-//    static const std::string build_commit;
-    std::string              modelConfigFile;
-    std::string              modelType;
-    uint64_t                 modelSize;
-    int                      threads;
-    bool                     useMmap;
-    int                      nPrompt;
-    int                      nGenerate;
-    std::vector<int64_t>     prefillUs;
-    std::vector<int64_t>     decodeUs;
-    std::vector<int64_t>     samplesUs;
-    std::vector<double>      loadingS;
-    int                      backend;
-    int                      precision;
-    int                      power;
-    int                      memory;
-    int                      dynamicOption;
+struct TestInstance
+{
+    //    static const std::string build_commit;
+    std::string modelConfigFile;
+    std::string modelType;
+    uint64_t modelSize;
+    int threads;
+    bool useMmap;
+    int nPrompt;
+    int nGenerate;
+    std::vector<int64_t> prefillUs;
+    std::vector<int64_t> decodeUs;
+    std::vector<int64_t> samplesUs;
+    std::vector<double> loadingS;
+    int backend;
+    int precision;
+    int power;
+    int memory;
+    int dynamicOption;
+    std::vector<int> cpuIds;
 
-    TestInstance(const commandParametersInstance & instance) {
+    TestInstance(const commandParametersInstance &instance)
+    {
 
         modelConfigFile = instance.mCmdParam.model;
-        threads         = instance.mCmdParam.threads;
-        useMmap          = instance.mCmdParam.useMmap;
-        nPrompt          = instance.mCmdParam.nPrompt;
-        nGenerate             = instance.mCmdParam.nGenerate;
-        backend           = instance.mCmdParam.backend;
-        precision         = instance.mCmdParam.precision;
-        memory            = instance.mCmdParam.memory;
-        power             = instance.mCmdParam.power;
-        dynamicOption     = instance.mCmdParam.dynamicOption;
+        threads = instance.mCmdParam.threads;
+        useMmap = instance.mCmdParam.useMmap;
+        nPrompt = instance.mCmdParam.nPrompt;
+        nGenerate = instance.mCmdParam.nGenerate;
+        backend = instance.mCmdParam.backend;
+        precision = instance.mCmdParam.precision;
+        memory = instance.mCmdParam.memory;
+        power = instance.mCmdParam.power;
+        dynamicOption = instance.mCmdParam.dynamicOption;
+        cpuIds = instance.mCmdParam.cpuIds;
     }
 
-    std::vector<double> getTokensPerSecond(int n_tokens, std::vector<int64_t> cost_us) const {
+    std::vector<double> getTokensPerSecond(int n_tokens, std::vector<int64_t> cost_us) const
+    {
         std::vector<double> ts;
-        std::transform(cost_us.begin(), cost_us.end(), std::back_inserter(ts), [n_tokens](int64_t t) { return 1e6 * n_tokens / t; });
+        std::transform(cost_us.begin(), cost_us.end(), std::back_inserter(ts), [n_tokens](int64_t t)
+                       { return 1e6 * n_tokens / t; });
         return ts;
     }
 
     double getAvgUs(std::vector<double> v) const { return ::avg(v); }
     double getStdevUs(std::vector<double> v) const { return ::stdev(v); }
-    enum fieldType { STRING, BOOL, INT, FLOAT };
+    enum fieldType
+    {
+        STRING,
+        BOOL,
+        INT,
+        FLOAT
+    };
 
-    static fieldType getFieldType(const std::string & field) {
-        if (field == "threads") {
+    static fieldType getFieldType(const std::string &field)
+    {
+        if (field == "threads")
+        {
             return INT;
         }
-        if (field == "useMmap") {
+        if (field == "useMmap")
+        {
             return BOOL;
         }
-        if (field == "t/s" || field == "modelSize" || field == "prefill&decode speed (tok/s)") {
+        if (field == "t/s" || field == "modelSize" || field == "prefill&decode speed (tok/s)")
+        {
             return FLOAT;
         }
         return STRING;
     }
 };
 
-static std::string pairString(const std::pair<int, int> & p) {
+static std::string pairString(const std::pair<int, int> &p)
+{
     static char buf[32];
     snprintf(buf, sizeof(buf), "%d,%d", p.first, p.second);
     return buf;
 }
 
-template <typename T, typename F> static std::vector<std::string> transform2String(const std::vector<T> & values, F f) {
+template <typename T, typename F>
+static std::vector<std::string> transform2String(const std::vector<T> &values, F f)
+{
     std::vector<std::string> str_values;
     std::transform(values.begin(), values.end(), std::back_inserter(str_values), f);
     return str_values;
 }
 
-template<class T>
-static std::vector<T> splitString(const std::string & str, char delim) {
+template <class T>
+static std::vector<T> splitString(const std::string &str, char delim)
+{
     std::vector<T> values;
     std::istringstream str_stream(str);
     std::string token;
-    while (std::getline(str_stream, token, delim)) {
+    while (std::getline(str_stream, token, delim))
+    {
         T value;
         std::istringstream tokenStream(token);
         tokenStream >> value;
@@ -228,166 +271,243 @@ static std::vector<T> splitString(const std::string & str, char delim) {
     return values;
 }
 
-struct Printer {
+struct Printer
+{
     virtual ~Printer() {}
 
-    FILE * fout;
+    FILE *fout;
 
-    virtual void printHeader(const RuntimeParameters & rp, const TestParameters & tp) { (void) rp; (void) tp; }
+    virtual void printHeader(const RuntimeParameters &rp, const TestParameters &tp)
+    {
+        (void)rp;
+        (void)tp;
+    }
 
-    virtual void printPerformance(const TestInstance & t) = 0;
+    virtual void printPerformance(const TestInstance &t) = 0;
 
-//    virtual void print_footer() {}
+    //    virtual void print_footer() {}
 };
 
-struct markdownPrinter : public Printer {
+struct markdownPrinter : public Printer
+{
     std::vector<std::string> fields;
 
-    static int getFieldWidth(const std::string & field) {
-        if (field == "model") {
+    static int getFieldWidth(const std::string &field)
+    {
+        if (field == "model")
+        {
             return -30;
         }
-        if (field == "prefill&decode speed (tok/s)") {
+        if (field == "prefill&decode speed (tok/s)")
+        {
             return 20;
         }
-        if (field == "threads") {
+        if (field == "threads")
+        {
             return 5;
         }
-        if (field == "useMmap") {
+        if (field == "useMmap")
+        {
             return 4;
         }
-        if (field == "test") {
+        if (field == "test")
+        {
             return -13;
         }
 
-        int width = std::max((int) field.length(), 10);
+        int width = std::max((int)field.length(), 10);
 
-        if (TestInstance::getFieldType(field) == TestInstance::STRING) {
+        if (TestInstance::getFieldType(field) == TestInstance::STRING)
+        {
             return -width;
         }
         return width;
     }
 
-    static std::string getFieldDisplayName(const std::string & field) {
-        if (field == "useMmap") {
+    static std::string getFieldDisplayName(const std::string &field)
+    {
+        if (field == "useMmap")
+        {
             return "mmap";
         }
         return field;
     }
 
-    void printHeader(const RuntimeParameters & rp, const TestParameters & tp) override {
+    void printHeader(const RuntimeParameters &rp, const TestParameters &tp) override
+    {
         // select fields to print
         fields.emplace_back("model");
         fields.emplace_back("modelSize");
         fields.emplace_back("backend");
         fields.emplace_back("threads");
 
-        if (rp.precision.size() > 0) {
+        if (rp.precision.size() > 0)
+        {
             fields.emplace_back("precision");
         }
-        if (rp.memory.size() > 1) {
+        if (rp.memory.size() > 1)
+        {
             fields.emplace_back("memory");
         }
-        if (rp.dynamicOption.size() > 1) {
+        if (rp.dynamicOption.size() > 1)
+        {
             fields.emplace_back("dynamicOption");
         }
 
-        if (rp.useMmap) {
+        if (rp.useMmap)
+        {
             fields.emplace_back("useMmap");
         }
-        if (tp.kvCache == "false") {
+        if (tp.kvCache == "false")
+        {
             fields.emplace_back("test");
             fields.emplace_back("t/s");
-        } else {
+        }
+        else
+        {
             fields.emplace_back("llm_demo");
             fields.emplace_back("speed(tok/s)");
         }
-        if (tp.loadTime == "true") {
+        if (tp.loadTime == "true")
+        {
             fields.emplace_back("loadingTime(s)");
         }
 
         fprintf(fout, "|");
-        for (const auto & field : fields) {
+        for (const auto &field : fields)
+        {
             fprintf(fout, " %*s |", getFieldWidth(field), getFieldDisplayName(field).c_str());
         }
         fprintf(fout, "\n");
         fprintf(fout, "|");
-        for (const auto & field : fields) {
+        for (const auto &field : fields)
+        {
             int width = getFieldWidth(field);
             fprintf(fout, " %s%s |", std::string(std::abs(width) - 1, '-').c_str(), width > 0 ? ":" : "-");
         }
         fprintf(fout, "\n");
     }
 
-    void printPerformance(const TestInstance & t) override {
+    void printPerformance(const TestInstance &t) override
+    {
         fprintf(fout, "|");
-        for (const auto & field : fields) {
+        for (const auto &field : fields)
+        {
             std::string value;
-            char        buf[128];
-            if (field == "model") {
+            char buf[128];
+            if (field == "model")
+            {
                 value = t.modelType;
-            } else if (field == "modelSize") {
-                if (t.modelSize < 1024 * 1024 * 1024) {
+            }
+            else if (field == "modelSize")
+            {
+                if (t.modelSize < 1024 * 1024 * 1024)
+                {
                     snprintf(buf, sizeof(buf), "%.2f MiB", t.modelSize / 1024.0 / 1024.0);
-                } else {
+                }
+                else
+                {
                     snprintf(buf, sizeof(buf), "%.2f GiB", t.modelSize / 1024.0 / 1024.0 / 1024.0);
                 }
                 value = buf;
-            }  else if (field == "backend") {
-                if (t.backend == 1) value = "METAL";
-                else if (t.backend == 3) value = "OPENCL";
-                else value = "CPU";
-            } else if (field == "test") {
-                if (t.nPrompt > 0 && t.nGenerate == 0) {
+            }
+            else if (field == "backend")
+            {
+                if (t.backend == 1)
+                    value = "METAL";
+                else if (t.backend == 3)
+                    value = "OPENCL";
+                else
+                    value = "CPU";
+            }
+            else if (field == "test")
+            {
+                if (t.nPrompt > 0 && t.nGenerate == 0)
+                {
                     snprintf(buf, sizeof(buf), "pp%d", t.nPrompt);
-                } else if (t.nGenerate > 0 && t.nPrompt == 0) {
+                }
+                else if (t.nGenerate > 0 && t.nPrompt == 0)
+                {
                     snprintf(buf, sizeof(buf), "tg%d", t.nGenerate);
-                } else {
+                }
+                else
+                {
                     snprintf(buf, sizeof(buf), "pp%d+tg%d", t.nPrompt, t.nGenerate);
                 }
                 value = buf;
-            } else if (field == "llm_demo") {
+            }
+            else if (field == "llm_demo")
+            {
                 snprintf(buf, sizeof(buf), "prompt=%d<br>decode=%d", t.nPrompt, t.nGenerate);
                 value = buf;
-            } else if (field == "t/s") {
+            }
+            else if (field == "t/s")
+            {
                 auto spd = t.getTokensPerSecond(t.nPrompt + t.nGenerate, t.samplesUs);
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f", t.getAvgUs(spd), t.getStdevUs(spd));
                 value = buf;
-            } else if (field == "speed(tok/s)") {
+            }
+            else if (field == "speed(tok/s)")
+            {
                 auto decode_speed = t.getTokensPerSecond(t.nGenerate, t.decodeUs);
                 auto prefill_speed = t.getTokensPerSecond(t.nPrompt, t.prefillUs);
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f<br>%.2f ± %.2f", t.getAvgUs(prefill_speed), t.getStdevUs(prefill_speed), t.getAvgUs(decode_speed), t.getStdevUs(decode_speed));
                 value = buf;
-            } else if (field == "precision") {
-                if (t.precision == 2) value = "Low";
-                else if (t.precision == 0) value = "Normal";
-                else value = "High";
-            } else if (field == "memory") {
-                if (t.memory == 2) value = "Low";
-                else if (t.memory == 0) value = "Normal";
-                else value = "High";
-            } else if (field == "power") {
-                if (t.power == 2) value = "Low";
-                else if (t.power == 0) value = "Normal";
-                else value = "High";
-            } else if (field == "threads") {
+            }
+            else if (field == "precision")
+            {
+                if (t.precision == 2)
+                    value = "Low";
+                else if (t.precision == 0)
+                    value = "Normal";
+                else
+                    value = "High";
+            }
+            else if (field == "memory")
+            {
+                if (t.memory == 2)
+                    value = "Low";
+                else if (t.memory == 0)
+                    value = "Normal";
+                else
+                    value = "High";
+            }
+            else if (field == "power")
+            {
+                if (t.power == 2)
+                    value = "Low";
+                else if (t.power == 0)
+                    value = "Normal";
+                else
+                    value = "High";
+            }
+            else if (field == "threads")
+            {
                 snprintf(buf, sizeof(buf), "%d", t.threads);
                 value = buf;
-            } else if (field == "loadingTime(s)") {
+            }
+            else if (field == "loadingTime(s)")
+            {
                 snprintf(buf, sizeof(buf), "%.2f ± %.2f", t.getAvgUs(t.loadingS), t.getStdevUs(t.loadingS));
                 value = buf;
-            } else if (field == "useMmap") {
-                if (t.useMmap) value = "true";
-                else value = "false";
             }
-            else {
+            else if (field == "useMmap")
+            {
+                if (t.useMmap)
+                    value = "true";
+                else
+                    value = "false";
+            }
+            else
+            {
                 assert(false);
                 MNN_ERROR("llm bench print fields error\n");
                 return;
             }
 
             int width = getFieldWidth(field);
-            if (field == "prefill&decode speed (tok/s)" || field == "t/s") {
+            if (field == "prefill&decode speed (tok/s)" || field == "t/s")
+            {
                 // HACK: the utf-8 character is 2 bytes
                 width += 1;
             }
@@ -397,42 +517,56 @@ struct markdownPrinter : public Printer {
     }
 };
 
-static FILE* openFile(const char* file, bool read) {
+static FILE *openFile(const char *file, bool read)
+{
 #if defined(_MSC_VER)
     wchar_t wFilename[1024];
-    if (0 == MultiByteToWideChar(CP_ACP, 0, file, -1, wFilename, sizeof(wFilename))) {
+    if (0 == MultiByteToWideChar(CP_ACP, 0, file, -1, wFilename, sizeof(wFilename)))
+    {
         return nullptr;
     }
 #if _MSC_VER >= 1400
-    FILE* mFile = nullptr;
-    if (read) {
-        if (0 != _wfopen_s(&mFile, wFilename, L"r")) {
+    FILE *mFile = nullptr;
+    if (read)
+    {
+        if (0 != _wfopen_s(&mFile, wFilename, L"r"))
+        {
             return nullptr;
         }
-    } else {
-        if (0 != _wfopen_s(&mFile, wFilename, L"a")) {
+    }
+    else
+    {
+        if (0 != _wfopen_s(&mFile, wFilename, L"a"))
+        {
             return nullptr;
         }
     }
     return mFile;
 #else
-    if (read) {
+    if (read)
+    {
         return _wfopen(wFilename, L"r");
-    } else {
+    }
+    else
+    {
         return _wfopen(wFilename, L"a");
     }
 #endif
 #else
-    if (read) {
+    if (read)
+    {
         return fopen(file, "r");
-    } else {
+    }
+    else
+    {
         return fopen(file, "a");
     }
 #endif
     return nullptr;
 }
 
-static std::vector<commandParametersInstance> get_cmd_params_instances(const RuntimeParameters & rp, const TestParameters& tp) {
+static std::vector<commandParametersInstance> get_cmd_params_instances(const RuntimeParameters &rp, const TestParameters &tp)
+{
     std::vector<commandParametersInstance> instances;
 
     // this ordering minimizes the number of times that each model needs to be reloaded
@@ -467,6 +601,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.nRepeat = tp.nRepeat[0];
                     tmpParam.kvCache = "true";
                     tmpParam.loadingTime = tp.loadTime;
+                    tmpParam.cpuIds = rp.cpuIds;
                     auto instance = commandParametersInstance(tmpParam);
                     instances.push_back(instance);
                 }
@@ -490,6 +625,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nRepeat = tp.nRepeat[0];
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
+                tmpParam.cpuIds = rp.cpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -508,6 +644,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nRepeat = tp.nRepeat[0];
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
+                tmpParam.cpuIds = rp.cpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -529,6 +666,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.nRepeat = tp.nRepeat[0];
                 tmpParam.kvCache = "false";
                 tmpParam.loadingTime = tp.loadTime;
+                tmpParam.cpuIds = rp.cpuIds;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -578,6 +716,7 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -kv, --kv-cache <true|false>              (default: %s) | Note: if true: Every time the LLM model generates a new word, it utilizes the cached KV-cache\n", "false");
     printf("  -fp, --file-print <stdout|filename>       (default: %s)\n", "stdout");
     printf("  -load, --loading-time <true|false>        (default: %s)\n", "true");
+    printf("  -ids, --cpu-ids <n,n,n>                 (default: %s) | Note: set cpu core ids for binding, e.g. 4,5,6,7\n", "none");
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
 }
 
@@ -726,6 +865,14 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             auto p = splitString<std::string>(argv[i], splitDelim);
             testParams.loadTime = p[0];
         }
+        else if (arg == "-ids" || arg == "--cpu-ids") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.cpuIds.insert(runtimeParams.cpuIds.end(), p.begin(), p.end());
+        }
         else {
             invalidParam = true;
             break;
@@ -770,6 +917,9 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (runtimeParams.dynamicOption.empty()) {
         runtimeParams.dynamicOption = runtimeParamsDefaults.dynamicOption;
     }
+    if (runtimeParams.cpuIds.empty()) {
+        runtimeParams.cpuIds = runtimeParamsDefaults.cpuIds;
+    }
     if (testParams.nRepeat.empty()) {
         testParams.nRepeat = testParamsDefaults.nRepeat;
     }
@@ -778,7 +928,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
 }
 
 
-static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads, int power, int dynamic_option, bool use_mmap) {
+static Llm* buildLLM(const std::string& config_path, int backend, int memory, int precision, int threads, int power, int dynamic_option, bool use_mmap, const std::vector<int>& cpu_ids) {
     auto llmPtr = Llm::createLLM(config_path);
     llmPtr->set_config(R"({
         "async":false
@@ -823,6 +973,24 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
         MNN_ERROR("use_mmap for LLM config set error\n");
         return nullptr;
     }
+    // --- 绑核修改 ---
+    if (!cpu_ids.empty()) {
+        std::string ids_json = "[";
+        for (size_t i = 0; i < cpu_ids.size(); ++i) {
+            ids_json += std::to_string(cpu_ids[i]);
+            if (i < cpu_ids.size() - 1) {
+                ids_json += ",";
+            }
+        }
+        ids_json += "]";
+        MNN_PRINT("Binding to CPU Core IDs: %s\n", ids_json.c_str());
+        setSuccess &= llmPtr->set_config("{\"cpu_core_ids\":" + ids_json + "}");
+        if (!setSuccess) {
+            MNN_ERROR("cpu_core_ids for LLM config set error\n");
+            return nullptr;
+        }
+    }
+    // --- 修改结束 ---
     setSuccess &= llmPtr->set_config("{\"tmp_path\":\"tmp\"}");
     if (!setSuccess) {
         MNN_ERROR("tmp_path for LLM config set error\n");
@@ -840,7 +1008,60 @@ static void tuning_prepare(Llm* llm) {
     llm->tuning(OP_ENCODER_NUMBER, {1, 5, 10, 20, 30, 50, 100});
 }
 
+static void wait_for_perf_trigger() {
+    int sock = 0;
+    struct sockaddr_in serv_addr;
+    const int PORT = 8888; // 约定端口 8888
+
+    MNN_PRINT(">>> [Sync] 正在连接性能监控 Server (localhost:%d)...\n", PORT);
+
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        MNN_ERROR(">>> [Sync] Socket 创建失败 \n");
+        return;
+    }
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+
+    // 连接 Android 本地的 localhost (通过 adb reverse 映射到 PC)
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        MNN_ERROR(">>> [Sync] 无效地址 \n");
+        return;
+    }
+
+    // 尝试连接
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        MNN_ERROR(">>> [Sync] 连接失败! 请确保 Python Server 已启动并执行了 adb reverse tcp:8888 tcp:8888\n");
+        // 连接失败不应卡死，直接返回继续运行
+        return;
+    }
+
+    // 1. 发送本机 PID 给 Server
+    std::string pid_msg = std::to_string(getpid());
+    send(sock, pid_msg.c_str(), pid_msg.length(), 0);
+    MNN_PRINT(">>> [Sync] Prefill 完成! 已发送 PID: %s. 等待 Simpleperf 启动...\n", pid_msg.c_str());
+
+    // 2. 阻塞读取，等待 Server 发回 "GO" 指令
+    char buffer[1024] = {0};
+    int valread = read(sock, buffer, 1024);
+    MNN_PRINT(">>> [Sync] 收到指令: %s. 立即开始 Decode!\n", buffer);
+
+    close(sock);
+}
+/* * 【【请确保文件顶部有以下两行】】
+ * #include <android/trace.h>
+ * #define ATRACE_TAG ATRACE_TAG_APP
+ */
+
 int main(int argc, char ** argv) {
+    // ---------------------------------------------------------
+    // 4. 【已移除】 Perfetto 系统模式初始化代码
+    // ---------------------------------------------------------
+    // perfetto::TracingInitArgs args;
+    // args.backends |= perfetto::kSystemBackend;
+    // perfetto::Tracing::Initialize(args);
+    // perfetto::TrackEvent::Register();
+     
     RuntimeParameters runtimeParams;
     TestParameters testParams;
     FILE* outfile = stdout;
@@ -868,17 +1089,27 @@ int main(int argc, char ** argv) {
         auto executor = MNN::Express::Executor::newExecutor(MNN_FORWARD_CPU, backendConfig, 1);
         MNN::Express::ExecutorScope scope(executor);
 
-        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap);
+        auto llmPtr = buildLLM(instance.mCmdParam.model, instance.mCmdParam.backend, instance.mCmdParam.memory, instance.mCmdParam.precision, instance.mCmdParam.threads, instance.mCmdParam.power, instance.mCmdParam.dynamicOption, instance.mCmdParam.useMmap, instance.mCmdParam.cpuIds);
         std::unique_ptr<Llm> llm(llmPtr);
+        
+        // --- ATrace 修改 (if 块) ---
         if (instance.mCmdParam.loadingTime == "true") {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;
+
+                begin_trace_marker("llm->load()");
                 llm->load();
+                end_trace_marker();
+
                 t.loadingS.push_back((double)loadingCost.durationInUs() / 1e6);
             }
         } else {
+        // --- ATrace 修改 (else 块) ---
+            begin_trace_marker("llm->load()"); // <--- ATrace 开始
             llm->load();
+            end_trace_marker(); // <--- ATrace 结束
         }
+        
         tuning_prepare(llm.get());
         auto context = llm->getContext();
         if (instance.mCmdParam.nGenerate > 0) {
@@ -893,10 +1124,17 @@ int main(int argc, char ** argv) {
             std::vector<int> tokens(prompt_tokens, 16);
             
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
+                
+                // --- ATrace 修改 (response 块) ---
+                begin_trace_marker("llm->response (prefill+decode)"); // <--- ATrace 开始
                 llm->response(tokens, nullptr, nullptr, decodeTokens);
+                end_trace_marker(); // <--- ATrace 结束
+
                 auto prefillTime = context->prefill_us;
                 auto decodeTime = context->decode_us;
                 if (i > 0) { // Exclude the first performance value.
+                
+                    
                     t.prefillUs.push_back(prefillTime);
                     t.decodeUs.push_back(decodeTime);
                 }
@@ -918,13 +1156,26 @@ int main(int argc, char ** argv) {
             std::vector<int> tokens1(1, tok);
 
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
-                int64_t sampler_us = 0;
+                int64_t sampler_us =   0;
                 if (prompt_tokens) {
+                
+                    // --- ATrace 修改 (prefill_only 块) ---
+                    begin_trace_marker("llm->response (prefill_only)"); // <--- ATrace 开始
                     llm->response(tokens, nullptr, nullptr, 1);
+                    end_trace_marker(); // <--- ATrace 结束
+
                     sampler_us += context->prefill_us;
                 }
+                if (i == 0 && decodeTokens > 0) {
+                    wait_for_perf_trigger(); 
+                }
                 if (decodeTokens) {
+                
+                    // --- ATrace 修改 (decode_only 块) ---
+                    begin_trace_marker("llm->response (decode_only)"); // <--- ATrace 开始
                     llm->response(tokens1, nullptr, nullptr, decodeTokens);
+                    end_trace_marker(); // <--- ATrace 结束
+
                     sampler_us += context->decode_us;
                 }
                 if (i > 0) {

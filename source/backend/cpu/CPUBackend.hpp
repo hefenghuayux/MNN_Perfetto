@@ -20,6 +20,7 @@
 #ifdef MNN_USE_THREAD_POOL
 #include "ThreadPool.hpp"
 #endif
+#include "AutoTuner.hpp"
 
 namespace MNN {
 class WorkerThread;
@@ -103,6 +104,19 @@ private:
     MemChunk mChunk;
     int mSize;
 };
+
+struct DivideSchedulePlan {
+    int total_size = 0;
+    int total_static = 0;
+    int dynamic_size = 0;
+    int step_size = 1;
+    int target_chunks = 0;
+    int theoretical_dynamic_chunks = 0;
+    int active_threads = 1;
+    int min_chunk_size = 1;
+    SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
+};
+
 class CPUBackend : public Backend {
 public:
     CPUBackend(const CPURuntime* runtime, BackendConfig::PrecisionMode precision, BackendConfig::MemoryMode memory, MNNForwardType type = MNN_FORWARD_CPU, size_t flags = 0);

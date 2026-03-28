@@ -30,7 +30,7 @@ struct ScheduleConfig {
         int numThread = 4;
         int mode;
     };
-
+    unsigned long cpuMask = 0; // CPU: core affinity mask
     /** subpath to run */
     struct Path {
         std::vector<std::string> inputs;

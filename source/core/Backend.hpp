@@ -90,6 +90,9 @@ public:
         };
         /** user data. */
         BackendConfig* user = NULL;
+        // [!!! 请在这里添加这一行 !!!]
+        // 传递 CPU 绑核掩码 (例如 0xf0 表示绑定核心 4,5,6,7)
+        unsigned long cpuMask = 0;
         enum Mode {
             // The Op will be run in execution->onExecute
             DIRECT = 0,

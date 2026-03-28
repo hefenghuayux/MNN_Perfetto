@@ -24,10 +24,11 @@
 #include "sampler.hpp"
 #include "omni.hpp"
 #include "speculative_decoding/generate.hpp"
-
+#include "trace_marker_helper.h" // 核心 ATrace API
 // 0: no debug, 1: test op time, 2: print tensor info, 3: print tensor in output
 #define DEBUG_MODE 0
 //#define DEBUG_IMAGE
+
 
 namespace MNN {
 using namespace Express;
@@ -150,6 +151,12 @@ void Llm::setRuntimeHint(std::shared_ptr<Express::Executor::RuntimeManager> &rtg
         rtg->setHint(MNN::Interpreter::CPU_SME2_INSTRUCTIONS, 1);
 
     }
+    
+    // --- [修改] ---
+    // 移除路径 A 的绑核逻辑。路径 B (ThreadPool.cpp) 会在内部自动处理绑核。
+    // 移除了原有的 cpu_core_ids JSON 解析和 setHint(CPU_CORE_IDS, ...) 调用
+    // --- [修改结束] ---
+    
     if (mConfig->config_.value("prefer_decode", false)) {
         dynamicOption = dynamicOption % 8 + 8;
         rtg->setHint(MNN::Interpreter::DYNAMIC_QUANT_OPTIONS, dynamicOption);
@@ -164,8 +171,46 @@ void Llm::setRuntimeHint(std::shared_ptr<Express::Executor::RuntimeManager> &rtg
 void Llm::initRuntime() {
     ScheduleConfig config;
     BackendConfig cpuBackendConfig;
-    config.type      = backend_type_convert(mConfig->backend_type());
-    config.numThread = mConfig->thread_num();
+    config.type = backend_type_convert(mConfig->backend_type());
+    // [新代码] 初始化 cpuMask 为 0 (不绑核)
+    config.cpuMask = 0;
+
+    // --- 绑核修改 (路径 B) ---
+    // 我们仍然需要解析 llm_bench.cpp 传来的 "cpu_core_ids" JSON
+    // 但这次，我们将它转换为一个 unsigned long cpuMask
+    std::vector<int> cpu_ids;
+    if (mConfig->config_.document.HasMember("cpu_core_ids")) {
+        auto& cpu_ids_json = mConfig->config_.document["cpu_core_ids"];
+        if (cpu_ids_json.IsArray()) {
+            for (auto iter = cpu_ids_json.GetArray().begin(); iter != cpu_ids_json.GetArray().end(); ++iter) {
+                if (iter->IsInt()) {
+                    cpu_ids.push_back(iter->GetInt());
+                }
+            }
+        }
+    }
+
+    // 2. 如果提供了 cpu_ids，则 numThread 必须与 cpu_ids 的数量一致
+    //    并且，我们将 cpu_ids 转换为 cpuMask
+    if (!cpu_ids.empty()) {
+        config.numThread = cpu_ids.size(); // 强制线程数 = 绑核数
+        MNN_PRINT("Llm::initRuntime (Path B): Found %d CPU Core IDs. Forcing numThread = %d\n", (int)cpu_ids.size(), (int)cpu_ids.size());
+        
+        // [新代码] 将 [4, 5, 6, 7] 转换为 0xf0
+        unsigned long mask = 0;
+        for (int core_id : cpu_ids) {
+            if (core_id >= 0 && core_id < (sizeof(mask) * 8)) {
+                mask |= (1UL << core_id);
+            }
+        }
+        config.cpuMask = mask; // 将掩码设置到 ScheduleConfig 中
+        MNN_PRINT("Llm::initRuntime (Path B): Converted Core IDs to cpuMask: 0x%lx\n", config.cpuMask);
+
+    } else {
+        config.numThread = mConfig->thread_num(); // 否则，使用 -t 参数或 json 文件中的配置
+    }
+    // --- 绑核修改结束 ---
+
     if(config.type == 3){
         // opencl need set numThread = 64(buffer mode)
         config.numThread |= 64;
@@ -187,8 +232,13 @@ void Llm::initRuntime() {
     }
     config.backendConfig = &cpuBackendConfig;
 
-    mRuntimeManager.reset(Executor::RuntimeManager::createRuntimeManager(config));
-    setRuntimeHint(mRuntimeManager);
+    // 3. 现在创建 RuntimeManager
+    // 它会将 config.numThread 和 config.cpuMask 传递下去
+    // 最终传递给我们修改过的 ThreadPool::init 函数
+    mRuntimeManager.reset(Executor::RuntimeManager::createRuntimeManager(config)); 
+
+    // 4. setRuntimeHint 现在不再负责绑核
+    setRuntimeHint(mRuntimeManager); 
 
 #if DEBUG_MODE == 1
     mRuntimeManager->setMode(MNN::Interpreter::Session_Debug);
@@ -411,6 +461,7 @@ void Llm::setKVCacheInfo(size_t add, size_t remove, int* reserve, int n_reserve)
 }
 
 std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::VARP mask, Express::VARP inputPos, Express::VARPS extraArgs) {
+    begin_trace_marker("MNN::Transformer::Llm::forwardRaw"); // <--- 修改为这一行
     Express::VARP logitsIndex;
     bool inDecode = mContext->gen_seq_len > 0;
     bool isAllLogists = mConfig->all_logits() ? true : (inDecode ? mInSpec : false);
@@ -447,6 +498,7 @@ std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::V
     std::vector<Express::VARP> outputs = selectModule->onForward(inputs);
 
     if (outputs.empty()) {
+        end_trace_marker(); // <--- 在 return 前添加
         return outputs;
     }
     if (!mAsync) {
@@ -509,6 +561,7 @@ std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::V
     }
 #endif
     mMeta->sync();
+    end_trace_marker(); // <--- 在 return 前添加
     return outputs;
 }
 
@@ -894,12 +947,14 @@ static inline bool needNewVar(VARP var, int axis, int seq_len, int kv_seq_len = 
 
 VARP Llm::embedding(const std::vector<int>& input_ids) {
     AUTOTIME;
+    begin_trace_marker("MNN::Transformer::Llm::embedding"); // <--- 修改为这一行
     int hidden_size = mConfig->hidden_size();
     int seq_len = static_cast<int>(input_ids.size());
 
     VARP res = _Input({seq_len, 1, hidden_size}, NCHW);
     // disk embedding to save memory
     mDiskEmbedding->embedding(input_ids, res->writeMap<float>());
+    end_trace_marker(); // <--- 在 return 前添加
     return res;
 }
 

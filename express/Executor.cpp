@@ -317,7 +317,51 @@ Executor::RuntimeManager* Executor::RuntimeManager::createRuntimeManager(const S
             numThread = 16;
         }
     }
-    auto rt = glo->_getOrCreateRuntime(type, config.backendConfig, numThread, false);
+    // 修改 Executor::RuntimeManager::createRuntimeManager 函数
+
+    // [删除或注释掉这一行]
+    // auto rt = glo->_getOrCreateRuntime(type, config.backendConfig, numThread, false);
+
+   // [2. 替换为新的逻辑]
+    std::shared_ptr<Runtime> rt;
+    
+    // 检查是否需要绑核。如果设置了 cpuMask，我们强制创建一个新的 Runtime，不使用缓存。
+    bool forceNewRuntime = (config.cpuMask != 0);
+
+    // 只有在不强制新建时，才尝试从缓存查找
+    if (!forceNewRuntime) {
+        auto iter = glo->mRuntimeInfo.first.find(type);
+        if (iter != glo->mRuntimeInfo.first.end()) {
+            iter->second->onReset(numThread, config.backendConfig, false);
+            rt = iter->second;
+        }
+    }
+
+    // 如果没找到缓存，或者强制新建
+    if (rt == nullptr) {
+        auto cre = MNNGetExtraRuntimeCreator(type);
+        if (nullptr != cre) {
+            Backend::Info info;
+            info.type = type;
+            info.mode = Backend::Info::DIRECT;
+            info.numThread = numThread;
+            info.user = (BackendConfig*)config.backendConfig;
+            
+            // [!!! 关键点 !!!] 传递 cpuMask
+            info.cpuMask = config.cpuMask; 
+            
+            // 打印调试信息，确认这里被执行了
+            MNN_PRINT("DEBUG: Force Creating Runtime via Executor. cpuMask = 0x%lx\n", info.cpuMask);
+
+            rt.reset(cre->onCreate(info));
+            
+            // 只有在非强制新建模式下，才加入全局缓存，避免污染
+            // if (!forceNewRuntime && nullptr != rt) {
+            if(nullptr != rt){
+                glo->mRuntimeInfo.first[type] = rt;
+            }
+        }
+    }
     res->mInside->mRuntime.second = originRt.second;
     res->mInside->mRuntime.first.insert(std::make_pair(type, rt));
     res->mInside->mInfo = rt;

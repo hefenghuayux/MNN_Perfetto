@@ -18,6 +18,18 @@ if(POLICY CMP0091)
   cmake_policy(SET CMP0091 NEW)
 endif()
 project(MNN VERSION ${MNN_VERSION} LANGUAGES C CXX ASM)
+
+include_directories(${CMAKE_CURRENT_LIST_DIR}/3rd_party/sdk)
+
+
+
+# 【【【 关键修复 】】】
+# 将这个宏全局定义给所有 C++ 编译器
+# 这会强制所有文件（包括头文件）在 "System Backend" (shlib) 模式下编译
+add_definitions(-DPERFETTO_SHLIB_BUILD_VERSION=1)
+# ===================================================
+# (!! END) 全局 Perfetto 库定义完毕
+# ===================================================
 # complier options
 set(CMAKE_C_STANDARD 99)
 IF (NOT (CMAKE_CXX_STANDARD EQUAL 17))
@@ -440,6 +452,7 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/include/
                     ${CMAKE_CURRENT_LIST_DIR}/3rd_party/half
                     ${CMAKE_CURRENT_LIST_DIR}/3rd_party/imageHelper
                     ${CMAKE_CURRENT_LIST_DIR}/3rd_party/OpenCLHeaders/
+                    ${CMAKE_CURRENT_LIST_DIR}/source/utils
                   )
 list(APPEND MNN_INCLUDES
         ${CMAKE_CURRENT_LIST_DIR}/include/
@@ -901,7 +914,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Linux")
 # https://stackoverflow.com/questions/23250863/difference-between-pthread-and-lpthread-while-compiling
   target_link_libraries(MNN PUBLIC -pthread dl)
 elseif(CMAKE_SYSTEM_NAME MATCHES "^Android")
-  target_link_libraries(MNN PUBLIC log m)
+  target_link_libraries(MNN PUBLIC log m android)
 else()
 endif()
 if (NOT MNN_BUILD_SHARED_LIBS)
