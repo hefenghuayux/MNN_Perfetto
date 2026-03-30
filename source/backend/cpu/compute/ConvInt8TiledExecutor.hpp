@@ -10,6 +10,7 @@
 #define ConvInt8TiledExecutor_hpp
 
 #include "backend/cpu/CPUConvolution.hpp"
+#include "backend/cpu/AutoTuner.hpp"
 #include "Int8FunctionsOpt.h"
 #include "CommonOptFunction.h"
 
@@ -76,6 +77,12 @@ private:
     // for 4Bit Ptq model
     MemChunk mTempOutput;
     std::vector<int32_t> mDivides;
+    int mTotalTasks = 0;
+    int mDynamicStepSize = 1;
+    bool mUseStaticOnly = false;
+    SchedulerPolicy mDynamicPolicy = SchedulerPolicy::DYNAMIC;
+    int mDynamicTargetChunks = 0;
+    int mDynamicMinChunkSize = 1;
 
     int mGemmUnits[3];
     int mThreadNums;

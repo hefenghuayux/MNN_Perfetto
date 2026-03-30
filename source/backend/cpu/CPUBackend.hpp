@@ -127,6 +127,16 @@ public:
     virtual bool onSelectDynamicAllocator(int index, int maxIndex) override;
     // dividedSize's length should be larger than threadNumber
     void computeDivideSizes(int size, int* dst, float computeI = 0.f) const;
+    DivideSchedulePlan computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
+    void initDynamicTaskState(int static_end,
+                              int total_size,
+                              int step_size,
+                              SchedulerPolicy policy = SchedulerPolicy::DYNAMIC,
+                              int active_threads = 0,
+                              int target_chunks = 0,
+                              int min_chunk_size = 1) const;
+    std::pair<int, int> fetchDynamicChunk() const;
+    bool hasDynamicTasks() const;
 
 public:
     virtual MemObj* onAcquire(const Tensor* nativeTensor, StorageType storageType) override;
@@ -205,6 +215,7 @@ protected:
 private:
     mutable std::shared_ptr<WorkerThread> mInitWorkQueue;
     mutable int mThreadNumber = 1;
+    mutable DynamicTaskState mDynamicState;
     std::vector<std::pair<float, int>> mGroupWithComputeRate;
     float mComputeI = 0.f;
 

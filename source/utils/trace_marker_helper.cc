@@ -1,15 +1,30 @@
 #include "trace_marker_helper.h"
 
+#include <fcntl.h>
 #include <iostream>
 #include <sstream>
 
 #include "unistd.h"
 
+namespace {
+
+int trace_marker_fd() {
+    static int fd = mnn_hybrid_instrumentation_enabled()
+        ? open("/sys/kernel/tracing/trace_marker", O_WRONLY)
+        : -1;
+    return fd;
+}
+
+}
+
 void begin_trace_marker(const std::string & message) {
-    if(!ftrace_flag){ 
+    if (!mnn_hybrid_instrumentation_enabled()) {
         return;
     }
-    //std::cout<<trace_marker_fd<<std::endl;
+    const int fd = trace_marker_fd();
+    if (fd < 0) {
+        return;
+    }
     std::stringstream ss;
     pid_t tid = gettid();
     pid_t pid = getpid();
@@ -20,7 +35,7 @@ void begin_trace_marker(const std::string & message) {
     len = snprintf(buffer, 128, "%s", ss.str().c_str()); 
     int len_written;
     //std::cout<<len<<std::endl;
-    if((len_written = write(trace_marker_fd, buffer, len)) != len)
+    if((len_written = write(fd, buffer, len)) != len)
     {
         // std::cout <<  len_written << " != " << len << std::endl;
         //std::cout << "Failed to open trace_marker file" << std::endl;
@@ -31,7 +46,11 @@ void begin_trace_marker(const std::string & message) {
 }
 
 void end_trace_marker() {
-    if(!ftrace_flag){ 
+    if (!mnn_hybrid_instrumentation_enabled()) {
+        return;
+    }
+    const int fd = trace_marker_fd();
+    if (fd < 0) {
         return;
     }
     std::stringstream ss;
@@ -43,7 +62,7 @@ void end_trace_marker() {
     //std::cout<<ss.str()<<" "<<tid<<std::endl;
     len = snprintf(buffer, 128, "%s", ss.str().c_str()); 
     int len_written;
-    if((len_written = write(trace_marker_fd, buffer, len)) != len)
+    if((len_written = write(fd, buffer, len)) != len)
     {
         //std::cout <<  len_written << " != " << len << std::endl;
         //std::cout << "Failed to open trace_marker file" << std::endl;

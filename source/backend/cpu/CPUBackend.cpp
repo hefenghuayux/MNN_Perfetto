@@ -8,9 +8,13 @@
 
 #include "backend/cpu/CPUBackend.hpp"
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
+#include <cstdlib>
 #include <mutex>
 #include <numeric>
+#include <sstream>
+#include <strings.h>
 #include <unordered_map>
 #include "CPUResizeCache.hpp"
 #include "core/BufferAllocator.hpp"
@@ -24,6 +28,7 @@
 #include "core/WrapExecution.hpp"
 #include "core/MNNFileUtils.h"
 #include "core/WorkerThread.hpp"
+#include "../../utils/trace_marker_helper.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif // _OPENMP
@@ -45,6 +50,12 @@
 #define MNN_CPU_MAX_BUFFER_INDEX 2
 #define MNN_CPU_CHECK_NAN 1
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
+extern "C" {
+    __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
+    __attribute__((visibility("default"))) std::atomic<long long> g_divide_size_total(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_divide_size_count(0);
+}
 namespace MNN {
 namespace {
 
@@ -60,8 +71,150 @@ static TuningParams sanitizeTuningParams(const TuningParams& input) {
     return params;
 }
 
+static bool parseIntEnv(const char* name, int& value) {
+    const char* raw = std::getenv(name);
+    if (raw == nullptr || raw[0] == '\0') {
+        return false;
+    }
+    char* end = nullptr;
+    errno = 0;
+    const long parsed = std::strtol(raw, &end, 10);
+    if (errno != 0 || end == raw || (end != nullptr && *end != '\0')) {
+        return false;
+    }
+    value = static_cast<int>(parsed);
+    return true;
+}
+
+static bool parseFloatEnv(const char* name, float& value) {
+    const char* raw = std::getenv(name);
+    if (raw == nullptr || raw[0] == '\0') {
+        return false;
+    }
+    char* end = nullptr;
+    errno = 0;
+    const float parsed = std::strtof(raw, &end);
+    if (errno != 0 || end == raw || (end != nullptr && *end != '\0')) {
+        return false;
+    }
+    value = parsed;
+    return true;
+}
+
+static bool parsePolicyString(const char* raw, SchedulerPolicy& value) {
+    if (raw == nullptr || raw[0] == '\0') {
+        return false;
+    }
+    if (0 == strcasecmp(raw, "dynamic") || 0 == std::strcmp(raw, "0")) {
+        value = SchedulerPolicy::DYNAMIC;
+        return true;
+    }
+    if (0 == strcasecmp(raw, "hybrid") || 0 == std::strcmp(raw, "1")) {
+        value = SchedulerPolicy::HYBRID;
+        return true;
+    }
+    if (0 == strcasecmp(raw, "guided") || 0 == std::strcmp(raw, "2")) {
+        value = SchedulerPolicy::GUIDED;
+        return true;
+    }
+    return false;
+}
+
+static bool parsePolicyEnv(const char* name, SchedulerPolicy& value) {
+    return parsePolicyString(std::getenv(name), value);
+}
+
+static bool parseBoolEnv(const char* name) {
+    const char* raw = std::getenv(name);
+    if (raw == nullptr || raw[0] == '\0') {
+        return false;
+    }
+    return 0 == strcasecmp(raw, "1")
+        || 0 == strcasecmp(raw, "true")
+        || 0 == strcasecmp(raw, "yes")
+        || 0 == strcasecmp(raw, "on");
+}
+
+static TuningParams applyEnvOverrides(TuningParams params, bool isDecode) {
+    const char* phaseStaticRatioEnv = isDecode
+        ? "MNN_HYBRID_DECODE_STATIC_RATIO"
+        : "MNN_HYBRID_PREFILL_STATIC_RATIO";
+    const char* phaseTargetChunksEnv = isDecode
+        ? "MNN_HYBRID_DECODE_TARGET_CHUNKS"
+        : "MNN_HYBRID_PREFILL_TARGET_CHUNKS";
+    const char* phaseMinChunkEnv = isDecode
+        ? "MNN_HYBRID_DECODE_MIN_CHUNK_SIZE"
+        : "MNN_HYBRID_PREFILL_MIN_CHUNK_SIZE";
+    const char* phasePolicyEnv = isDecode
+        ? "MNN_HYBRID_DECODE_POLICY"
+        : "MNN_HYBRID_PREFILL_POLICY";
+    float staticRatio = 0.0f;
+    int targetChunks = 0;
+    int minChunkSize = 0;
+    SchedulerPolicy policy = params.policy;
+
+    if (parseFloatEnv("MNN_HYBRID_STATIC_RATIO", staticRatio)) {
+        params.static_ratio = staticRatio;
+    }
+    if (parseFloatEnv(phaseStaticRatioEnv, staticRatio)) {
+        params.static_ratio = staticRatio;
+    }
+
+    if (parseIntEnv("MNN_HYBRID_TARGET_CHUNKS", targetChunks)) {
+        params.dynamic_target_chunks = targetChunks;
+    }
+    if (parseIntEnv(phaseTargetChunksEnv, targetChunks)) {
+        params.dynamic_target_chunks = targetChunks;
+    }
+
+    if (parseIntEnv("MNN_HYBRID_MIN_CHUNK_SIZE", minChunkSize)) {
+        params.min_chunk_size = minChunkSize;
+    }
+    if (parseIntEnv(phaseMinChunkEnv, minChunkSize)) {
+        params.min_chunk_size = minChunkSize;
+    }
+
+    if (parsePolicyEnv("MNN_HYBRID_POLICY", policy)) {
+        params.policy = policy;
+    }
+    if (parsePolicyEnv(phasePolicyEnv, policy)) {
+        params.policy = policy;
+    }
+
+    return sanitizeTuningParams(params);
+}
+
+static bool forceHybridScheduling(bool isDecode) {
+    if (parseBoolEnv("MNN_HYBRID_FORCE_ENABLE")) {
+        return true;
+    }
+    return isDecode ? parseBoolEnv("MNN_HYBRID_FORCE_DECODE")
+                    : parseBoolEnv("MNN_HYBRID_FORCE_PREFILL");
+}
+
 static ExecutionParams sanitizeExecutionParams(int active_threads, unsigned long affinity_mask) {
     return ExecutionParams(std::max(1, active_threads), affinity_mask);
+}
+
+static void appendThreadLoads(std::ostringstream& stream,
+                              const std::array<long long, MNN_MAX_SCHEDULER_THREADS>& values) {
+    stream << "[";
+    bool first = true;
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (values[i] <= 0) {
+            continue;
+        }
+        if (!first) {
+            stream << ",";
+        }
+        first = false;
+        stream << i << ":" << values[i];
+    }
+    stream << "]";
+}
+
+static int _effectiveThreadCount(int configuredThreads) {
+    return std::min(configuredThreads, AutoTuner::getInstance()->getActiveThreadCount());
 }
 
 static int _maxCpuId(const MNNCPUInfo* cpuInfo) {
@@ -202,6 +355,14 @@ static bool _hasWeightVariance(const std::vector<float>& weights) {
     return dispersion.ratio >= 1.12f || dispersion.cv >= 0.05f;
 }
 
+static bool _hasHighWeightVariance(const std::vector<float>& weights) {
+    if (weights.size() <= 1) {
+        return false;
+    }
+    const auto dispersion = _weightDispersion(weights);
+    return dispersion.ratio >= 1.50f || dispersion.cv >= 0.15f;
+}
+
 static void _fillUniformDivides(int size, int* dst, int effectiveThreads, int totalThreads, int fillValue) {
     const int length = effectiveThreads > 0 ? UP_DIV(size, effectiveThreads) : size;
     int cur = length;
@@ -240,6 +401,18 @@ static void _fillWeightedDivides(int size,
     }
 }
 
+static int _simulateGuidedChunks(int dynamicSize, int activeThreads, int minChunkSize) {
+    int chunks = 0;
+    int remaining = std::max(0, dynamicSize);
+    const int divisor = std::max(1, activeThreads * 2);
+    while (remaining > 0) {
+        const int chunk = std::max(minChunkSize, UP_DIV(remaining, divisor));
+        remaining -= chunk;
+        ++chunks;
+    }
+    return chunks;
+}
+
 } // namespace
 
 AutoTuner* AutoTuner::sInstance = nullptr;
@@ -255,6 +428,62 @@ const char* schedulerPolicyName(SchedulerPolicy policy) {
         default:
             return "dynamic";
     }
+}
+
+PhaseScheduleStats::PhaseScheduleStats() {
+    reset();
+}
+
+void PhaseScheduleStats::reset() {
+    op_count.store(0, std::memory_order_relaxed);
+    total_tasks.store(0, std::memory_order_relaxed);
+    total_static_tasks.store(0, std::memory_order_relaxed);
+    total_dynamic_tasks.store(0, std::memory_order_relaxed);
+    total_step_size.store(0, std::memory_order_relaxed);
+    step_samples.store(0, std::memory_order_relaxed);
+    total_target_chunks.store(0, std::memory_order_relaxed);
+    target_chunk_samples.store(0, std::memory_order_relaxed);
+    theoretical_dynamic_chunks.store(0, std::memory_order_relaxed);
+    actual_dynamic_chunks.store(0, std::memory_order_relaxed);
+    last_total_size.store(0, std::memory_order_relaxed);
+    last_total_static.store(0, std::memory_order_relaxed);
+    last_dynamic_size.store(0, std::memory_order_relaxed);
+    last_step_size.store(1, std::memory_order_relaxed);
+    last_target_chunks.store(0, std::memory_order_relaxed);
+    last_active_threads.store(1, std::memory_order_relaxed);
+    last_min_chunk_size.store(1, std::memory_order_relaxed);
+    last_policy.store(static_cast<int>(SchedulerPolicy::DYNAMIC), std::memory_order_relaxed);
+    for (size_t i = 0; i < static_tasks_per_thread.size(); ++i) {
+        static_tasks_per_thread[i].store(0, std::memory_order_relaxed);
+        dynamic_tasks_per_thread[i].store(0, std::memory_order_relaxed);
+    }
+}
+
+PhaseScheduleStatsSnapshot PhaseScheduleStats::snapshot() const {
+    PhaseScheduleStatsSnapshot result;
+    result.op_count = op_count.load(std::memory_order_relaxed);
+    result.total_tasks = total_tasks.load(std::memory_order_relaxed);
+    result.total_static_tasks = total_static_tasks.load(std::memory_order_relaxed);
+    result.total_dynamic_tasks = total_dynamic_tasks.load(std::memory_order_relaxed);
+    result.total_step_size = total_step_size.load(std::memory_order_relaxed);
+    result.step_samples = step_samples.load(std::memory_order_relaxed);
+    result.total_target_chunks = total_target_chunks.load(std::memory_order_relaxed);
+    result.target_chunk_samples = target_chunk_samples.load(std::memory_order_relaxed);
+    result.theoretical_dynamic_chunks = theoretical_dynamic_chunks.load(std::memory_order_relaxed);
+    result.actual_dynamic_chunks = actual_dynamic_chunks.load(std::memory_order_relaxed);
+    result.last_total_size = last_total_size.load(std::memory_order_relaxed);
+    result.last_total_static = last_total_static.load(std::memory_order_relaxed);
+    result.last_dynamic_size = last_dynamic_size.load(std::memory_order_relaxed);
+    result.last_step_size = last_step_size.load(std::memory_order_relaxed);
+    result.last_target_chunks = last_target_chunks.load(std::memory_order_relaxed);
+    result.last_active_threads = last_active_threads.load(std::memory_order_relaxed);
+    result.last_min_chunk_size = last_min_chunk_size.load(std::memory_order_relaxed);
+    result.last_policy = static_cast<SchedulerPolicy>(last_policy.load(std::memory_order_relaxed));
+    for (size_t i = 0; i < static_tasks_per_thread.size(); ++i) {
+        result.static_tasks_per_thread[i] = static_tasks_per_thread[i].load(std::memory_order_relaxed);
+        result.dynamic_tasks_per_thread[i] = dynamic_tasks_per_thread[i].load(std::memory_order_relaxed);
+    }
+    return result;
 }
 
 AutoTuner* AutoTuner::getInstance() {
@@ -329,12 +558,20 @@ InferencePhase AutoTuner::getPhase() const {
 TuningParams AutoTuner::getTuningParams() const {
     switch (mCurrentPhase.load(std::memory_order_acquire)) {
         case InferencePhase::DECODE:
-            return mDecodeParams;
+            return getDecodeParams();
         case InferencePhase::PREFILL:
         case InferencePhase::UNKNOWN:
         default:
-            return mPrefillParams;
+            return getPrefillParams();
     }
+}
+
+TuningParams AutoTuner::getPrefillParams() const {
+    return applyEnvOverrides(mPrefillParams, false);
+}
+
+TuningParams AutoTuner::getDecodeParams() const {
+    return applyEnvOverrides(mDecodeParams, true);
 }
 
 void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks) {
@@ -381,6 +618,103 @@ void AutoTuner::setDecodeExecution(int active_threads, unsigned long affinity_ma
     }
 }
 
+void AutoTuner::resetScheduleStats(InferencePhase phase) {
+    scheduleStats(phase).reset();
+}
+
+void AutoTuner::noteSchedulePlan(InferencePhase phase,
+                                 SchedulerPolicy policy,
+                                 int active_threads,
+                                 int total_size,
+                                 int total_static,
+                                 int dynamic_size,
+                                 int step_size,
+                                 int target_chunks,
+                                 int theoretical_dynamic_chunks,
+                                 int min_chunk_size) {
+    if (!mnn_hybrid_instrumentation_enabled()) {
+        return;
+    }
+    auto& stats = scheduleStats(phase);
+    stats.op_count.fetch_add(1, std::memory_order_relaxed);
+    stats.total_tasks.fetch_add(total_size, std::memory_order_relaxed);
+    stats.total_static_tasks.fetch_add(total_static, std::memory_order_relaxed);
+    stats.total_dynamic_tasks.fetch_add(dynamic_size, std::memory_order_relaxed);
+    stats.total_step_size.fetch_add(step_size, std::memory_order_relaxed);
+    stats.step_samples.fetch_add(1, std::memory_order_relaxed);
+    stats.total_target_chunks.fetch_add(target_chunks, std::memory_order_relaxed);
+    stats.target_chunk_samples.fetch_add(1, std::memory_order_relaxed);
+    stats.theoretical_dynamic_chunks.fetch_add(theoretical_dynamic_chunks, std::memory_order_relaxed);
+    stats.last_total_size.store(total_size, std::memory_order_relaxed);
+    stats.last_total_static.store(total_static, std::memory_order_relaxed);
+    stats.last_dynamic_size.store(dynamic_size, std::memory_order_relaxed);
+    stats.last_step_size.store(std::max(1, step_size), std::memory_order_relaxed);
+    stats.last_target_chunks.store(target_chunks, std::memory_order_relaxed);
+    stats.last_active_threads.store(std::max(1, active_threads), std::memory_order_relaxed);
+    stats.last_min_chunk_size.store(std::max(1, min_chunk_size), std::memory_order_relaxed);
+    stats.last_policy.store(static_cast<int>(policy), std::memory_order_relaxed);
+}
+
+void AutoTuner::noteStaticRange(InferencePhase phase, int thread_id, int start, int end) {
+    if (!mnn_hybrid_instrumentation_enabled()) {
+        return;
+    }
+    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS || end <= start) {
+        return;
+    }
+    scheduleStats(phase).static_tasks_per_thread[thread_id].fetch_add(end - start, std::memory_order_relaxed);
+}
+
+void AutoTuner::noteDynamicRange(InferencePhase phase, int thread_id, int start, int end) {
+    if (!mnn_hybrid_instrumentation_enabled()) {
+        return;
+    }
+    if (end <= start) {
+        return;
+    }
+    auto& stats = scheduleStats(phase);
+    stats.actual_dynamic_chunks.fetch_add(1, std::memory_order_relaxed);
+    if (thread_id >= 0 && thread_id < MNN_MAX_SCHEDULER_THREADS) {
+        stats.dynamic_tasks_per_thread[thread_id].fetch_add(end - start, std::memory_order_relaxed);
+    }
+}
+
+PhaseScheduleStatsSnapshot AutoTuner::getScheduleStats(InferencePhase phase) const {
+    return scheduleStats(phase).snapshot();
+}
+
+std::string AutoTuner::formatScheduleStats(InferencePhase phase) const {
+    const auto snapshot = getScheduleStats(phase);
+    const double avg_step = snapshot.step_samples > 0
+        ? static_cast<double>(snapshot.total_step_size) / static_cast<double>(snapshot.step_samples)
+        : 0.0;
+    const double avg_target_chunks = snapshot.target_chunk_samples > 0
+        ? static_cast<double>(snapshot.total_target_chunks) / static_cast<double>(snapshot.target_chunk_samples)
+        : 0.0;
+    std::ostringstream stream;
+    stream << "policy=" << schedulerPolicyName(snapshot.last_policy)
+           << " ops=" << snapshot.op_count
+           << " total=" << snapshot.total_tasks
+           << " static=" << snapshot.total_static_tasks
+           << " dynamic=" << snapshot.total_dynamic_tasks
+           << " avg_step=" << avg_step
+           << " avg_target_chunks=" << avg_target_chunks
+           << " theo_chunks=" << snapshot.theoretical_dynamic_chunks
+           << " actual_chunks=" << snapshot.actual_dynamic_chunks
+           << " last={total=" << snapshot.last_total_size
+           << ",static=" << snapshot.last_total_static
+           << ",dynamic=" << snapshot.last_dynamic_size
+           << ",step=" << snapshot.last_step_size
+           << ",target=" << snapshot.last_target_chunks
+           << ",threads=" << snapshot.last_active_threads
+           << ",min=" << snapshot.last_min_chunk_size
+           << "} static_loads=";
+    appendThreadLoads(stream, snapshot.static_tasks_per_thread);
+    stream << " dynamic_loads=";
+    appendThreadLoads(stream, snapshot.dynamic_tasks_per_thread);
+    return stream.str();
+}
+
 void AutoTuner::reset() {
     mPrefillParams = TuningParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1);
     mDecodeParams = TuningParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1);
@@ -388,8 +722,32 @@ void AutoTuner::reset() {
     mPrefillExecution = ExecutionParams(1, 0);
     mDecodeExecution = ExecutionParams(1, 0);
     mCurrentPhase.store(InferencePhase::UNKNOWN, std::memory_order_release);
+    mPrefillScheduleStats.reset();
+    mDecodeScheduleStats.reset();
     refreshFallbackExecutionState();
     updateFastPhaseState(InferencePhase::UNKNOWN);
+}
+
+PhaseScheduleStats& AutoTuner::scheduleStats(InferencePhase phase) {
+    switch (phase) {
+        case InferencePhase::DECODE:
+            return mDecodeScheduleStats;
+        case InferencePhase::PREFILL:
+        case InferencePhase::UNKNOWN:
+        default:
+            return mPrefillScheduleStats;
+    }
+}
+
+const PhaseScheduleStats& AutoTuner::scheduleStats(InferencePhase phase) const {
+    switch (phase) {
+        case InferencePhase::DECODE:
+            return mDecodeScheduleStats;
+        case InferencePhase::PREFILL:
+        case InferencePhase::UNKNOWN:
+        default:
+            return mPrefillScheduleStats;
+    }
 }
 
 void registerCPUOps();
@@ -400,16 +758,212 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
     return NO_ERROR;
 }
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
-    const int effectiveThreads = std::max(1, mThreadNumber);
-    const auto* cpuInfo = MNNGetCPUInfo();
-    const auto weights = _activeThreadWeights(cpuInfo,
-                                              mRuntime->mCpuMask,
-                                              effectiveThreads);
-    if (!_hasWeightVariance(weights) || (avgDiv > 0 && avgDiv < mComputeI)) {
-        _fillUniformDivides(size, dst, effectiveThreads, mThreadNumber, size);
+    const bool instrument = mnn_hybrid_instrumentation_enabled();
+    if (instrument) {
+        begin_trace_marker("CPUBackend::computeDivideSizes");
+        g_task_count.fetch_add(1, std::memory_order_relaxed);
+        g_divide_size_total.fetch_add(size, std::memory_order_relaxed);
+        g_divide_size_count.fetch_add(1, std::memory_order_relaxed);
+    }
+    if (mGroupWithComputeRate.size() <= 1 || (avgDiv > 0 && avgDiv < mComputeI)) {
+        int length = UP_DIV(size, mThreadNumber);
+        int cur = length;
+        for (int i = 0; i < mThreadNumber; ++i) {
+            dst[i] = cur;
+            cur += length;
+            cur = ALIMIN(cur, size);
+        }
+        if (instrument) {
+            g_small_task_count.fetch_add(1, std::memory_order_relaxed);
+            end_trace_marker();
+        }
         return;
     }
-    _fillWeightedDivides(size, dst, weights, effectiveThreads, mThreadNumber, size);
+
+    int cur = 0;
+    int curPos = 0;
+    for (auto& group : mGroupWithComputeRate) {
+        int currentGroupTotal = static_cast<int>(ceilf(static_cast<float>(size) * group.first));
+        int length = UP_DIV(currentGroupTotal, group.second);
+        for (int i = 0; i < group.second; ++i) {
+            cur += length;
+            cur = ALIMIN(cur, size);
+            dst[curPos + i] = cur;
+        }
+        curPos += group.second;
+    }
+    if (instrument) {
+        end_trace_marker();
+    }
+}
+
+DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) const {
+    const bool instrument = mnn_hybrid_instrumentation_enabled();
+    if (instrument) {
+        begin_trace_marker("CPUBackend::computeDivideSizesHybrid");
+        g_task_count.fetch_add(1, std::memory_order_relaxed);
+        g_divide_size_total.fetch_add(size, std::memory_order_relaxed);
+        g_divide_size_count.fetch_add(1, std::memory_order_relaxed);
+    }
+    DivideSchedulePlan plan;
+    plan.total_size = size;
+    plan.active_threads = _effectiveThreadCount(mThreadNumber);
+
+    auto* tuner = AutoTuner::getInstance();
+    const bool isDecodeFeatures = avgDiv > 0 && avgDiv < mComputeI;
+    const TuningParams params = isDecodeFeatures ? tuner->getDecodeParams() : tuner->getPrefillParams();
+    plan.policy = params.policy;
+    plan.min_chunk_size = std::max(1, params.min_chunk_size);
+    plan.target_chunks = params.dynamic_target_chunks > 0
+        ? params.dynamic_target_chunks
+        : (isDecodeFeatures ? std::max(1, plan.active_threads * 2) : std::max(1, plan.active_threads * 4));
+
+    if (size <= 0 || plan.active_threads <= 1) {
+        computeDivideSizes(size, dst, avgDiv);
+        plan.total_static = size;
+        plan.dynamic_size = 0;
+        plan.step_size = 1;
+        if (instrument) {
+            g_small_task_count.fetch_add(1, std::memory_order_relaxed);
+            end_trace_marker();
+        }
+        return plan;
+    }
+
+    const auto* cpuInfo = MNNGetCPUInfo();
+    const auto weights = _activeThreadWeights(cpuInfo, tuner->getFastAffinityMask(), plan.active_threads);
+    if (!forceHybridScheduling(isDecodeFeatures) && !_hasWeightVariance(weights)) {
+        computeDivideSizes(size, dst, avgDiv);
+        plan.total_static = size;
+        plan.dynamic_size = 0;
+        plan.step_size = 1;
+        if (instrument) {
+            g_small_task_count.fetch_add(1, std::memory_order_relaxed);
+            end_trace_marker();
+        }
+        return plan;
+    }
+
+    float staticRatio = std::max(0.0f, std::min(1.0f, params.static_ratio));
+    if (plan.policy == SchedulerPolicy::DYNAMIC) {
+        staticRatio = 0.0f;
+    } else if (plan.policy == SchedulerPolicy::GUIDED) {
+        const bool smallTask = size < plan.active_threads * 2;
+        const bool highVariance = _hasHighWeightVariance(weights);
+        if (smallTask || (highVariance && size < plan.active_threads * 4)) {
+            staticRatio = 0.0f;
+        }
+    }
+    plan.total_static = std::min(size, std::max(0, static_cast<int>(std::floor(size * staticRatio))));
+    if (plan.total_static > 0) {
+        computeDivideSizes(plan.total_static, dst, avgDiv);
+    } else {
+        std::fill_n(dst, mThreadNumber, 0);
+    }
+
+    plan.dynamic_size = std::max(0, size - plan.total_static);
+    if (plan.dynamic_size <= 0) {
+        plan.step_size = 1;
+        if (instrument) {
+            end_trace_marker();
+        }
+        return plan;
+    }
+
+    if (plan.policy == SchedulerPolicy::GUIDED) {
+        plan.step_size = std::max(plan.min_chunk_size, UP_DIV(plan.dynamic_size, std::max(1, plan.active_threads * 2)));
+        plan.theoretical_dynamic_chunks = _simulateGuidedChunks(plan.dynamic_size,
+                                                                plan.active_threads,
+                                                                plan.min_chunk_size);
+    } else {
+        if (plan.target_chunks <= 0) {
+            plan.target_chunks = std::max(1, plan.active_threads * 2);
+        }
+        plan.step_size = std::max(plan.min_chunk_size, UP_DIV(plan.dynamic_size, plan.target_chunks));
+        plan.step_size = std::min(plan.dynamic_size, plan.step_size);
+        plan.theoretical_dynamic_chunks = UP_DIV(plan.dynamic_size, std::max(1, plan.step_size));
+    }
+    if (instrument) {
+        end_trace_marker();
+    }
+    return plan;
+}
+
+void CPUBackend::initDynamicTaskState(int static_end,
+                                      int total_size,
+                                      int step_size,
+                                      SchedulerPolicy policy,
+                                      int active_threads,
+                                      int target_chunks,
+                                      int min_chunk_size) const {
+    auto* tuner = AutoTuner::getInstance();
+    const TuningParams params = tuner->getTuningParams();
+    if (active_threads <= 0) {
+        active_threads = _effectiveThreadCount(mThreadNumber);
+    }
+    if (target_chunks <= 0) {
+        target_chunks = params.dynamic_target_chunks > 0
+            ? params.dynamic_target_chunks
+            : ((tuner->getPhase() == InferencePhase::DECODE) ? std::max(1, active_threads * 2) : std::max(1, active_threads * 4));
+    }
+    if (policy == SchedulerPolicy::DYNAMIC && params.policy != SchedulerPolicy::DYNAMIC) {
+        policy = params.policy;
+    }
+    if (min_chunk_size < 1) {
+        min_chunk_size = std::max(1, params.min_chunk_size);
+    }
+
+    mDynamicState.cursor.store(static_end, std::memory_order_release);
+    mDynamicState.end = total_size;
+    mDynamicState.step_size = std::max(1, step_size);
+    mDynamicState.min_step_size = std::max(1, min_chunk_size);
+    mDynamicState.active_threads = std::max(1, active_threads);
+    mDynamicState.target_chunks = std::max(0, target_chunks);
+    mDynamicState.policy = policy;
+    const int dynamicSize = std::max(0, total_size - static_end);
+    const int theoreticalChunks = (policy == SchedulerPolicy::GUIDED)
+        ? _simulateGuidedChunks(dynamicSize, mDynamicState.active_threads, mDynamicState.min_step_size)
+        : (dynamicSize > 0 ? UP_DIV(dynamicSize, std::max(1, mDynamicState.step_size)) : 0);
+    tuner->noteSchedulePlan(tuner->getPhase(),
+                            policy,
+                            mDynamicState.active_threads,
+                            total_size,
+                            static_end,
+                            dynamicSize,
+                            mDynamicState.step_size,
+                            mDynamicState.target_chunks,
+                            theoreticalChunks,
+                            mDynamicState.min_step_size);
+}
+
+std::pair<int, int> CPUBackend::fetchDynamicChunk() const {
+    if (mDynamicState.policy == SchedulerPolicy::GUIDED) {
+        while (true) {
+            int start = mDynamicState.cursor.load(std::memory_order_acquire);
+            if (start >= mDynamicState.end) {
+                return {0, 0};
+            }
+            const int remaining = mDynamicState.end - start;
+            const int guidedStep = std::max(mDynamicState.min_step_size,
+                                            UP_DIV(remaining, std::max(1, mDynamicState.active_threads * 2)));
+            const int end = std::min(mDynamicState.end, start + guidedStep);
+            int expected = start;
+            if (mDynamicState.cursor.compare_exchange_weak(expected, end, std::memory_order_acq_rel)) {
+                return {start, end};
+            }
+        }
+    }
+
+    const int step = std::max(1, mDynamicState.step_size);
+    const int start = mDynamicState.cursor.fetch_add(step, std::memory_order_acq_rel);
+    if (start >= mDynamicState.end) {
+        return {0, 0};
+    }
+    return {start, std::min(mDynamicState.end, start + step)};
+}
+
+bool CPUBackend::hasDynamicTasks() const {
+    return mDynamicState.cursor.load(std::memory_order_acquire) < mDynamicState.end;
 }
 
 void CPURuntime::_bindCPUCore() const {
@@ -567,7 +1121,6 @@ CPURuntime::CPURuntime(const Backend::Info& info) {
     }
     mThreadNumber = info.numThread;
     mCpuMask = info.cpuMask;
-    MNN_PRINT("DEBUG: CPURuntime::CPURuntime called. cpuMask=%lu (Hex: 0x%lx)\n", mCpuMask, mCpuMask);
     AutoTuner::getInstance()->setDefaultExecution(std::max(1, mThreadNumber), mCpuMask);
     mPower   = BackendConfig::Power_Normal;
     mMemory  = BackendConfig::Memory_Normal;
@@ -617,7 +1170,6 @@ Backend* CPURuntime::onCreate(const BackendConfig* config, Backend* origin) cons
         if (mCpuMask == 0) {
             mCpuMask = MNNGetCPUMask(mCpuIds);
         }
-        MNN_PRINT("DEBUG: CPURuntime::onCreate called. cpuMask=%lu (Hex: 0x%lx)\n", mCpuMask, mCpuMask);
         _resetThreadPool();
         AutoTuner::getInstance()->setDefaultExecution(mThreadNumber, mCpuMask);
     }
@@ -813,14 +1365,47 @@ CPUBackend::CPUBackend(const CPURuntime* runtime, BackendConfig::PrecisionMode p
     } else {
         mRelatedFunctions = &core->int8MatmulRelatedFunctions;
     }
-    const auto* cpuInfo = MNNGetCPUInfo();
-    if (cpuInfo != nullptr && cpuInfo->i8mm) {
-        mComputeI = 28.f;
-    } else if (cpuInfo != nullptr && cpuInfo->dot) {
-        mComputeI = 14.f;
-    } else {
-        mComputeI = 7.f;
-    }
+    // Compute Group Rate
+    do {
+        if (mThreadNumber <= 1 || mRuntime->mPower == BackendConfig::Power_Low) {
+            break;
+        }
+        auto rate = mRuntime->hint().cpuDecreaseRate;
+        if (rate >= 100 || rate <= 0) {
+            break;
+        }
+        auto cpuInfo = MNNGetCPUInfo();
+        if (cpuInfo->groups.size() < 2) {
+            break;
+        }
+        if (cpuInfo->i8mm) {
+            mComputeI = 28.f;
+        } else if (cpuInfo->dot) {
+            mComputeI = 14.f;
+        } else {
+            mComputeI = 7.f;
+        }
+        mGroupWithComputeRate.clear();
+        float decreaseRate = static_cast<float>(rate) / 100.0f;
+        int validCpuSize = static_cast<int>(cpuInfo->groups[cpuInfo->groups.size() - 1].ids.size());
+        int groupIndex = static_cast<int>(cpuInfo->groups.size()) - 2;
+        validCpuSize = ALIMIN(validCpuSize, mThreadNumber);
+        float totalComputeRate = 1.0f * validCpuSize;
+        mGroupWithComputeRate.emplace_back(std::make_pair(totalComputeRate, validCpuSize));
+        float currentRate = 1.0f;
+        while (validCpuSize < mThreadNumber && groupIndex >= 0) {
+            auto& group = cpuInfo->groups[groupIndex];
+            int selectSize = ALIMIN(mThreadNumber - validCpuSize, static_cast<int>(group.ids.size()));
+            validCpuSize += group.ids.size();
+            currentRate *= decreaseRate;
+            totalComputeRate += currentRate * selectSize;
+            mGroupWithComputeRate.emplace_back(std::make_pair(currentRate * selectSize, selectSize));
+            groupIndex--;
+        }
+        for (auto& g : mGroupWithComputeRate) {
+            g.first = g.first / totalComputeRate;
+        }
+    } while (false);
     auto dynamicAlloc = mRuntime->mSharedDmaInfo;
     if (nullptr == dynamicAlloc.get()) {
         mDmaInfo.reset(new CPURuntime::DynamicAllocator);

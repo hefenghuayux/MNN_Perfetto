@@ -378,4 +378,4 @@ pymnn/android/.cxx/
 apps/mnncli/.cursorrules
 apps/mnncli/model_market_json_data.inc
 #kledi
-_deps
+_depsbaseline/model_dir/llm.mnn.weight

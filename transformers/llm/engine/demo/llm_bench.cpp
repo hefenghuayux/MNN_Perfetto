@@ -11,11 +11,6 @@
 #include <thread>
 #include <algorithm>
 #include <numeric>
-#include "trace_marker_helper.h"
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
 #define MNN_OPEN_TIME_TRACE
 
 
@@ -1009,44 +1004,7 @@ static void tuning_prepare(Llm* llm) {
 }
 
 static void wait_for_perf_trigger() {
-    int sock = 0;
-    struct sockaddr_in serv_addr;
-    const int PORT = 8888; // 约定端口 8888
-
-    MNN_PRINT(">>> [Sync] 正在连接性能监控 Server (localhost:%d)...\n", PORT);
-
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        MNN_ERROR(">>> [Sync] Socket 创建失败 \n");
-        return;
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-
-    // 连接 Android 本地的 localhost (通过 adb reverse 映射到 PC)
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        MNN_ERROR(">>> [Sync] 无效地址 \n");
-        return;
-    }
-
-    // 尝试连接
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        MNN_ERROR(">>> [Sync] 连接失败! 请确保 Python Server 已启动并执行了 adb reverse tcp:8888 tcp:8888\n");
-        // 连接失败不应卡死，直接返回继续运行
-        return;
-    }
-
-    // 1. 发送本机 PID 给 Server
-    std::string pid_msg = std::to_string(getpid());
-    send(sock, pid_msg.c_str(), pid_msg.length(), 0);
-    MNN_PRINT(">>> [Sync] Prefill 完成! 已发送 PID: %s. 等待 Simpleperf 启动...\n", pid_msg.c_str());
-
-    // 2. 阻塞读取，等待 Server 发回 "GO" 指令
-    char buffer[1024] = {0};
-    int valread = read(sock, buffer, 1024);
-    MNN_PRINT(">>> [Sync] 收到指令: %s. 立即开始 Decode!\n", buffer);
-
-    close(sock);
+    // Disabled: external socket sync for cache-miss measurement.
 }
 /* * 【【请确保文件顶部有以下两行】】
  * #include <android/trace.h>
@@ -1097,17 +1055,12 @@ int main(int argc, char ** argv) {
             for (int k = 0; k < 3; ++k) {
                 Timer loadingCost;
 
-                begin_trace_marker("llm->load()");
                 llm->load();
-                end_trace_marker();
 
                 t.loadingS.push_back((double)loadingCost.durationInUs() / 1e6);
             }
         } else {
-        // --- ATrace 修改 (else 块) ---
-            begin_trace_marker("llm->load()"); // <--- ATrace 开始
             llm->load();
-            end_trace_marker(); // <--- ATrace 结束
         }
         
         tuning_prepare(llm.get());
@@ -1125,10 +1078,7 @@ int main(int argc, char ** argv) {
             
             for (int i = 0; i < instance.mCmdParam.nRepeat + 1; ++i) {
                 
-                // --- ATrace 修改 (response 块) ---
-                begin_trace_marker("llm->response (prefill+decode)"); // <--- ATrace 开始
                 llm->response(tokens, nullptr, nullptr, decodeTokens);
-                end_trace_marker(); // <--- ATrace 结束
 
                 auto prefillTime = context->prefill_us;
                 auto decodeTime = context->decode_us;
@@ -1159,22 +1109,13 @@ int main(int argc, char ** argv) {
                 int64_t sampler_us =   0;
                 if (prompt_tokens) {
                 
-                    // --- ATrace 修改 (prefill_only 块) ---
-                    begin_trace_marker("llm->response (prefill_only)"); // <--- ATrace 开始
                     llm->response(tokens, nullptr, nullptr, 1);
-                    end_trace_marker(); // <--- ATrace 结束
 
                     sampler_us += context->prefill_us;
                 }
-                if (i == 0 && decodeTokens > 0) {
-                    wait_for_perf_trigger(); 
-                }
                 if (decodeTokens) {
                 
-                    // --- ATrace 修改 (decode_only 块) ---
-                    begin_trace_marker("llm->response (decode_only)"); // <--- ATrace 开始
                     llm->response(tokens1, nullptr, nullptr, decodeTokens);
-                    end_trace_marker(); // <--- ATrace 结束
 
                     sampler_us += context->decode_us;
                 }

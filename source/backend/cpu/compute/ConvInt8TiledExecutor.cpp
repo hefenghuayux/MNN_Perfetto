@@ -682,17 +682,29 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
 
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        static_cast<CPUBackend *>(backend())->computeDivideSizes(totalWork, mDivides.data() + 1, flop / ios);
+        auto hybridPlan = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(totalWork, mDivides.data() + 1, flop / ios);
         for (int i = 0; i < mDivides.size(); ++i) {
             mDivides[i] *= part;
         }
+        mTotalTasks = hybridPlan.total_size * part;
+        mDynamicStepSize = hybridPlan.step_size * part;
+        mDynamicPolicy = hybridPlan.policy;
+        mDynamicTargetChunks = hybridPlan.target_chunks;
+        mDynamicMinChunkSize = hybridPlan.min_chunk_size * part;
+        mUseStaticOnly = (mDivides[threads] >= mTotalTasks);
     }
 
     if (!mSplitByOc) {
         mThreadNums = ALIMIN(threads, mTileCount);
         mDivides.resize(threads+1);
         mDivides[0] = 0;
-        static_cast<CPUBackend *>(backend())->computeDivideSizes(mTileCount, mDivides.data() + 1, flop / ios);
+        auto hybridPlan = static_cast<CPUBackend *>(backend())->computeDivideSizesHybrid(mTileCount, mDivides.data() + 1, flop / ios);
+        mTotalTasks = hybridPlan.total_size;
+        mDynamicStepSize = hybridPlan.step_size;
+        mDynamicPolicy = hybridPlan.policy;
+        mDynamicTargetChunks = hybridPlan.target_chunks;
+        mDynamicMinChunkSize = hybridPlan.min_chunk_size;
+        mUseStaticOnly = (mDivides[threads] >= mTotalTasks);
     }
     int ocUp4 = ROUND_UP(outC, gcore->pack);
     int k = mThreadNums;
@@ -1477,9 +1489,9 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             memset(xKernelSumPtr, 0, mTileCount * mBlockNum * DST_XUNIT * mIm2ColCount * QUANT_INFO_BYTES);
         }
 
-        MNN_CONCURRENCY_BEGIN(tId, threads) {
-            int ocIndex = PackUnit * mDivides[tId];
-            auto ocDivThread = ALIMIN(mDivides[tId + 1] - mDivides[tId], ocDiv4 - mDivides[tId]);
+        auto processOcRange = [&](int tId, int startWork, int endWork) {
+            int ocIndex = PackUnit * startWork;
+            auto ocDivThread = ALIMIN(endWork - startWork, ocDiv4 - startWork);
 
             if (ocIndex < ocUp4) {
                 auto im2colDstThread = im2colDst;
@@ -1546,18 +1558,54 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                     inputBias = (inputBias != nullptr) ? (inputBias + mInputBlockNum * step * QUANT_INFO_BYTES) : inputBias;
                 } while(realDstCount > 0);
             }
+        };
+
+        const auto phase = AutoTuner::getInstance()->getPhase();
+        if (mUseStaticOnly) {
+            MNN_CONCURRENCY_BEGIN(tId, threads) {
+                AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, mDivides[tId], mDivides[tId + 1]);
+                processOcRange((int)tId, mDivides[tId], mDivides[tId + 1]);
+            }
+            MNN_CONCURRENCY_END();
+        } else {
+            MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize, mDynamicPolicy, mDynamicTargetChunks, mDynamicMinChunkSize) {
+                MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), [&](int start, int end) {
+                    AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, start, end);
+                    processOcRange((int)tId, start, end);
+                });
+                MNN_HYBRID_DYNAMIC_RANGE(cpuBn, [&](int start, int end) {
+                    AutoTuner::getInstance()->noteDynamicRange(phase, (int)tId, start, end);
+                    processOcRange((int)tId, start, end);
+                });
+            }
+            MNN_CONCURRENCY_HYBRID_END();
         }
-        MNN_CONCURRENCY_END();
 
     };
     const int threads = static_cast<CPUBackend*>(backend())->threadNumber();
     if (!mSplitByOc) {
-        MNN_CONCURRENCY_BEGIN(tId, threads) {
-            if (mDivides[tId + 1] - mDivides[tId] > 0) {
-                tileSplitFunction((int)tId, mDivides[tId], mDivides[tId + 1], 1);
+        const auto phase = AutoTuner::getInstance()->getPhase();
+        if (mUseStaticOnly) {
+            MNN_CONCURRENCY_BEGIN(tId, threads) {
+                if (mDivides[tId + 1] - mDivides[tId] > 0) {
+                    AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, mDivides[tId], mDivides[tId + 1]);
+                    tileSplitFunction((int)tId, mDivides[tId], mDivides[tId + 1], 1);
+                }
             }
+            MNN_CONCURRENCY_END();
+        } else {
+            MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize, mDynamicPolicy, mDynamicTargetChunks, mDynamicMinChunkSize) {
+                MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), [&](int start, int end) {
+                    AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, start, end);
+                    tileSplitFunction((int)tId, start, end, 1);
+                });
+                MNN_HYBRID_DYNAMIC_RANGE(cpuBn, [&](int start, int end) {
+                    AutoTuner::getInstance()->noteDynamicRange(phase, (int)tId, start, end);
+                    tileSplitFunction((int)tId, start, end, 1);
+                });
+            }
+            MNN_CONCURRENCY_HYBRID_END();
         }
-        MNN_CONCURRENCY_END();
     } else {
         ocSplitFunction(threads);
     }
