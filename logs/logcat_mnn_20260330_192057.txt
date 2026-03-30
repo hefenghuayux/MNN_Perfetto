@@ -1,0 +1,123 @@
+03-30 19:21:21.831 14593 14593 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+03-30 19:21:21.832 14593 14593 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+03-30 19:21:21.832 14593 14593 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+03-30 19:21:21.832 14593 14593 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+03-30 19:21:21.832 14593 14593 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+03-30 19:21:21.832 14593 14593 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+03-30 19:21:21.832 14593 14593 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+03-30 19:21:21.833 14593 14593 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:21.833 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=dynamic, static=0.00, target_chunks=60, threads=1, affinity=0x0) Decode(policy=dynamic, static=0.00, target_chunks=2, threads=1, affinity=0x0)
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Core capacities set to: [
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 379:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 379:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 923:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 923:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 923:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 867:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 867:
+03-30 19:21:21.833 14593 14593 I MNNJNI  : 1024
+03-30 19:21:21.833 14593 14593 I MNNJNI  : ]
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=240, min_chunk=32
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=12, min_chunk=1
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+03-30 19:21:21.833 14593 14593 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+03-30 19:21:21.836 14593 14593 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7]
+03-30 19:21:21.836 14593 14593 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=6, merged_cpu_ids=6, cpuMask=0xfc
+03-30 19:21:21.836 14593 14593 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xfc
+03-30 19:21:21.836 14593 14593 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:21.976 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:21.980 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:21.980 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:22.238 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:22.238 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:22.238 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:22.238 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:22.484 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:22.484 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:22.485 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:22.485 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:22.485 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+03-30 19:21:22.485 14593 14593 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:21:22.570 14593 14593 I MNNJNI  : [AutoTuner] Core capacities set to: [
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 379:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 379:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 923:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 923:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 923:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 867:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 867:
+03-30 19:21:22.570 14593 14593 I MNNJNI  : 1024
+03-30 19:21:22.570 14593 14593 I MNNJNI  : ]
+03-30 19:21:22.570 14593 14593 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=240, min_chunk=32
+03-30 19:21:22.570 14593 14593 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=12, min_chunk=1
+03-30 19:21:22.570 14593 14593 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+03-30 19:21:22.570 14593 14593 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=6, decode=6
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Pool    cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Prefill cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Decode  cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Scheduler global=dynamic prefill=dynamic decode=dynamic prefill_static=0.000 decode_static=0.000 prefill_chunks=240 decode_chunks=12 prefill_min=32 decode_min=1
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [AECS] Final execution plan prefill=2,3,4,5,6,7/6 decode=2,3,4,5,6,7/6 split_phase_bench=1
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Scheduler config g=dynamic,p=dynamic,d=dynamic,ps=0,ds=0,pc=240,dc=0,pm=32,dm=1
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench] Active bindings pool=6/[2,3,4,5,6,7] prefill=6/[2,3,4,5,6,7] decode=6/[2,3,4,5,6,7]
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:22.571 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:21:23.425 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=19.5207 avg_target_chunks=240 theo_chunks=10584 actual_chunks=10584 last={total=18992,static=0,dynamic=18992,step=1583,target=240,threads=6,min=1} static_loads=[] dynamic_loads=[0:15143,1:13864,2:14099,3:13933,4:13927,5:13770] latency_us=839992 tok_s=609.530
+03-30 19:21:23.425 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=0.839992 s speed=609.530 tok/s
+03-30 19:21:23.425 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:23.425 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=6, affinity=0xFC)
+03-30 19:21:24.880 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21801 total=7354032 static=0 dynamic=7354032 avg_step=28.6805 avg_target_chunks=12 theo_chunks=236844 actual_chunks=236844 last={total=18992,static=0,dynamic=18992,step=1583,target=12,threads=6,min=1} static_loads=[] dynamic_loads=[0:1245889,1:1200109,2:1238564,3:1230969,4:1228898,5:1209603] latency_us=1325778 tok_s=96.547
+03-30 19:21:24.880 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.325778 s speed=96.547 tok/s
+03-30 19:21:24.880 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+03-30 19:21:24.880 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=0.839992 s decode=1.325778 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+03-30 19:21:24.880 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:24.880 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:21:25.735 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=19.5207 avg_target_chunks=240 theo_chunks=10584 actual_chunks=10584 last={total=18992,static=0,dynamic=18992,step=1583,target=240,threads=6,min=1} static_loads=[] dynamic_loads=[0:15265,1:13801,2:14137,3:13891,4:13890,5:13752] latency_us=840431 tok_s=609.211
+03-30 19:21:25.735 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=0.840431 s speed=609.211 tok/s
+03-30 19:21:25.735 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:25.735 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=6, affinity=0xFC)
+03-30 19:21:27.190 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21801 total=7354032 static=0 dynamic=7354032 avg_step=28.6805 avg_target_chunks=12 theo_chunks=236844 actual_chunks=236844 last={total=18992,static=0,dynamic=18992,step=1583,target=12,threads=6,min=1} static_loads=[] dynamic_loads=[0:1240239,1:1200194,2:1239338,3:1232593,4:1230323,5:1211345] latency_us=1326527 tok_s=96.493
+03-30 19:21:27.190 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.326527 s speed=96.493 tok/s
+03-30 19:21:27.190 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+03-30 19:21:27.190 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.840431 s decode=1.326527 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+03-30 19:21:27.190 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:27.190 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:21:28.046 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=19.5207 avg_target_chunks=240 theo_chunks=10584 actual_chunks=10584 last={total=18992,static=0,dynamic=18992,step=1583,target=240,threads=6,min=1} static_loads=[] dynamic_loads=[0:15227,1:13848,2:14130,3:13896,4:13882,5:13753] latency_us=840932 tok_s=608.848
+03-30 19:21:28.046 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=0.840932 s speed=608.848 tok/s
+03-30 19:21:28.046 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:28.046 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=6, affinity=0xFC)
+03-30 19:21:29.512 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21801 total=7354032 static=0 dynamic=7354032 avg_step=28.6805 avg_target_chunks=12 theo_chunks=236844 actual_chunks=236844 last={total=18992,static=0,dynamic=18992,step=1583,target=12,threads=6,min=1} static_loads=[] dynamic_loads=[0:1242887,1:1201085,2:1238602,3:1232071,4:1229598,5:1209789] latency_us=1336172 tok_s=95.796
+03-30 19:21:29.512 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.336172 s speed=95.796 tok/s
+03-30 19:21:29.512 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+03-30 19:21:29.512 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] result prefill=0.840932 s decode=1.336172 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+03-30 19:21:29.512 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:29.512 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:21:30.365 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=19.5207 avg_target_chunks=240 theo_chunks=10584 actual_chunks=10584 last={total=18992,static=0,dynamic=18992,step=1583,target=240,threads=6,min=1} static_loads=[] dynamic_loads=[0:15297,1:13853,2:14103,3:13866,4:13887,5:13730] latency_us=838107 tok_s=610.901
+03-30 19:21:30.365 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=0.838107 s speed=610.901 tok/s
+03-30 19:21:30.365 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:30.365 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=6, affinity=0xFC)
+03-30 19:21:31.820 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21801 total=7354032 static=0 dynamic=7354032 avg_step=28.6805 avg_target_chunks=12 theo_chunks=236844 actual_chunks=236844 last={total=18992,static=0,dynamic=18992,step=1583,target=12,threads=6,min=1} static_loads=[] dynamic_loads=[0:1241566,1:1200997,2:1238750,3:1232190,4:1228282,5:1212247] latency_us=1325219 tok_s=96.588
+03-30 19:21:31.820 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.325219 s speed=96.588 tok/s
+03-30 19:21:31.820 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+03-30 19:21:31.820 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] result prefill=0.838107 s decode=1.325219 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+03-30 19:21:31.820 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:31.820 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:21:32.674 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=19.5207 avg_target_chunks=240 theo_chunks=10584 actual_chunks=10584 last={total=18992,static=0,dynamic=18992,step=1583,target=240,threads=6,min=1} static_loads=[] dynamic_loads=[0:15243,1:13768,2:14134,3:13913,4:13850,5:13828] latency_us=839373 tok_s=609.979
+03-30 19:21:32.674 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=0.839373 s speed=609.979 tok/s
+03-30 19:21:32.674 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:32.674 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=6, affinity=0xFC)
+03-30 19:21:34.137 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21801 total=7354032 static=0 dynamic=7354032 avg_step=28.6805 avg_target_chunks=12 theo_chunks=236844 actual_chunks=236844 last={total=18992,static=0,dynamic=18992,step=1583,target=12,threads=6,min=1} static_loads=[] dynamic_loads=[0:1242245,1:1199010,2:1239274,3:1232351,4:1229468,5:1211684] latency_us=1334368 tok_s=95.926
+03-30 19:21:34.138 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.334368 s speed=95.926 tok/s
+03-30 19:21:34.138 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+03-30 19:21:34.138 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] result prefill=0.839373 s decode=1.334368 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+03-30 19:21:34.138 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:21:34.138 14593 14593 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:21:34.993 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=19.5207 avg_target_chunks=240 theo_chunks=10584 actual_chunks=10584 last={total=18992,static=0,dynamic=18992,step=1583,target=240,threads=6,min=1} static_loads=[] dynamic_loads=[0:15207,1:13746,2:14129,3:13942,4:13891,5:13821] latency_us=840530 tok_s=609.139
+03-30 19:21:34.993 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.840530 s speed=609.139 tok/s
+03-30 19:21:34.993 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+03-30 19:2

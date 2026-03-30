@@ -996,6 +996,8 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -pids, --prefill-cpu-ids <n,n,n>          (default: %s) | Note: set prefill phase cpu core ids, e.g. 4,5,6,7\n", "none");
     printf("  -dids, --decode-cpu-ids <n,n,n>           (default: %s) | Note: set decode phase cpu core ids, e.g. 0,1,2,3\n", "none");
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
+    printf("      --instrumention <0|1>                (default: 0) | process-wide trace_marker switch\n");
+    printf("      --instrumentation <0|1>              (alias of --instrumention)\n");
     printf("      --sched-policy <dynamic|hybrid|guided> (default: dynamic)\n");
     printf("      --prefill-sched-policy <dynamic|hybrid|guided> (default: inherit --sched-policy)\n");
     printf("      --decode-sched-policy <dynamic|hybrid|guided> (default: inherit --sched-policy)\n");
@@ -1014,6 +1016,8 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("      --prefill-start-cpu <id>              (default: %d)\n", runtimeParamsDefaults.tuningConfig.prefill_start_cpu);
     printf("      --prefill-stop-gain <ratio>           (default: %.3f)\n", runtimeParamsDefaults.tuningConfig.prefill_stop_gain);
     printf("      --decode-search-tokens <n>            (default: %d)\n", runtimeParamsDefaults.tuningConfig.decode_search_tokens);
+    printf("      --aecs-warmup-runs <n>                (default: %d)\n", runtimeParamsDefaults.tuningConfig.warmup_runs);
+    printf("      --aecs-measure-runs <n>               (default: %d)\n", runtimeParamsDefaults.tuningConfig.measure_runs);
     printf("      --thermal-high-c <degC>               (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.thermal_high_c);
     printf("      --thermal-resume-c <degC>             (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.thermal_resume_c);
     printf("      --battery-high-c <degC>               (default: %.1f)\n", runtimeParamsDefaults.tuningConfig.battery_high_c);
@@ -1027,6 +1031,8 @@ static void printUsage(int /* argc */, char ** argv) {
 static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimeParams, TestParameters & testParams, FILE** outfile, bool& helpInfo) {
     std::string       arg;
     bool              invalidParam = false;
+    bool              hasInstrumentationFlag = false;
+    bool              instrumentationEnabled = false;
     const std::string argPrefix    = "--";
     const char        splitDelim   = ',';
 
@@ -1176,6 +1182,18 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.dynamicOption.insert(runtimeParams.dynamicOption.end(), p.begin(), p.end());
+        } else if (arg == "--instrumention" || arg == "--instrumentation") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<bool>(argv[i], splitDelim);
+            if (p.empty()) {
+                invalidParam = true;
+                break;
+            }
+            hasInstrumentationFlag = true;
+            instrumentationEnabled = p[0];
         } else if (arg == "--sched-policy") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -1369,6 +1387,20 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.tuningConfig.decode_search_tokens = p[0];
+        } else if (arg == "--aecs-warmup-runs") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.warmup_runs = p[0];
+        } else if (arg == "--aecs-measure-runs") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.tuningConfig.measure_runs = p[0];
         } else if (arg == "--thermal-high-c") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -1429,6 +1461,13 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
         fprintf(stderr, "error: invalid parameter for argument: %s\n", arg.c_str());
         printUsage(argc, argv);
         return false;
+    }
+
+    if (hasInstrumentationFlag) {
+        // Keep the trace gate process-wide so every trace_marker helper observes the same switch.
+        const char* value = instrumentationEnabled ? "1" : "0";
+        setenv("MNN_ENABLE_HYBRID_INSTRUMENT", value, 1);
+        setenv("MNN_ENABLE_TRACE_MARKER", value, 1);
     }
 
     // set defaults
@@ -1525,6 +1564,8 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
 
     runtimeParams.tuningConfig.prefill_stop_gain = std::max(0.0, runtimeParams.tuningConfig.prefill_stop_gain);
     runtimeParams.tuningConfig.decode_search_tokens = std::max(1, runtimeParams.tuningConfig.decode_search_tokens);
+    runtimeParams.tuningConfig.warmup_runs = std::max(0, runtimeParams.tuningConfig.warmup_runs);
+    runtimeParams.tuningConfig.measure_runs = std::max(1, runtimeParams.tuningConfig.measure_runs);
     runtimeParams.tuningConfig.thermal_sample_ms = std::max(100, runtimeParams.tuningConfig.thermal_sample_ms);
     runtimeParams.tuningConfig.power_sample_ms = std::max(10, runtimeParams.tuningConfig.power_sample_ms);
     runtimeParams.tuningConfig.thermal_resume_c = std::min(runtimeParams.tuningConfig.thermal_resume_c,
@@ -1784,8 +1825,10 @@ int main(int argc, char ** argv) {
 
         auto prompt_tokens = instance.mCmdParam.nPrompt;
         auto decodeTokens = instance.mCmdParam.nGenerate;
-        const bool prefill_manual = instance.mCmdParam.hasLegacyCpuIds || instance.mCmdParam.hasPrefillCpuIds;
-        const bool decode_manual = instance.mCmdParam.hasLegacyCpuIds || instance.mCmdParam.hasDecodeCpuIds;
+        // Legacy -ids only constrains the shared pool. AECS phase auto search should
+        // stay enabled unless the phase-specific ids are explicitly pinned.
+        const bool prefill_manual = instance.mCmdParam.hasPrefillCpuIds;
+        const bool decode_manual = instance.mCmdParam.hasDecodeCpuIds;
         LlmBenchAecsSetupParams aecsSetup;
         aecsSetup.model_path = instance.mCmdParam.model;
         aecsSetup.backend = instance.mCmdParam.backend;

@@ -1,0 +1,18 @@
+>>> [模式] Perfetto Tracing 已关闭 (默认)
+>>> [模式] AECS 离线搜索已关闭 (默认)
+>>> [参数] 脚本默认调度参数: --sched-policy dynamic --prefill-static-ratio 0 --prefill-dynamic-blocks 240 --prefill-min-chunk 32
+>>> [参数] 脚本功能参数: --split-phase-bench
+============================================================
+正在运行: 线程=6
+Prefill线程: 6 | Decode线程: 6
+全局绑核 Ids: 2,3,4,5,6,7
+测试包目录: /data/local/tmp/mnn_aecs_run_20260330_191429
+Prefill绑核 Ids: 2,3,4,5,6,7 | Decode绑核 Ids: 2,3,4,5,6,7
+============================================================
+>>> [Step 2] 运行 llm_bench...
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | g=dynamic,p=dynamic,d=dynamic,ps=0,ds=0,pc=240,dc=0,pm=32,dm=1 | prompt=512<br>decode=128 | 610.19 ± 0.79<br>96.32 ± 0.39 |
+
+>>> [Done] 本轮结束。
+

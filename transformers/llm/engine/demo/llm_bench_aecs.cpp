@@ -80,7 +80,7 @@ static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedul
                                            int active_threads) {
     const auto& phase_config = is_prefill ? schedule_config.prefill : schedule_config.decode;
     const SchedulerPolicy policy = phase_config.policy_explicit ? phase_config.policy : schedule_config.policy;
-    const int default_target_chunks = is_prefill ? std::max(1, active_threads * 40)
+    const int default_target_chunks = is_prefill ? std::max(1, active_threads * 4)
                                                  : std::max(1, active_threads * 2);
     const int default_min_chunk = policy == SchedulerPolicy::GUIDED ? (is_prefill ? 32 : 8) : 1;
     TuningParams params;
@@ -337,8 +337,12 @@ void LlmBenchAecsController::computeBuildPlan() {
 
     mBuildPlan.pool_threads = std::max(mParams.threads, std::max(mParams.prefill_threads, mParams.decode_threads));
     mBuildPlan.pool_cpu_ids = mergePhaseCpuIds(mParams.cpu_ids, mParams.prefill_cpu_ids, mParams.decode_cpu_ids);
-    if (enabled()) {
-        appendUniqueCpuIds(mBuildPlan.pool_cpu_ids, mTopology.all_cpu_ids_desc);
+    if (enabled() && mBuildPlan.pool_cpu_ids.empty()) {
+        // Keep the build-time pool aligned with the AECS search frontier so candidate measurements
+        // are not distorted by extra low-priority cores that are outside the intended search space.
+        const auto& auto_pool_cpu_ids =
+            !mTopology.decode_stage1_order.empty() ? mTopology.decode_stage1_order : mTopology.prefill_order;
+        appendUniqueCpuIds(mBuildPlan.pool_cpu_ids, auto_pool_cpu_ids);
         mBuildPlan.pool_threads = std::max(mBuildPlan.pool_threads, static_cast<int>(mBuildPlan.pool_cpu_ids.size()));
     }
 
@@ -383,7 +387,7 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
         mThermalGuard.reset(new ThermalGuard(mParams.tuning_config));
         mEnergyProfiler.reset(new EnergyProfiler(mParams.tuning_config));
 
-        AecsTuner tuner(mTopology, mParams.tuning_config, mParams.heuristic_params);
+        AecsTuner tuner(mTopology, mParams.tuning_config, mParams.heuristic_params, mBuildPlan.pool_cpu_ids);
         AecsCacheKey cache_key;
         cache_key.device_fingerprint = mTopology.device_fingerprint;
         cache_key.model_path = mParams.model_path;

@@ -1232,10 +1232,12 @@ void EnergyProfiler::sampleLoop() {
 
 AecsTuner::AecsTuner(const AecsCpuTopology& topology,
                      const AecsTuningConfig& config,
-                     const AecsHeuristicParams& heuristic_params)
+                     const AecsHeuristicParams& heuristic_params,
+                     const std::vector<int>& allowed_cpu_ids)
     : mTopology(topology),
       mConfig(config),
       mHeuristicParams(heuristic_params) {
+    mAllowedCpuIds = normalizeCpuIds(allowed_cpu_ids);
 }
 
 std::vector<int> AecsTuner::normalizeCpuIds(const std::vector<int>& cpu_ids) const {
@@ -1249,11 +1251,19 @@ std::vector<int> AecsTuner::normalizeCpuIds(const std::vector<int>& cpu_ids) con
 
     std::vector<int> ordered;
     for (auto cpu_id : mTopology.all_cpu_ids_desc) {
+        if (!mAllowedCpuIds.empty() &&
+            std::find(mAllowedCpuIds.begin(), mAllowedCpuIds.end(), cpu_id) == mAllowedCpuIds.end()) {
+            continue;
+        }
         if (std::find(unique_cpu_ids.begin(), unique_cpu_ids.end(), cpu_id) != unique_cpu_ids.end()) {
             ordered.push_back(cpu_id);
         }
     }
     for (auto cpu_id : unique_cpu_ids) {
+        if (!mAllowedCpuIds.empty() &&
+            std::find(mAllowedCpuIds.begin(), mAllowedCpuIds.end(), cpu_id) == mAllowedCpuIds.end()) {
+            continue;
+        }
         if (std::find(ordered.begin(), ordered.end(), cpu_id) == ordered.end()) {
             ordered.push_back(cpu_id);
         }
@@ -1264,7 +1274,15 @@ std::vector<int> AecsTuner::normalizeCpuIds(const std::vector<int>& cpu_ids) con
 std::vector<std::vector<int>> AecsTuner::buildPrefillCandidates() const {
     std::vector<std::vector<int>> candidates;
     std::vector<int> prefix;
-    for (auto cpu_id : mTopology.prefill_order) {
+    // Reuse the AECS search frontier when it is available so prefill tuning stays within the
+    // same build-time pool that the benchmark/runtime plan prepares.
+    const auto& prefill_search_order =
+        !mTopology.decode_stage1_order.empty() ? mTopology.decode_stage1_order : mTopology.prefill_order;
+    for (auto cpu_id : prefill_search_order) {
+        if (!mAllowedCpuIds.empty() &&
+            std::find(mAllowedCpuIds.begin(), mAllowedCpuIds.end(), cpu_id) == mAllowedCpuIds.end()) {
+            continue;
+        }
         prefix.push_back(cpu_id);
         candidates.push_back(prefix);
     }
@@ -1491,6 +1509,10 @@ AecsCandidateResult AecsTuner::tuneDecodeStage1(const std::vector<int>& prefill_
     AecsCandidateResult best;
     std::vector<int> prefix;
     for (auto cpu_id : mTopology.decode_stage1_order) {
+        if (!mAllowedCpuIds.empty() &&
+            std::find(mAllowedCpuIds.begin(), mAllowedCpuIds.end(), cpu_id) == mAllowedCpuIds.end()) {
+            continue;
+        }
         prefix.push_back(cpu_id);
         AecsCandidateResult candidate;
         candidate.cpu_ids = normalizeCpuIds(prefix);
@@ -1507,10 +1529,10 @@ AecsCandidateResult AecsTuner::tuneDecodeStage1(const std::vector<int>& prefill_
             continue;
         }
 
+        // Decode throughput is not strictly monotonic across prefix sizes on this device.
+        // Keep scanning the whole frontier so a later all-big-core candidate is not skipped.
         if (candidate.measurement.speed_tok_s <= best.measurement.speed_tok_s) {
-            MNN_PRINT("[AECS][Decode][Stage1] stop at candidate=%s because speed no longer improves\n",
-                      joinCpuIds(candidate.cpu_ids).c_str());
-            return best;
+            continue;
         }
         best = candidate;
     }

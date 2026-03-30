@@ -1,0 +1,22 @@
+03-30 19:22:26.083 14659 14659 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+03-30 19:22:26.845 14659 14659 I MNNJNI  : [AECS] Start tuning model=./model_dir/config.json prompt=512 decode=128 prefill_auto=1 decode_aecs=1
+03-30 19:22:26.845 14659 14659 I MNNJNI  : [AECS] Initial execution plan pool=8 pool_cpu_ids=2,3,4,5,6,7,1,0 build_prefill=8/2,3,4,5,6,7,1,0 build_decode=8/2,3,4,5,6,7,1,0
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Power] Using dumpsys battery fallback: voltage=4.462 V, charge_counter=on, battery_current=on
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Power] External power is attached; dumpsys battery energy is net battery-side only and may be inaccurate
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Tune] Begin model=./model_dir/config.json prompt=512 prefill_auto=1 decode_aecs=1 force_retune=1 manual_prefill=0 manual_decode=0
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Tune] force_retune enabled, skip cache lookup
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Tune] Cache miss for model=./model_dir/config.json
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Tune] Prefill search start
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Prefill] warmup representative candidate=7,6,5,4,3,2 threads=6 before exhaustive search
+03-30 19:22:26.913 14659 14659 I MNNJNI  : [AECS][Thermal] Check prefill candidate: thermal=48.5C(cpu-1-2-0)[sysfs], battery=32.4C[dumpsys battery] status=cool
+03-30 19:22:40.181 14738 14738 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+03-30 19:22:40.935 14738 14738 I MNNJNI  : [AECS] Start tuning model=./model_dir/config.json prompt=512 decode=128 prefill_auto=1 decode_aecs=1
+03-30 19:22:40.935 14738 14738 I MNNJNI  : [AECS] Initial execution plan pool=8 pool_cpu_ids=2,3,4,5,6,7,1,0 build_prefill=8/2,3,4,5,6,7,1,0 build_decode=8/2,3,4,5,6,7,1,0
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Power] Using dumpsys battery fallback: voltage=4.462 V, charge_counter=on, battery_current=on
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Power] External power is attached; dumpsys battery energy is net battery-side only and may be inaccurate
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Tune] Begin model=./model_dir/config.json prompt=512 prefill_auto=1 decode_aecs=1 force_retune=1 manual_prefill=0 manual_decode=0
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Tune] force_retune enabled, skip cache lookup
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Tune] Cache miss for model=./model_dir/config.json
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Tune] Prefill search start
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Prefill] warmup representative candidate=7,6,5,4,3,2 threads=6 before exhaustive search
+03-30 19:22:40.997 14738 14738 I MNNJNI  : [AECS][Thermal] Check prefill candidate: thermal=48.1C(cpu-1-2-0)[sysfs], battery=32.5C[dumpsys battery] status=cool

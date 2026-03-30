@@ -1,0 +1,80 @@
+03-30 19:32:49.279 14992 14992 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+03-30 19:32:49.280 14992 14992 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+03-30 19:32:49.280 14992 14992 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+03-30 19:32:49.280 14992 14992 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+03-30 19:32:49.280 14992 14992 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+03-30 19:32:49.280 14992 14992 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+03-30 19:32:49.280 14992 14992 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+03-30 19:32:49.280 14992 14992 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.280 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=dynamic, static=0.00, target_chunks=60, threads=1, affinity=0x0) Decode(policy=dynamic, static=0.00, target_chunks=2, threads=1, affinity=0x0)
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Core capacities set to: [
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 379:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 379:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 923:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 923:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 923:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 867:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 867:
+03-30 19:32:49.281 14992 14992 I MNNJNI  : 1024
+03-30 19:32:49.281 14992 14992 I MNNJNI  : ]
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=240, min_chunk=32
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=16, min_chunk=1
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Default execution updated: threads=8, affinity=0xFF
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=8, affinity=0xFF
+03-30 19:32:49.281 14992 14992 I MNNJNI  : [AutoTuner] Decode execution updated: threads=8, affinity=0xFF
+03-30 19:32:49.284 14992 14992 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7,1,0]
+03-30 19:32:49.284 14992 14992 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=8, merged_cpu_ids=8, cpuMask=0xff
+03-30 19:32:49.284 14992 14992 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xff
+03-30 19:32:49.284 14992 14992 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.426 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.429 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.429 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.691 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.691 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.691 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.691 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.934 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.934 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.935 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.935 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:49.935 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=255 (Hex: 0xff)
+03-30 19:32:49.935 14992 14992 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+03-30 19:32:50.032 14992 14992 I MNNJNI  : [AECS] Start tuning model=./model_dir/config.json prompt=512 decode=128 prefill_auto=1 decode_aecs=1
+03-30 19:32:50.032 14992 14992 I MNNJNI  : [AECS] Initial execution plan pool=8 pool_cpu_ids=2,3,4,5,6,7,1,0 build_prefill=8/2,3,4,5,6,7,1,0 build_decode=8/2,3,4,5,6,7,1,0
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Power] Using dumpsys battery fallback: voltage=4.463 V, charge_counter=on, battery_current=on
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Power] External power is attached; dumpsys battery energy is net battery-side only and may be inaccurate
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Tune] Begin model=./model_dir/config.json prompt=512 prefill_auto=1 decode_aecs=1 force_retune=1 manual_prefill=0 manual_decode=0
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Tune] force_retune enabled, skip cache lookup
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Tune] Cache miss for model=./model_dir/config.json
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Tune] Prefill search start
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Prefill] warmup representative candidate=7,6,5,4,3,2 threads=6 before exhaustive search
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AECS][Thermal] Check prefill candidate: thermal=49.191C(pm8550b_lite_tz)[sysfs], battery=32.4C[dumpsys battery] status=cool
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Core capacities set to: [
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 379:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 379:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 923:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 923:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 923:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 867:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 867:
+03-30 19:32:50.093 14992 14992 I MNNJNI  : 1024
+03-30 19:32:50.093 14992 14992 I MNNJNI  : ]
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=240, min_chunk=32
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=16, min_chunk=1
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Default execution updated: threads=8, affinity=0xFF
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Decode execution updated: threads=8, affinity=0xFF
+03-30 19:32:50.093 14992 14992 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+03-30 19:32:50.177 14992 15002 I MNNJNI  : [AECS][Thermal] Monitor thermal=49.09C(pm8550b_lite_tz)[sysfs], battery=32.4C[dumpsys battery] status=cool
+03-30 19:32:50.317 15012 15012 F DEBUG   :   NOTE:   /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:50.317 15012 15012 F DEBUG   :       #01 pc 00000000001ba8c4  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:50.317 15012 15012 F DEBUG   :       #02 pc 00000000001ba37c  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:50.317 15012 15012 F DEBUG   :       #03 pc 00000000001dc170  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:50.318 15012 15012 F DEBUG   :       #04 pc 00000000001dbd10  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:52.387  6841 15021 D LogKit.AnrCrashDumpRunnable:   NOTE:   /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:52.387  6841 15021 D LogKit.AnrCrashDumpRunnable:       #01 pc 00000000001ba8c4  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:52.387  6841 15021 D LogKit.AnrCrashDumpRunnable:       #02 pc 00000000001ba37c  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:52.387  6841 15021 D LogKit.AnrCrashDumpRunnable:       #03 pc 00000000001dc170  /data/local/tmp/mnn_aecs_run_20260330_191429/libMNN.so
+03-30 19:32:52.387 

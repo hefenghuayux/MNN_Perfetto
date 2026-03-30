@@ -229,7 +229,8 @@ class MNN_PUBLIC AecsTuner {
 public:
     AecsTuner(const AecsCpuTopology& topology,
               const AecsTuningConfig& config,
-              const AecsHeuristicParams& heuristic_params);
+              const AecsHeuristicParams& heuristic_params,
+              const std::vector<int>& allowed_cpu_ids = {});
 
     PhaseTuningResult tune(const AecsCacheKey& cache_key,
                            const std::vector<int>& manual_prefill_cpu_ids,
@@ -265,6 +266,7 @@ private:
     AecsCpuTopology mTopology;
     AecsTuningConfig mConfig;
     AecsHeuristicParams mHeuristicParams;
+    std::vector<int> mAllowedCpuIds;
 };
 
 } // namespace Transformer

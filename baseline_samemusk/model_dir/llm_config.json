@@ -1,0 +1,29 @@
+{
+    "hidden_size": 896,
+    "layer_nums": 24,
+    "attention_mask": "float",
+    "key_value_shape": [
+        2,
+        1,
+        0,
+        2,
+        64
+    ],
+    "bos": "",
+    "system_prompt_template": "<|im_start|>system\n%s<|im_end|>\n",
+    "user_prompt_template": "<|im_start|>user\n%s<|im_end|>\n",
+    "assistant_prompt_template": "<|im_start|>assistant\n%s<|im_end|>\n",
+    "is_visual": false,
+    "attention_type": "full",
+    "jinja": {
+        "chat_template": "{% for message in messages %}{% if loop.first and messages[0]['role'] != 'system' %}{{ '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n' }}{% endif %}{{'<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>' + '\n'}}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n' }}{% endif %}",
+        "eos": "<|im_end|>"
+    },
+    "tie_embeddings": [
+        224107386,
+        360242042,
+        17016832,
+        8,
+        64
+    ]
+}
