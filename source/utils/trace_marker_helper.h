@@ -20,7 +20,7 @@ inline bool mnn_hybrid_instrumentation_enabled() {
     return enabled;
 }
 
-void begin_trace_marker(const std::string & message);
-void end_trace_marker();
+__attribute__((visibility("default"))) void begin_trace_marker(const std::string & message);
+__attribute__((visibility("default"))) void end_trace_marker();
 
 #endif

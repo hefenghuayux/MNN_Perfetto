@@ -1,11 +1,19 @@
+//
+//  AutoTuner.hpp
+//  MNN
+//
+//  Created for MNN heterogeneous scheduling optimization.
+//
 #include <MNN/MNNDefine.h>
 #ifndef AutoTuner_hpp
 #define AutoTuner_hpp
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #define MNN_CACHE_LINE_SIZE 64
 #define MNN_MAX_SCHEDULER_THREADS 32
@@ -42,8 +50,7 @@ struct TuningParams {
           dynamic_blocks(blocks),
           dynamic_target_chunks(target_chunks > 0 ? target_chunks : blocks),
           policy(scheduler_policy),
-          min_chunk_size(min_chunk > 0 ? min_chunk : 1) {
-    }
+          min_chunk_size(min_chunk > 0 ? min_chunk : 1) {}
 };
 
 struct ExecutionParams {
@@ -51,9 +58,7 @@ struct ExecutionParams {
     unsigned long affinity_mask;
 
     ExecutionParams(int threads = 1, unsigned long mask = 0)
-        : active_threads(threads),
-          affinity_mask(mask) {
-    }
+        : active_threads(threads), affinity_mask(mask) {}
 };
 
 struct alignas(MNN_CACHE_LINE_SIZE) DynamicTaskState {
@@ -122,20 +127,18 @@ public:
     static void destroy();
 
     void setPhase(InferencePhase phase);
-    InferencePhase getPhase() const;
 
     unsigned long getFastAffinityMask() const {
         return mCurrentAffinityMask.load(std::memory_order_relaxed);
     }
 
     int getActiveThreadCount() const {
-        const int threads = mCurrentActiveThreadCount.load(std::memory_order_relaxed);
+        int threads = mCurrentActiveThreadCount.load(std::memory_order_relaxed);
         return threads > 0 ? threads : 1;
     }
 
+    InferencePhase getPhase() const;
     TuningParams getTuningParams() const;
-    TuningParams getPrefillParams() const;
-    TuningParams getDecodeParams() const;
 
     void setPrefillParams(float static_ratio, int dynamic_blocks);
     void setDecodeParams(float static_ratio, int dynamic_blocks);
@@ -145,6 +148,11 @@ public:
     void setDefaultExecution(int active_threads, unsigned long affinity_mask = 0);
     void setPrefillExecution(int active_threads, unsigned long affinity_mask = 0);
     void setDecodeExecution(int active_threads, unsigned long affinity_mask = 0);
+
+    void setCoreCapacities(const std::vector<int>& capacities);
+    const std::vector<int>& getCoreCapacities() const;
+    void setCoreRatios(const std::vector<int>& ratios);
+    const std::vector<int>& getCoreRatios() const;
 
     void resetScheduleStats(InferencePhase phase);
     void noteSchedulePlan(InferencePhase phase,
@@ -162,6 +170,12 @@ public:
     PhaseScheduleStatsSnapshot getScheduleStats(InferencePhase phase) const;
     std::string formatScheduleStats(InferencePhase phase) const;
 
+    void feedback(float cost_time);
+    void setPanicMode(bool enable);
+
+    TuningParams getDecodeParams() const;
+    TuningParams getPrefillParams() const;
+    bool isPanicMode() const;
     void reset();
 
 private:
@@ -194,9 +208,21 @@ private:
     ExecutionParams mDecodeExecution;
 
     std::atomic<InferencePhase> mCurrentPhase;
+    std::vector<int> mCoreCapacities;
     PhaseScheduleStats mPrefillScheduleStats;
     PhaseScheduleStats mDecodeScheduleStats;
+    std::atomic<bool> mPanicMode{false};
 };
+
+inline int alignToCacheLine(int boundary, int element_size = 4) {
+    int elements_per_line = MNN_CACHE_LINE_SIZE / element_size;
+    return (boundary / elements_per_line) * elements_per_line;
+}
+
+inline int alignToCacheLineUp(int boundary, int element_size = 4) {
+    int elements_per_line = MNN_CACHE_LINE_SIZE / element_size;
+    return ((boundary + elements_per_line - 1) / elements_per_line) * elements_per_line;
+}
 
 } // namespace MNN
 

@@ -7,6 +7,7 @@
 // #define MNN_OPEN_TIME_TRACE 1
 
 #include <fstream>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -24,6 +25,7 @@
 #include "sampler.hpp"
 #include "omni.hpp"
 #include "speculative_decoding/generate.hpp"
+#include "trace_marker_helper.h" // 核心 ATrace API
 // 0: no debug, 1: test op time, 2: print tensor info, 3: print tensor in output
 #define DEBUG_MODE 0
 //#define DEBUG_IMAGE
@@ -123,7 +125,9 @@ bool Llm::set_config(const std::string& content) {
 }
 
 void Llm::setRuntimeHint(std::shared_ptr<Express::Executor::RuntimeManager> &rtg) {
-    rtg->setHint(MNN::Interpreter::INIT_THREAD_NUMBER, 4);
+    const int poolThreadCount = std::max(mConfig->thread_num(),
+                                         std::max(mConfig->prefill_thread_num(), mConfig->decode_thread_num()));
+    rtg->setHint(MNN::Interpreter::INIT_THREAD_NUMBER, poolThreadCount);
 
     rtg->setHint(MNN::Interpreter::MEM_ALLOCATOR_TYPE, 0);
     rtg->setHint(MNN::Interpreter::QKV_QUANT_OPTIONS, mConfig->config_.value("quant_qkv", 8));
@@ -144,7 +148,7 @@ void Llm::setRuntimeHint(std::shared_ptr<Express::Executor::RuntimeManager> &rtg
     if (mConfig->dynamic_option()) {
         rtg->setHint(MNN::Interpreter::DYNAMIC_QUANT_OPTIONS, mConfig->dynamic_option());
     }
-    if (mConfig->thread_num() > 7) { // if thread_num > 7, cpu dynamic quant use Arm86 kernels
+    if (poolThreadCount > 7) { // if thread_num > 7, cpu dynamic quant use Arm86 kernels
         rtg->setHint(MNN::Interpreter::CPU_SME2_INSTRUCTIONS, 0);
     } else {
         rtg->setHint(MNN::Interpreter::CPU_SME2_INSTRUCTIONS, 1);
@@ -171,45 +175,48 @@ void Llm::initRuntime() {
     ScheduleConfig config;
     BackendConfig cpuBackendConfig;
     config.type = backend_type_convert(mConfig->backend_type());
-    // [新代码] 初始化 cpuMask 为 0 (不绑核)
+    const int poolThreadCount = std::max(1, std::max(mConfig->thread_num(),
+                                                     std::max(mConfig->prefill_thread_num(), mConfig->decode_thread_num())));
     config.cpuMask = 0;
 
-    // --- 绑核修改 (路径 B) ---
-    // 我们仍然需要解析 llm_bench.cpp 传来的 "cpu_core_ids" JSON
-    // 但这次，我们将它转换为一个 unsigned long cpuMask
     std::vector<int> cpu_ids;
-    if (mConfig->config_.document.HasMember("cpu_core_ids")) {
-        auto& cpu_ids_json = mConfig->config_.document["cpu_core_ids"];
-        if (cpu_ids_json.IsArray()) {
-            for (auto iter = cpu_ids_json.GetArray().begin(); iter != cpu_ids_json.GetArray().end(); ++iter) {
-                if (iter->IsInt()) {
-                    cpu_ids.push_back(iter->GetInt());
-                }
+    std::unordered_set<int> seenCpuIds;
+    auto append_cpu_ids = [&](const char* key) {
+        if (!mConfig->config_.document.HasMember(key)) {
+            return;
+        }
+        auto& cpu_ids_json = mConfig->config_.document[key];
+        if (!cpu_ids_json.IsArray()) {
+            return;
+        }
+        for (auto iter = cpu_ids_json.GetArray().begin(); iter != cpu_ids_json.GetArray().end(); ++iter) {
+            if (!iter->IsInt()) {
+                continue;
+            }
+            int cpu_id = iter->GetInt();
+            if (seenCpuIds.insert(cpu_id).second) {
+                cpu_ids.push_back(cpu_id);
             }
         }
-    }
+    };
+    append_cpu_ids("cpu_core_ids");
+    append_cpu_ids("prefill_cpu_core_ids");
+    append_cpu_ids("decode_cpu_core_ids");
 
-    // 2. 如果提供了 cpu_ids，则 numThread 必须与 cpu_ids 的数量一致
-    //    并且，我们将 cpu_ids 转换为 cpuMask
+    config.numThread = poolThreadCount;
     if (!cpu_ids.empty()) {
-        config.numThread = cpu_ids.size(); // 强制线程数 = 绑核数
-        MNN_PRINT("Llm::initRuntime (Path B): Found %d CPU Core IDs. Forcing numThread = %d\n", (int)cpu_ids.size(), (int)cpu_ids.size());
-        
-        // [新代码] 将 [4, 5, 6, 7] 转换为 0xf0
         unsigned long mask = 0;
         for (int core_id : cpu_ids) {
             if (core_id >= 0 && core_id < (sizeof(mask) * 8)) {
                 mask |= (1UL << core_id);
             }
         }
-        config.cpuMask = mask; // 将掩码设置到 ScheduleConfig 中
-        MNN_PRINT("Llm::initRuntime (Path B): Converted Core IDs to cpuMask: 0x%lx\n", config.cpuMask);
-
+        config.cpuMask = mask;
+        MNN_PRINT("Llm::initRuntime (Path B): pool_threads=%d, merged_cpu_ids=%d, cpuMask=0x%lx\n",
+                  config.numThread, (int)cpu_ids.size(), config.cpuMask);
     } else {
-        config.numThread = mConfig->thread_num(); // 否则，使用 -t 参数或 json 文件中的配置
+        MNN_PRINT("Llm::initRuntime (Path B): pool_threads=%d, cpuMask=0x%lx\n", config.numThread, config.cpuMask);
     }
-    // --- 绑核修改结束 ---
-
     if(config.type == 3){
         // opencl need set numThread = 64(buffer mode)
         config.numThread |= 64;
@@ -460,6 +467,7 @@ void Llm::setKVCacheInfo(size_t add, size_t remove, int* reserve, int n_reserve)
 }
 
 std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::VARP mask, Express::VARP inputPos, Express::VARPS extraArgs) {
+    begin_trace_marker("MNN::Transformer::Llm::forwardRaw"); // <--- 修改为这一行
     Express::VARP logitsIndex;
     bool inDecode = mContext->gen_seq_len > 0;
     bool isAllLogists = mConfig->all_logits() ? true : (inDecode ? mInSpec : false);
@@ -496,6 +504,7 @@ std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::V
     std::vector<Express::VARP> outputs = selectModule->onForward(inputs);
 
     if (outputs.empty()) {
+        end_trace_marker(); // <--- 在 return 前添加
         return outputs;
     }
     if (!mAsync) {
@@ -558,6 +567,7 @@ std::vector<Express::VARP> Llm::forwardRaw(Express::VARP hiddenState, Express::V
     }
 #endif
     mMeta->sync();
+    end_trace_marker(); // <--- 在 return 前添加
     return outputs;
 }
 
@@ -943,12 +953,14 @@ static inline bool needNewVar(VARP var, int axis, int seq_len, int kv_seq_len = 
 
 VARP Llm::embedding(const std::vector<int>& input_ids) {
     AUTOTIME;
+    begin_trace_marker("MNN::Transformer::Llm::embedding"); // <--- 修改为这一行
     int hidden_size = mConfig->hidden_size();
     int seq_len = static_cast<int>(input_ids.size());
 
     VARP res = _Input({seq_len, 1, hidden_size}, NCHW);
     // disk embedding to save memory
     mDiskEmbedding->embedding(input_ids, res->writeMap<float>());
+    end_trace_marker(); // <--- 在 return 前添加
     return res;
 }
 

@@ -15,10 +15,18 @@
 #include "geometry/GeometryComputerUtils.hpp"
 #include "shape/SizeComputer.hpp"
 #include "core/OpCommonUtils.hpp"
+#include <atomic>
+#include "utils/trace_marker_helper.h"
+#include "MNN_generated.h"
 
 // TODO: Find better way for debug
 //#define MNN_OP_SEPERATE
 //#define MNN_PIPELINE_DEBUG
+extern "C" {
+    __attribute__((visibility("default"))) std::atomic<int> g_total_task_count(0);
+    __attribute__((visibility("default"))) std::atomic<long long> g_pipeline_task_size_total(0);
+    __attribute__((visibility("default"))) std::atomic<int> g_pipeline_task_count(0);
+}
 namespace MNN {
 static std::set<OpType> _getQuantPropagateOp(Runtime::CompilerType type) {
     std::set<OpType> propagateOpTypes = { OpType_Raster, OpType_ReLU, OpType_ReLU6, OpType_Pooling,
@@ -1143,7 +1151,23 @@ ErrorCode Pipeline::execute() {
                 MNN_PRINT("Group: %d, %s - %d, type=%s, inputs: %s, devices: %s - %s\n", info.group, info.op->name()->c_str(), cmdIndex, EnumNameOpType(cmd.op->type()), groupOfInput.c_str(), deviceOfInput.c_str(), deviceOfOutput.c_str());
             }
 #endif
+            const char* opTypeStr = EnumNameOpType(cmd.op->type());
+            std::string traceName = "MNN_";
+            if (opTypeStr) {
+                traceName += opTypeStr;
+            }
+            if (cmd.op->name()) {
+                traceName += ":";
+                traceName += cmd.op->name()->c_str();
+            }
+
+            begin_trace_marker(traceName.c_str());
+            g_total_task_count++;
+            int taskSize = cmd.workInputs.size() + cmd.workOutputs.size();
+            g_pipeline_task_size_total += taskSize;
+            g_pipeline_task_count++;
             auto code = cmd.execution->onExecute(cmd.workInputs, cmd.workOutputs);
+            end_trace_marker();
             if (NO_ERROR != code) {
                 _exitExecute();
                 return code;

@@ -80,7 +80,7 @@ static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedul
                                            int active_threads) {
     const auto& phase_config = is_prefill ? schedule_config.prefill : schedule_config.decode;
     const SchedulerPolicy policy = phase_config.policy_explicit ? phase_config.policy : schedule_config.policy;
-    const int default_target_chunks = is_prefill ? std::max(1, active_threads * 4)
+    const int default_target_chunks = is_prefill ? std::max(1, active_threads * 40)
                                                  : std::max(1, active_threads * 2);
     const int default_min_chunk = policy == SchedulerPolicy::GUIDED ? (is_prefill ? 32 : 8) : 1;
     TuningParams params;

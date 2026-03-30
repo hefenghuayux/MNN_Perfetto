@@ -14,6 +14,7 @@
 struct CPUGroup {
     uint32_t minFreq;
     uint32_t maxFreq;
+    int capacity = 0;
     std::vector<int> ids;
 };
 struct MNNCPUInfo {

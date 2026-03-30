@@ -3,6 +3,10 @@ option(LLM_USE_MINJA "Use minja to apply template" ON)
 
 set(LLM_DEPS ${MNN_DEPS})
 set(TRACE_MARKER_HELPER_SRC ${CMAKE_CURRENT_LIST_DIR}/../../../source/utils/trace_marker_helper.cc)
+set(LLM_PLATFORM_LIBS ${CMAKE_THREAD_LIBS_INIT})
+if (CMAKE_SYSTEM_NAME MATCHES "^Android")
+    list(APPEND LLM_PLATFORM_LIBS android)
+endif()
 if (MNN_BUILD_OPENCV)
     add_definitions(-DLLM_SUPPORT_VISION)
     if (MNN_SEP_BUILD)
@@ -23,7 +27,7 @@ if (MNN_BUILD_AUDIO)
 endif()
 
 # include dir
-include_directories(${CMAKE_CURRENT_LIST_DIR}/include/)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/include/ ${CMAKE_CURRENT_LIST_DIR}/src/)
 
 # source files
 FILE(GLOB_RECURSE SRCS ${CMAKE_CURRENT_LIST_DIR}/src/*)
@@ -36,12 +40,10 @@ if (MNN_SEP_BUILD)
         # compile dynamic so, support Linux/Mac
         add_library(llm SHARED ${SRCS})
         set_target_properties(llm PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
-        # target_link_libraries(llm ${LLM_DEPS})
-        target_link_libraries(llm 
-        ${LLM_DEPS}
-        android
-        ${CMAKE_THREAD_LIBS_INIT}
-        MNN
+        target_link_libraries(llm
+            ${LLM_DEPS}
+            ${LLM_PLATFORM_LIBS}
+            MNN
         )
     else()
         add_library(llm STATIC ${SRCS})
@@ -88,23 +90,19 @@ add_executable(llm_demo ${CMAKE_CURRENT_LIST_DIR}/demo/llm_demo.cpp)
 add_executable(embedding_demo ${CMAKE_CURRENT_LIST_DIR}/demo/embedding_demo.cpp)
 add_executable(reranker_demo ${CMAKE_CURRENT_LIST_DIR}/demo/reranker_demo.cpp)
 add_executable(rollback_demo ${CMAKE_CURRENT_LIST_DIR}/demo/rollback_demo.cpp)
-add_executable(llm_bench ${CMAKE_CURRENT_LIST_DIR}/demo/llm_bench.cpp ${TRACE_MARKER_HELPER_SRC})
+add_executable(llm_bench
+    ${CMAKE_CURRENT_LIST_DIR}/demo/llm_bench.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/demo/llm_bench_aecs.cpp
+    ${TRACE_MARKER_HELPER_SRC}
+)
 target_link_libraries(llm_demo ${LLM_DEPS})
 target_link_libraries(embedding_demo ${LLM_DEPS})
 target_link_libraries(reranker_demo ${LLM_DEPS})
 target_link_libraries(rollback_demo ${LLM_DEPS})
-# -----------------------------------------------------
-# (!! MODIFY THIS LINE) 修改 llm_bench 的链接
-# -----------------------------------------------------
-# 原始行: target_link_libraries(llm_bench ${LLM_DEPS})
-#
-# 修改为:
-target_link_libraries(llm_bench 
+target_link_libraries(llm_bench
     ${LLM_DEPS}
-    android
-    ${CMAKE_THREAD_LIBS_INIT}
+    ${LLM_PLATFORM_LIBS}
 )
-# -----------------------------------------------------
 
 
 if (BUILD_MLS)
@@ -166,3 +164,5 @@ set_property(TARGET mls PROPERTY CXX_STANDARD_REQUIRED ON)
 target_link_libraries(mls PRIVATE ${LLM_DEPS})
 target_compile_definitions(mls PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 endif()
+
+

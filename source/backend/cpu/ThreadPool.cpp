@@ -3,144 +3,161 @@
 //  MNN
 //
 //  Created by MNN on 2019/06/30.
-//  Copyright © 2018, Alibaba Group Holding Limited
 //
+
 #ifdef MNN_USE_THREAD_POOL
+
 #include "backend/cpu/ThreadPool.hpp"
+
+#include <algorithm>
+#include <string>
 #include <string.h>
 #include <unordered_map>
+
 #include <MNN/MNNDefine.h>
+
+#include "AutoTuner.hpp"
 #include "ThreadPool.hpp"
+#include "trace_marker_helper.h"
+
 #define MNN_THREAD_POOL_MAX_TASKS 2
 
-// [新代码] 添加绑核所需的头文件
 #if !defined(_WIN64) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__linux__) || defined(__ANDROID__))
-#include <sched.h> // for sched_setaffinity
-#include <errno.h> // for errno
-#include <string.h> // for strerror
+#include <errno.h>
+#include <sched.h>
+#include <string.h>
 #endif
-// [新代码结束]
 
 namespace MNN {
-static std::unordered_map<long int, ThreadPool*> gInstances;
+
+static std::unordered_map<std::string, ThreadPool*> gInstances;
 static std::mutex gInitMutex;
 
-// [修改] 绑核函数现在接收一个 int core_id，而不是一个 mask
-/**
- * @brief Set thread affinity. Pin current thread to a *single* core.
- * @param[in] core_id The ID of the core to pin to. If -1, no pinning is done.
- */
+static std::string _poolKey(int numberThread, unsigned long cpuMask) {
+    return std::to_string(numberThread) + "#" + std::to_string(cpuMask);
+}
+
+static std::vector<int> _coreIdsFromMask(unsigned long cpuMask) {
+    std::vector<int> coreIds;
+    for (int i = static_cast<int>(sizeof(cpuMask) * 8) - 1; i >= 0; --i) {
+        if ((cpuMask >> i) & 1UL) {
+            coreIds.push_back(i);
+        }
+    }
+    return coreIds;
+}
+
 static void _set_thread_affinity(int core_id) {
-    // [修改] 如果 core_id < 0，我们将其视为不绑核的信号
     if (core_id < 0) {
         return;
     }
 #if !defined(_WIN64) && !defined(__APPLE__) && !defined(__OpenBSD__) && (defined(__linux__) || defined(__ANDROID__))
     cpu_set_t set;
     CPU_ZERO(&set);
-    // [修改] 只将这一个 core_id 添加到集合中
     CPU_SET(core_id, &set);
-
-    // sched_setaffinity(0, ...) 0 表示“当前线程”
     if (sched_setaffinity(0, sizeof(set), &set) != 0) {
         MNN_PRINT("Error setting thread affinity for core %d: %s\n", core_id, strerror(errno));
     }
+#else
+    (void)core_id;
 #endif
 }
-// [修改结束]
+
+static int _pickCoreForThread(int threadIndex, unsigned long cpuMask) {
+    if (cpuMask == 0) {
+        return -1;
+    }
+    auto activeCores = _coreIdsFromMask(cpuMask);
+    if (threadIndex < 0 || threadIndex >= static_cast<int>(activeCores.size())) {
+        return -1;
+    }
+    return activeCores[threadIndex];
+}
+
 int ThreadPool::init(int numberThread, unsigned long cpuMask, ThreadPool*& threadPool) {
-    if (1 >= numberThread) {
+    if (numberThread <= 1) {
         numberThread = 1;
     }
-    
-    // [新代码]
-    // 1. 解析 cpuMask (如 0xf0)，将其转换为核心ID列表 (如 [4, 5, 6, 7])
-    std::vector<int> core_ids;
-    if (cpuMask != 0) {
-        for (int i = (sizeof(cpuMask) * 8) - 1; i >= 0; --i) {
-            if ((cpuMask >> i) & 1) { // 逻辑不变：检查第 i 位是否为 1
-                core_ids.push_back(i); // 先放入的是大号核心 (例如 7)
-            }
-        }
+
+    std::vector<int> coreIds = _coreIdsFromMask(cpuMask);
+    std::lock_guard<std::mutex> lock(gInitMutex);
+
+    auto key = _poolKey(numberThread, cpuMask);
+    auto iter = gInstances.find(key);
+    if (iter == gInstances.end()) {
+        iter = gInstances.emplace(key, new ThreadPool(numberThread, coreIds)).first;
     }
-    // [新代码结束]
+    threadPool = iter->second;
 
-    std::lock_guard<std::mutex> _l(gInitMutex);
-
-    if (gInstances.find(cpuMask) == gInstances.end()){
-        // [修改] 将 *解析后的核心列表* 传递给构造函数
-        gInstances[cpuMask] = new ThreadPool(numberThread, core_ids);
+    if (!coreIds.empty()) {
+        _set_thread_affinity(coreIds.front());
     }
-    threadPool = gInstances[cpuMask];
 
-    // [新代码]
-    // 2. 绑定【主线程】(即 T0，调用 init 的这个线程)
-    int main_thread_core = -1; // 默认不绑核
-    if (!core_ids.empty()) {
-        main_thread_core = core_ids[0]; // 主线程 (T0) 绑定到列表中的第一个核心
-    }
-    _set_thread_affinity(main_thread_core);
-    // [新代码结束]
-
-    if (gInstances[cpuMask]->numberThread() < numberThread){
-        return gInstances[cpuMask]->numberThread();
+    if (threadPool->numberThread() < numberThread) {
+        return threadPool->numberThread();
     }
     return numberThread;
 }
 
 void ThreadPool::destroy() {
-    std::lock_guard<std::mutex> _l(gInitMutex);
-    for (auto i= gInstances.begin(); i != gInstances.end(); i++){
-        if (i->second){
-            delete i->second;
-        }
+    std::lock_guard<std::mutex> lock(gInitMutex);
+    for (auto& entry : gInstances) {
+        delete entry.second;
     }
     gInstances.clear();
 }
 
-// [修改] 修改构造函数签名以接受核心列表
-ThreadPool::ThreadPool(int numberThread, const std::vector<int>& core_ids) {
-    mNumberThread = numberThread;
-    mCoreIDs = core_ids; // [修改] 保存核心列表
-    mActiveCount  = 0;
+ThreadPool::ThreadPool(int numberThread, const std::vector<int>& core_ids)
+    : mCoreIDs(core_ids)
+    , mNumberThread(numberThread) {
+    mPhaseDispatchWidth.store(mNumberThread, std::memory_order_relaxed);
     mTaskAvailable.resize(MNN_THREAD_POOL_MAX_TASKS);
     mTasks.resize(MNN_THREAD_POOL_MAX_TASKS);
-    for (int t = 0; t < mTasks.size(); ++t) {
+    for (int t = 0; t < static_cast<int>(mTasks.size()); ++t) {
         mTaskAvailable[t] = true;
         for (int i = 0; i < mNumberThread; ++i) {
             mTasks[t].second.emplace_back(new std::atomic_bool{false});
         }
     }
-    for (int i = 1; i < mNumberThread; ++i) {
-        int threadIndex = i; // T1, T2, T3 ...
-        mWorkers.emplace_back([this, threadIndex]() {
-            
-            // [新代码]
-            // 3. 为每个工作线程 T_i 绑定核心 core_ids[i]
-            int core_to_pin = -1; // 默认不绑核
-            
-            // 检查 mCoreIDs 列表是否足够长，以覆盖当前 threadIndex
-            // (threadIndex 对应 T_i, 例如 T1 对应 index 1)
-            if (threadIndex < mCoreIDs.size()) {
-                core_to_pin = mCoreIDs[threadIndex];
-            }
-            // 在工作线程内部调用绑核
-            _set_thread_affinity(core_to_pin);
-            // [新代码结束]
 
-            while (!mStop) {
-                while (mActiveCount > 0) {
-                    for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
-                        if (*mTasks[i].second[threadIndex]) {
-                            mTasks[i].first.first(threadIndex);
-                            { *mTasks[i].second[threadIndex] = false; }
+    for (int i = 1; i < mNumberThread; ++i) {
+        int threadIndex = i;
+        mWorkers.emplace_back([this, threadIndex]() {
+            unsigned long currentBoundMask = 0;
+            while (!mStop.load(std::memory_order_relaxed)) {
+                int dispatchWidth = mPhaseDispatchWidth.load(std::memory_order_relaxed);
+                while (!mStop.load(std::memory_order_relaxed) &&
+                       mActiveCount.load(std::memory_order_acquire) > 0 &&
+                       threadIndex < dispatchWidth) {
+                    unsigned long globalMask = AutoTuner::getInstance()->getFastAffinityMask();
+                    if (globalMask != currentBoundMask && globalMask != 0) {
+                        currentBoundMask = globalMask;
+                        _set_thread_affinity(_pickCoreForThread(threadIndex, globalMask));
+                    }
+                    for (int taskIndex = 0; taskIndex < MNN_THREAD_POOL_MAX_TASKS; ++taskIndex) {
+                        if (*mTasks[taskIndex].second[threadIndex]) {
+                            begin_trace_marker("Worker_Work");
+                            mTasks[taskIndex].first.first(threadIndex);
+                            end_trace_marker();
+                            *mTasks[taskIndex].second[threadIndex] = false;
                         }
                     }
-                    
+                    begin_trace_marker("Worker_IdleSpin");
                     std::this_thread::yield();
+                    end_trace_marker();
+                    dispatchWidth = mPhaseDispatchWidth.load(std::memory_order_relaxed);
                 }
-                std::unique_lock<std::mutex> _l(mQueueMutex);
-                mCondition.wait(_l, [this] { return mStop || mActiveCount > 0; });
+
+                begin_trace_marker("Wait_Idle_Lock");
+                std::unique_lock<std::mutex> lock(mQueueMutex);
+                end_trace_marker();
+                begin_trace_marker("Worker_WaitOnCondition");
+                mCondition.wait(lock, [this, threadIndex]() {
+                    return mStop.load(std::memory_order_relaxed) ||
+                           (mActiveCount.load(std::memory_order_acquire) > 0 &&
+                            threadIndex < mPhaseDispatchWidth.load(std::memory_order_relaxed));
+                });
+                end_trace_marker();
             }
         });
     }
@@ -148,22 +165,22 @@ ThreadPool::ThreadPool(int numberThread, const std::vector<int>& core_ids) {
 
 ThreadPool::~ThreadPool() {
     {
-        std::lock_guard<std::mutex> _l(mQueueMutex);
-        mStop = true;
+        std::lock_guard<std::mutex> lock(mQueueMutex);
+        mStop.store(true, std::memory_order_release);
     }
     mCondition.notify_all();
     for (auto& worker : mWorkers) {
         worker.join();
     }
     for (auto& task : mTasks) {
-        for (auto c : task.second) {
-            delete c;
+        for (auto* done : task.second) {
+            delete done;
         }
     }
 }
 
 int ThreadPool::acquireWorkIndex() {
-    std::lock_guard<std::mutex> _l(mQueueMutex);
+    std::lock_guard<std::mutex> lock(mQueueMutex);
     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
         if (mTaskAvailable[i]) {
             mTaskAvailable[i] = false;
@@ -172,27 +189,45 @@ int ThreadPool::acquireWorkIndex() {
     }
     return -1;
 }
+
 void ThreadPool::releaseWorkIndex(int index) {
     if (index < 0 || index >= MNN_THREAD_POOL_MAX_TASKS) {
         return;
     }
-    std::lock_guard<std::mutex> _l(mQueueMutex);
+    std::lock_guard<std::mutex> lock(mQueueMutex);
     mTaskAvailable[index] = true;
 }
 
 void ThreadPool::active() {
-    {
-        std::lock_guard<std::mutex> _l(mQueueMutex);
-        mActiveCount++;
+    int dispatchWidth = AutoTuner::getInstance()->getActiveThreadCount();
+    if (dispatchWidth < 1) {
+        dispatchWidth = 1;
     }
+    dispatchWidth = std::min(dispatchWidth, mNumberThread);
+    {
+        begin_trace_marker("Wait_Main_Active_Lock");
+        std::lock_guard<std::mutex> lock(mQueueMutex);
+        mPhaseDispatchWidth.store(dispatchWidth, std::memory_order_relaxed);
+        mActiveCount.fetch_add(1, std::memory_order_release);
+        end_trace_marker();
+    }
+
+    unsigned long globalMask = AutoTuner::getInstance()->getFastAffinityMask();
+    if (globalMask != 0) {
+        _set_thread_affinity(_pickCoreForThread(0, globalMask));
+    }
+
+    begin_trace_marker("Main_Notify_All");
     mCondition.notify_all();
+    end_trace_marker();
 }
+
 void ThreadPool::deactive() {
-    mActiveCount--;
+    mActiveCount.fetch_sub(1, std::memory_order_release);
 }
 
 void ThreadPool::enqueue(TASK&& task, int index) {
-    if (1 >= task.second || 0 > index) {
+    if (task.second <= 1 || index < 0) {
         for (int i = 0; i < task.second; ++i) {
             task.first(i);
         }
@@ -200,44 +235,66 @@ void ThreadPool::enqueue(TASK&& task, int index) {
     }
     enqueueInternal(std::move(task), index);
 }
+
 void ThreadPool::enqueueInternal(TASK&& task, int index) {
-    if (mActiveCount == 0) {
+    if (mActiveCount.load(std::memory_order_acquire) == 0) {
+        begin_trace_marker("Pool_Inactive_Run_On_Main");
         for (int i = 0; i < task.second; ++i) {
             task.first(i);
         }
+        end_trace_marker();
         return;
     }
-    int workSize = task.second;
-    if (workSize > mNumberThread) {
+
+    auto taskFunc = std::move(task.first);
+    int logicalWorkSize = task.second;
+    int dispatchWidth = std::min({logicalWorkSize,
+                                  mPhaseDispatchWidth.load(std::memory_order_relaxed),
+                                  mNumberThread});
+    if (dispatchWidth < 1) {
+        dispatchWidth = 1;
+    }
+
+    if (logicalWorkSize > dispatchWidth) {
         mTasks[index].first = std::make_pair(
-            [workSize, &task, this](int tId) {
-                for (int v = tId; v < workSize; v += mNumberThread) {
-                    task.first(v);
+            [taskFunc, logicalWorkSize, dispatchWidth](int tId) {
+                for (int logicalId = tId; logicalId < logicalWorkSize; logicalId += dispatchWidth) {
+                    taskFunc(logicalId);
                 }
             },
-            mNumberThread);
-        workSize = mNumberThread;
+            dispatchWidth);
     } else {
-        mTasks[index].first = std::move(task);
+        mTasks[index].first = std::make_pair(std::move(taskFunc), logicalWorkSize);
+        dispatchWidth = logicalWorkSize;
     }
-    {
-        for (int i = 1; i < workSize; ++i) {
-            *mTasks[index].second[i] = true;
-        }
-    }
-    mTasks[index].first.first(0);
 
+    begin_trace_marker("Task_Setup");
+    for (int i = 1; i < dispatchWidth; ++i) {
+        *mTasks[index].second[i] = true;
+    }
+    end_trace_marker();
+
+    begin_trace_marker("MainThread_Work");
+    mTasks[index].first.first(0);
+    end_trace_marker();
+
+    begin_trace_marker("MainThread_Wait");
     bool complete = true;
     do {
         complete = true;
-        for (int i = 1; i < workSize; ++i) {
+        for (int i = 1; i < dispatchWidth; ++i) {
             if (*mTasks[index].second[i]) {
                 complete = false;
                 break;
             }
         }
-        std::this_thread::yield();
+        if (!complete) {
+            std::this_thread::yield();
+        }
     } while (!complete);
+    end_trace_marker();
 }
+
 } // namespace MNN
+
 #endif
