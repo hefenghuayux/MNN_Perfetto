@@ -156,7 +156,7 @@ public:
                               SchedulerPolicy policy = SchedulerPolicy::DYNAMIC,
                               int active_threads = 0,
                               int target_chunks = 0,
-                              int min_chunk_size = 1) const;
+                              int min_chunk_size = 0) const;
     
     /**
      * @brief 抢占下一个动态任务块

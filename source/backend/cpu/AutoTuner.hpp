@@ -82,6 +82,11 @@ struct PhaseScheduleStatsSnapshot {
     long long target_chunk_samples = 0;
     long long theoretical_dynamic_chunks = 0;
     long long actual_dynamic_chunks = 0;
+    long long dynamic_claim_calls = 0;
+    long long dynamic_claim_success = 0;
+    long long dynamic_claim_empty = 0;
+    long long dynamic_claim_cas_retries = 0;
+    long long dynamic_claim_time_ns = 0;
     int last_total_size = 0;
     int last_total_static = 0;
     int last_dynamic_size = 0;
@@ -105,6 +110,11 @@ struct PhaseScheduleStats {
     std::atomic<long long> target_chunk_samples{0};
     std::atomic<long long> theoretical_dynamic_chunks{0};
     std::atomic<long long> actual_dynamic_chunks{0};
+    std::atomic<long long> dynamic_claim_calls{0};
+    std::atomic<long long> dynamic_claim_success{0};
+    std::atomic<long long> dynamic_claim_empty{0};
+    std::atomic<long long> dynamic_claim_cas_retries{0};
+    std::atomic<long long> dynamic_claim_time_ns{0};
     std::atomic<int> last_total_size{0};
     std::atomic<int> last_total_static{0};
     std::atomic<int> last_dynamic_size{0};
@@ -167,6 +177,7 @@ public:
                           int min_chunk_size);
     void noteStaticRange(InferencePhase phase, int thread_id, int start, int end);
     void noteDynamicRange(InferencePhase phase, int thread_id, int start, int end);
+    void noteDynamicClaim(InferencePhase phase, bool success, int cas_retries, long long claim_time_ns);
     PhaseScheduleStatsSnapshot getScheduleStats(InferencePhase phase) const;
     std::string formatScheduleStats(InferencePhase phase) const;
 

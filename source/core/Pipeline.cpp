@@ -22,11 +22,11 @@
 // TODO: Find better way for debug
 //#define MNN_OP_SEPERATE
 //#define MNN_PIPELINE_DEBUG
-extern "C" {
-    __attribute__((visibility("default"))) std::atomic<int> g_total_task_count(0);
-    __attribute__((visibility("default"))) std::atomic<long long> g_pipeline_task_size_total(0);
-    __attribute__((visibility("default"))) std::atomic<int> g_pipeline_task_count(0);
-}
+// extern "C" {
+//     __attribute__((visibility("default"))) std::atomic<int> g_total_task_count(0);
+//     __attribute__((visibility("default"))) std::atomic<long long> g_pipeline_task_size_total(0);
+//     __attribute__((visibility("default"))) std::atomic<int> g_pipeline_task_count(0);
+// }
 namespace MNN {
 static std::set<OpType> _getQuantPropagateOp(Runtime::CompilerType type) {
     std::set<OpType> propagateOpTypes = { OpType_Raster, OpType_ReLU, OpType_ReLU6, OpType_Pooling,
@@ -1162,10 +1162,11 @@ ErrorCode Pipeline::execute() {
             }
 
             begin_trace_marker(traceName.c_str());
-            g_total_task_count++;
+            // 测试统计已禁用
+            // g_total_task_count++;
             int taskSize = cmd.workInputs.size() + cmd.workOutputs.size();
-            g_pipeline_task_size_total += taskSize;
-            g_pipeline_task_count++;
+            // g_pipeline_task_size_total += taskSize;
+            // g_pipeline_task_count++;
             auto code = cmd.execution->onExecute(cmd.workInputs, cmd.workOutputs);
             end_trace_marker();
             if (NO_ERROR != code) {

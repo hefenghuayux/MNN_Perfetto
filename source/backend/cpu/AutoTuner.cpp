@@ -8,6 +8,7 @@
 #include "AutoTuner.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <sstream>
 
 #include <MNN/MNNDefine.h>
@@ -56,6 +57,14 @@ static void appendThreadLoads(std::ostringstream& stream,
     stream << "]";
 }
 
+static bool hybridInstrumentEnabled() {
+    static const bool enabled = []() {
+        const char* value = std::getenv("MNN_ENABLE_HYBRID_INSTRUMENT");
+        return value != nullptr && value[0] != '0';
+    }();
+    return enabled;
+}
+
 } // namespace
 
 AutoTuner* AutoTuner::sInstance = nullptr;
@@ -88,6 +97,11 @@ void PhaseScheduleStats::reset() {
     target_chunk_samples.store(0, std::memory_order_relaxed);
     theoretical_dynamic_chunks.store(0, std::memory_order_relaxed);
     actual_dynamic_chunks.store(0, std::memory_order_relaxed);
+    dynamic_claim_calls.store(0, std::memory_order_relaxed);
+    dynamic_claim_success.store(0, std::memory_order_relaxed);
+    dynamic_claim_empty.store(0, std::memory_order_relaxed);
+    dynamic_claim_cas_retries.store(0, std::memory_order_relaxed);
+    dynamic_claim_time_ns.store(0, std::memory_order_relaxed);
     last_total_size.store(0, std::memory_order_relaxed);
     last_total_static.store(0, std::memory_order_relaxed);
     last_dynamic_size.store(0, std::memory_order_relaxed);
@@ -114,6 +128,11 @@ PhaseScheduleStatsSnapshot PhaseScheduleStats::snapshot() const {
     result.target_chunk_samples = target_chunk_samples.load(std::memory_order_relaxed);
     result.theoretical_dynamic_chunks = theoretical_dynamic_chunks.load(std::memory_order_relaxed);
     result.actual_dynamic_chunks = actual_dynamic_chunks.load(std::memory_order_relaxed);
+    result.dynamic_claim_calls = dynamic_claim_calls.load(std::memory_order_relaxed);
+    result.dynamic_claim_success = dynamic_claim_success.load(std::memory_order_relaxed);
+    result.dynamic_claim_empty = dynamic_claim_empty.load(std::memory_order_relaxed);
+    result.dynamic_claim_cas_retries = dynamic_claim_cas_retries.load(std::memory_order_relaxed);
+    result.dynamic_claim_time_ns = dynamic_claim_time_ns.load(std::memory_order_relaxed);
     result.last_total_size = last_total_size.load(std::memory_order_relaxed);
     result.last_total_static = last_total_static.load(std::memory_order_relaxed);
     result.last_dynamic_size = last_dynamic_size.load(std::memory_order_relaxed);
@@ -394,6 +413,22 @@ void AutoTuner::noteDynamicRange(InferencePhase phase, int thread_id, int start,
     }
 }
 
+void AutoTuner::noteDynamicClaim(InferencePhase phase, bool success, int cas_retries, long long claim_time_ns) {
+    auto& stats = scheduleStats(phase);
+    stats.dynamic_claim_calls.fetch_add(1, std::memory_order_relaxed);
+    if (success) {
+        stats.dynamic_claim_success.fetch_add(1, std::memory_order_relaxed);
+    } else {
+        stats.dynamic_claim_empty.fetch_add(1, std::memory_order_relaxed);
+    }
+    if (cas_retries > 0) {
+        stats.dynamic_claim_cas_retries.fetch_add(cas_retries, std::memory_order_relaxed);
+    }
+    if (claim_time_ns > 0) {
+        stats.dynamic_claim_time_ns.fetch_add(claim_time_ns, std::memory_order_relaxed);
+    }
+}
+
 PhaseScheduleStatsSnapshot AutoTuner::getScheduleStats(InferencePhase phase) const {
     return scheduleStats(phase).snapshot();
 }
@@ -405,6 +440,15 @@ std::string AutoTuner::formatScheduleStats(InferencePhase phase) const {
         : 0.0;
     const double avg_target_chunks = snapshot.target_chunk_samples > 0
         ? static_cast<double>(snapshot.total_target_chunks) / static_cast<double>(snapshot.target_chunk_samples)
+        : 0.0;
+    const double avg_claim_ns = snapshot.dynamic_claim_calls > 0
+        ? static_cast<double>(snapshot.dynamic_claim_time_ns) / static_cast<double>(snapshot.dynamic_claim_calls)
+        : 0.0;
+    const double avg_claim_chunk_ns = snapshot.dynamic_claim_success > 0
+        ? static_cast<double>(snapshot.dynamic_claim_time_ns) / static_cast<double>(snapshot.dynamic_claim_success)
+        : 0.0;
+    const double avg_claim_retries = snapshot.dynamic_claim_success > 0
+        ? static_cast<double>(snapshot.dynamic_claim_cas_retries) / static_cast<double>(snapshot.dynamic_claim_success)
         : 0.0;
     std::ostringstream stream;
     stream << "policy=" << schedulerPolicyName(snapshot.last_policy)
@@ -427,6 +471,16 @@ std::string AutoTuner::formatScheduleStats(InferencePhase phase) const {
     appendThreadLoads(stream, snapshot.static_tasks_per_thread);
     stream << " dynamic_loads=";
     appendThreadLoads(stream, snapshot.dynamic_tasks_per_thread);
+    if (hybridInstrumentEnabled()) {
+        stream << " claim={calls=" << snapshot.dynamic_claim_calls
+               << ",ok=" << snapshot.dynamic_claim_success
+               << ",empty=" << snapshot.dynamic_claim_empty
+               << ",retry=" << snapshot.dynamic_claim_cas_retries
+               << ",avg_ns=" << static_cast<long long>(avg_claim_ns)
+               << ",chunk_ns=" << static_cast<long long>(avg_claim_chunk_ns)
+               << ",retry_ok=" << avg_claim_retries
+               << "}";
+    }
     return stream.str();
 }
 

@@ -1,0 +1,259 @@
+--------- beginning of main
+04-07 16:03:35.686  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:36.400 11782 11782 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-07 16:03:36.405 11782 11782 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-07 16:03:36.405 11782 11782 E llm_bench: Opened libinputextensionsimpl.so
+04-07 16:03:36.405 11782 11782 E llm_bench: Opened libinputextensionsimpl.so
+04-07 16:03:36.405 11782 11782 E libEGL  : No entry found in platform lookup table for eglSurfaceAttribMTK
+04-07 16:03:36.406 11782 11782 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
+04-07 16:03:36.406 11782 11782 D ExtensionsLoader: Opened libguiextimpl.so
+04-07 16:03:36.425 11782 11782 D OplusUtils: OplusUtils [89]: 
+04-07 16:03:36.430 11782 11782 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+04-07 16:03:36.432 11782 11782 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+04-07 16:03:36.432 11782 11782 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+04-07 16:03:36.432 11782 11782 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+04-07 16:03:36.432 11782 11782 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+04-07 16:03:36.432 11782 11782 W libc    : Access denied finding property "ro.hardware.chipname"
+04-07 16:03:36.432 11782 11782 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+04-07 16:03:36.432 11782 11782 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+04-07 16:03:36.432 11782 11782 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:36.432 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=dynamic, static=0.00, target_chunks=60, threads=1, affinity=0x0) Decode(policy=dynamic, static=0.00, target_chunks=2, threads=1, affinity=0x0)
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 379:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 379:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 923:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 923:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 923:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 867:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 867:
+04-07 16:03:36.433 11782 11782 I MNNJNI  : 1024
+04-07 16:03:36.433 11782 11782 I MNNJNI  : ]
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=240, min_chunk=1
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=4, min_chunk=1
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-07 16:03:36.433 11782 11782 I MNNJNI  : [AutoTuner] Decode execution updated: threads=4, affinity=0x9C
+04-07 16:03:36.438 11782 11782 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7]
+04-07 16:03:36.438 11782 11782 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=6, merged_cpu_ids=6, cpuMask=0xfc
+04-07 16:03:36.438 11782 11782 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xfc
+04-07 16:03:36.438 11782 11782 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AECS][Prefill][measure 1/3] candidate=7,6,5 threads=3 prompt=512 time=1.321890 s speed=387.324 tok/s
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 379:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 379:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 923:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 923:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 923:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 867:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 867:
+04-07 16:03:36.551 11603 11603 I MNNJNI  : 1229
+04-07 16:03:36.551 11603 11603 I MNNJNI  : ]
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=hybrid, static_ratio=1.00, target_chunks=240, min_chunk=5
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=4, min_chunk=1
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-07 16:03:36.551 11603 11603 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-07 16:03:36.687  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:36.714 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:36.720 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:36.720 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:37.427 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:37.428 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:37.428 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:37.428 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:37.687  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:37.744  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 45.5, cct -1.0, r/g/b/c: 2001.2/1172.5/531.0/3579.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.017483, conf 0.0, ts 8595056150512572
+04-07 16:03:37.969  1741  1741 D healthd : system healthd: battery l=92 v=4338 t=32.4 h=2 st=2 c=323 fc=6415000 cc=28 chg=u
+04-07 16:03:37.978  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-07 16:03:37.978  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-07 16:03:37.989 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:37.989 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:37.991 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:37.991 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:37.991 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-07 16:03:37.991 11782 11782 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-07 16:03:38.012  1761  4713 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 43.5,cct 3770.2,brl/algo/ir 0.0/2.0/18.2,pwm/dc 0.0/0.0,rgbc 1995.710449/1166.813721/542.381531/3562.227783,ts 8595056418896166,cnt 45383,flag 131072
+04-07 16:03:38.189 11782 11782 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 379:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 379:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 923:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 923:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 923:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 867:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 867:
+04-07 16:03:38.189 11782 11782 I MNNJNI  : 1024
+04-07 16:03:38.189 11782 11782 I MNNJNI  : ]
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=240, min_chunk=1
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=4, min_chunk=1
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AutoTuner] Decode execution updated: threads=4, affinity=0x9C
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=6, decode=4
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Pool    cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Prefill cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Decode  cpu ids: 2,3,4,7 | affinity mask: 0x9C
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Scheduler global=dynamic prefill=dynamic decode=dynamic prefill_static=0.000 decode_static=0.000 prefill_chunks=240 decode_chunks=4 prefill_min=1 decode_min=1
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AECS] Final execution plan prefill=2,3,4,5,6,7/6 decode=2,3,4,7/4 split_phase_bench=1
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AECS] Final static core capacities=379,379,923,923,923,867,867,1024
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=1 repeats=3 kv=true split_phase=1
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Scheduler config g=dynamic,p=dynamic,d=dynamic,ps=0,ds=0,pc=240,dc=4,pm=1,dm=1
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench] Active bindings pool=6/[2,3,4,5,6,7] prefill=6/[2,3,4,5,6,7] decode=4/[2,3,4,7]
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-07 16:03:38.190 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-07 16:03:38.687  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AECS][Prefill][measure 2/3] candidate=7,6,5 threads=3 prompt=512 time=2.396529 s speed=213.642 tok/s
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 379:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 379:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 923:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 923:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 923:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 867:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 867:
+04-07 16:03:38.984 11603 11603 I MNNJNI  : 1229
+04-07 16:03:38.984 11603 11603 I MNNJNI  : ]
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=hybrid, static_ratio=1.00, target_chunks=240, min_chunk=5
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=4, min_chunk=1
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-07 16:03:38.984 11603 11603 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-07 16:03:39.428  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:112, read content:,324,339,4338,4338,323,89,92,1,1,0,453,5063,91,0,4500,600,500,0,0,7500,0,0,1,0,2,0,0,0,1,6430,100,0,0,0,0,0,0,0
+04-07 16:03:39.428  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-07-16-03-39
+04-07 16:03:39.429  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-07 16:03:39.688  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:39.736  1890 10824 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_277]QueueRead[0] empty, waiting buffer.
+04-07 16:03:39.948 11782 11782 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=56.7101 avg_target_chunks=121.302 theo_chunks=9416 actual_chunks=9416 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=6,min=1} static_loads=[] dynamic_loads=[0:21502,1:8244,2:6189,3:15854,4:16470,5:16477] latency_us=1723053 tok_s=297.147
+04-07 16:03:39.948 11782 11782 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=1.723053 s speed=297.147 tok/s
+04-07 16:03:39.948 11782 11782 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=1 threads=4 bind=[2,3,4,7]
+04-07 16:03:39.948 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0x9C)
+04-07 16:03:40.015 11782 11782 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=170 total=76000 static=0 dynamic=76000 avg_step=111.765 avg_target_chunks=4 theo_chunks=680 actual_chunks=680 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=4,min=1} static_loads=[0:9504,1:9504,2:9504,3:9504] dynamic_loads=[0:19060,1:18972,2:18996,3:18972] latency_us=24596 tok_s=40.657
+04-07 16:03:40.015 11782 11782 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=0.024596 s speed=40.657 tok/s
+04-07 16:03:40.015 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-07 16:03:40.015 11782 11782 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=1.723053 s decode=0.024596 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,7]
+04-07 16:03:40.015 11782 11782 I MNNJNI  : [llm_bench][measure 1/3] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-07 16:03:40.015 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-07 16:03:40.379  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-07 16:03:40.379  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-07 16:03:40.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-07 16:03:40.428  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 43.9, cct -1.0, r/g/b/c: 1962.7/1144.3/525.3/3487.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.020746, conf 0.0, ts 8595058834272081
+04-07 16:03:40.689  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:40.696  1761  4713 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 45.0,cct 3827.7,brl/algo/ir 0.0/2.0/15.5,pwm/dc 0.0/0.0,rgbc 2001.208252/1172.450562/536.672241/3556.482422,ts 8595059102664685,cnt 45393,flag 131072
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AECS][Prefill][measure 3/3] candidate=7,6,5 threads=3 prompt=512 time=2.627496 s speed=194.862 tok/s
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AECS][Static][coarse] pair=7/6,5 ratio=1.4173 weights=1229:867 speed=213.642 tok/s time=2.396529 s
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AECS][Static][coarse] begin pair=7/6,5 ratio=1.5354 pair_threads=3 candidate_cpu_ids=7,6,5 capacities=379,379,923,923,923,867,867,1331
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 379:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 379:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 923:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 923:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 923:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 867:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 867:
+04-07 16:03:41.650 11603 11603 I MNNJNI  : 1331
+04-07 16:03:41.650 11603 11603 I MNNJNI  : ]
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=hybrid, static_ratio=1.00, target_chunks=240, min_chunk=5
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=4, min_chunk=1
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-07 16:03:41.650 11603 11603 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-07 16:03:41.689  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:41.794 11782 11782 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=56.7101 avg_target_chunks=121.302 theo_chunks=9416 actual_chunks=9416 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=6,min=1} static_loads=[] dynamic_loads=[0:21498,1:15793,2:4977,3:6993,4:18216,5:17259] latency_us=1745342 tok_s=293.352
+04-07 16:03:41.794 11782 11782 I MNNJNI  : [llm_bench][measure 1/3] finish prefill time=1.745342 s speed=293.352 tok/s
+04-07 16:03:41.794 11782 11782 I MNNJNI  : [llm_bench][measure 1/3] start decode gen=1 threads=4 bind=[2,3,4,7]
+04-07 16:03:41.794 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0x9C)
+04-07 16:03:41.859 11782 11782 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=170 total=76000 static=0 dynamic=76000 avg_step=111.765 avg_target_chunks=4 theo_chunks=680 actual_chunks=680 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=4,min=1} static_loads=[0:9504,1:9504,2:9504,3:9504] dynamic_loads=[0:19000,1:19000,2:19000,3:19000] latency_us=22230 tok_s=44.984
+04-07 16:03:41.859 11782 11782 I MNNJNI  : [llm_bench][measure 1/3] finish decode time=0.022230 s speed=44.984 tok/s
+04-07 16:03:41.859 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-07 16:03:41.859 11782 11782 I MNNJNI  : [llm_bench][measure 1/3] result prefill=1.745342 s decode=0.022230 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,7]
+04-07 16:03:41.859 11782 11782 I MNNJNI  : [llm_bench][measure 2/3] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-07 16:03:41.859 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-07 16:03:42.689  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:43.085  1741  1741 D healthd : system healthd: battery l=92 v=4319 t=32.4 h=2 st=2 c=689 fc=6415000 cc=28 chg=u
+04-07 16:03:43.093  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-07 16:03:43.093  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+--------- beginning of system
+04-07 16:03:43.094  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 55
+04-07 16:03:43.094  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-07 16:03:43.112  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 43.6, cct -1.0, r/g/b/c: 1929.7/1127.4/525.3/3458.8, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.017858, conf 0.0, ts 8595061518122029
+04-07 16:03:43.120  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-07 16:03:43.124  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-07 16:03:43.380  1761  4713 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 45.5,cct 3811.7,brl/algo/ir 0.0/2.0/14.4,pwm/dc 0.0/0.0,rgbc 1946.230103/1132.993042/519.544434/3464.553955,ts 8595061786698591,cnt 45403,flag 131072
+04-07 16:03:43.619 11782 11782 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=56.7101 avg_target_chunks=121.302 theo_chunks=9416 actual_chunks=9416 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=6,min=1} static_loads=[] dynamic_loads=[0:21497,1:7636,2:11197,3:15720,4:16241,5:12445] latency_us=1740978 tok_s=294.088
+04-07 16:03:43.619 11782 11782 I MNNJNI  : [llm_bench][measure 2/3] finish prefill time=1.740978 s speed=294.088 tok/s
+04-07 16:03:43.619 11782 11782 I MNNJNI  : [llm_bench][measure 2/3] start decode gen=1 threads=4 bind=[2,3,4,7]
+04-07 16:03:43.619 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0x9C)
+04-07 16:03:43.684 11782 11782 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=170 total=76000 static=0 dynamic=76000 avg_step=111.765 avg_target_chunks=4 theo_chunks=680 actual_chunks=680 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=4,min=1} static_loads=[0:9504,1:9504,2:9504,3:9504] dynamic_loads=[0:19004,1:19000,2:19000,3:18996] latency_us=21988 tok_s=45.479
+04-07 16:03:43.684 11782 11782 I MNNJNI  : [llm_bench][measure 2/3] finish decode time=0.021988 s speed=45.479 tok/s
+04-07 16:03:43.684 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-07 16:03:43.684 11782 11782 I MNNJNI  : [llm_bench][measure 2/3] result prefill=1.740978 s decode=0.021988 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,7]
+04-07 16:03:43.684 11782 11782 I MNNJNI  : [llm_bench][measure 3/3] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-07 16:03:43.684 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-07 16:03:43.690  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AECS][Prefill][warmup 1/1] candidate=7,6,5 threads=3 prompt=512 time=2.614750 s speed=195.812 tok/s
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 379:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 379:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 923:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 923:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 923:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 867:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 867:
+04-07 16:03:44.302 11603 11603 I MNNJNI  : 1331
+04-07 16:03:44.302 11603 11603 I MNNJNI  : ]
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=hybrid, static_ratio=1.00, target_chunks=240, min_chunk=5
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, static_ratio=0.00, target_chunks=4, min_chunk=1
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-07 16:03:44.302 11603 11603 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-07 16:03:44.429  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:112, read content:,324,341,4319,4319,689,89,92,1,1,0,453,5062,91,0,4500,600,500,0,0,7500,0,0,1,0,2,0,0,0,1,6430,100,0,0,0,0,0,0,0
+04-07 16:03:44.429  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-07-16-03-44
+04-07 16:03:44.429  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-07 16:03:44.690  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:44.734  6289  6312 E horae   : 0: back:33518,back_1:34259,frame:32348,front:34680, 24 3, +(2172), 0 ,40939,36130,35137,36611,32400,41162,36387,35407,36882,32400,41450,36611,35663,37169,32400,42274,36852,35878,37454,32400, target_temp:34680, algo:0
+04-07 16:03:44.735  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-07 16:03:44.736  1890 10824 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_277]QueueRead[0] empty, waiting buffer.
+04-07 16:03:45.346 30153 21893 I TeaLog  : s worked:true 60000
+04-07 16:03:45.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-07 16:03:45.380  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-07 16:03:45.381  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-07 16:03:45.442 11782 11782 I MNNJNI  : [llm_bench][sched][PREFILL] policy=dynamic ops=338 total=84736 static=0 dynamic=84736 avg_step=56.7101 avg_target_chunks=121.302 theo_chunks=9416 actual_chunks=9416 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=6,min=1} static_loads=[] dynamic_loads=[0:21507,1:12686,2:3346,3:17407,4:17029,5:12761] latency_us=1729241 tok_s=296.084
+04-07 16:03:45.442 11782 11782 I MNNJNI  : [llm_bench][measure 3/3] finish prefill time=1.729241 s speed=296.084 tok/s
+04-07 16:03:45.443 11782 11782 I MNNJNI  : [llm_bench][measure 3/3] start decode gen=1 threads=4 bind=[2,3,4,7]
+04-07 16:03:45.443 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0x9C)
+04-07 16:03:45.508 11782 11782 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=170 total=76000 static=0 dynamic=76000 avg_step=111.765 avg_target_chunks=4 theo_chunks=680 actual_chunks=680 last={total=18992,static=0,dynamic=18992,step=4748,target=4,threads=4,min=1} static_loads=[0:9504,1:9504,2:9504,3:9504] dynamic_loads=[0:19000,1:19000,2:19000,3:19000] latency_us=21309 tok_s=46.929
+04-07 16:03:45.508 11782 11782 I MNNJNI  : [llm_bench][measure 3/3] finish decode time=0.021309 s speed=46.929 tok/s
+04-07 16:03:45.508 11782 11782 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-07 16:03:45.508 11782 11782 I MNNJNI  : [llm_bench][measure 3/3] result prefill=1.729241 s decode=0.021309 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,7]
+04-07 16:03:45.508 11782 11782 I MNNJNI  : [llm_bench] Final result prefill=294.508 +- 1.413 tok/s decode=45.797 +- 1.010 tok/s prefill=6/[2,3,4,5,6,7] decode=4/[2,3,4,7]
+04-07 16:03:45.691  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-07 16:03:45.796  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 44.9, cct -1.0, r/g/b/c: 1984.7/1166.8/536.7/3550.7, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.019357, conf 0.0, ts 8595064202291247

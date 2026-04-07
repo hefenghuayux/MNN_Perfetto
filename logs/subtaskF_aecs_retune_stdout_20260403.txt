@@ -1,0 +1,3 @@
+Segmentation fault 
+Command exited with non-zero status 139
+HOST_ELAPSED_SEC=1.09

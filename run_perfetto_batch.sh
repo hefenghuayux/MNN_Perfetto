@@ -1,4 +1,33 @@
 #!/bin/bash
+# LOCAL_PKG=final_version \
+# PREFILL_SCHED_POLICY=guided \
+# PREFILL_STATIC_RATIO=0.05 \
+# PREFILL_MIN_CHUNK=32 \
+# DECODE_SCHED_POLICY=guided \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=final_version6 \ 
+# PREFILL_SCHED_POLICY=guided \
+# PREFILL_STATIC_RATIO=0.5 \
+# PREFILL_MIN_CHUNK=1 \
+# DECODE_SCHED_POLICY=dynamic \
+# DECODE_DYNAMIC_BLOCKS=4 \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=final_version6 \ 
+# PREFILL_SCHED_POLICY=dynamic \
+# PREFILL_DYNAMIC_BLOCKS=30 \
+# DECODE_SCHED_POLICY=dynamic \
+# DECODE_DYNAMIC_BLOCKS=4 \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=final_version2 \
+# PREFILL_SCHED_POLICY=dynamic \
+# DECODE_DYNAMIC_BLOCKS=30 \
+# DECODE_SCHED_POLICY=dynamic \
+# DECODE_DYNAMIC_BLOCKS=4 \
+# bash ./run_perfetto_batch.sh
+
 
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
@@ -78,33 +107,34 @@ fi
 # DECODE_STATIC_RATIO="0.02"
 # PREFILL_MIN_CHUNK="32"
 # DECODE_MIN_CHUNK="8"
-# 当前脚本默认直接对齐手工最优回归参数：
-#   sched-policy=dynamic
-#   prefill/decode bind=2,3,4,5,6,7
-#   prefill-static-ratio=0
-#   prefill-dynamic-blocks=240
-#   prefill-min-chunk=32
-SCHED_POLICY="dynamic"
-PREFILL_THREADS="6"
-DECODE_THREADS="6"
-PREFILL_CPU_IDS=""
-DECODE_CPU_IDS=""
-PREFILL_SCHED_POLICY=""
-DECODE_SCHED_POLICY=""
-PREFILL_STATIC_RATIO="0"
-DECODE_STATIC_RATIO=""
-PREFILL_DYNAMIC_BLOCKS="240"
-DECODE_DYNAMIC_BLOCKS=""
-PREFILL_MIN_CHUNK="32"
-DECODE_MIN_CHUNK=""
-SPLIT_PHASE_BENCH=true
+# 当前脚本默认直接对齐手工最优回归参数，可通过同名环境变量覆盖。
+# 例如：
+#   PREFILL_SCHED_POLICY=guided
+#   PREFILL_STATIC_RATIO=0.05
+#   PREFILL_MIN_CHUNK=32
+#   DECODE_SCHED_POLICY=guided
+#   DECODE_MIN_CHUNK=8
+SCHED_POLICY="${SCHED_POLICY:-dynamic}"
+PREFILL_THREADS="${PREFILL_THREADS:-6}"
+DECODE_THREADS="${DECODE_THREADS:-6}"
+PREFILL_CPU_IDS="${PREFILL_CPU_IDS:-}"
+DECODE_CPU_IDS="${DECODE_CPU_IDS:-}"
+PREFILL_SCHED_POLICY="${PREFILL_SCHED_POLICY:-}"
+DECODE_SCHED_POLICY="${DECODE_SCHED_POLICY:-}"
+PREFILL_STATIC_RATIO="${PREFILL_STATIC_RATIO:-0}"
+DECODE_STATIC_RATIO="${DECODE_STATIC_RATIO:-}"
+PREFILL_DYNAMIC_BLOCKS="${PREFILL_DYNAMIC_BLOCKS:-240}"
+DECODE_DYNAMIC_BLOCKS="${DECODE_DYNAMIC_BLOCKS:-}"
+PREFILL_MIN_CHUNK="${PREFILL_MIN_CHUNK:-32}"
+DECODE_MIN_CHUNK="${DECODE_MIN_CHUNK:-}"
+SPLIT_PHASE_BENCH="${SPLIT_PHASE_BENCH:-true}"
 
 # 基线 workload 默认与手工最优回归保持一致。
-KV_CACHE="true"
-PROMPT_TOKENS="512"
-GENERATE_TOKENS="128"
-REPEAT_COUNT="5"
-DYNAMIC_OPTION="0"
+KV_CACHE="${KV_CACHE:-true}"
+PROMPT_TOKENS="${PROMPT_TOKENS:-512}"
+GENERATE_TOKENS="${GENERATE_TOKENS:-128}"
+REPEAT_COUNT="${REPEAT_COUNT:-5}"
+DYNAMIC_OPTION="${DYNAMIC_OPTION:-0}"
 
 SCRIPT_SCHED_ARGS=()
 SCRIPT_FEATURE_ARGS=()
@@ -174,7 +204,7 @@ if [ "$ENABLE_TRACE" = true ]; then
 fi
 
 # 1. 基础配置
-LOCAL_PKG="${LOCAL_PKG:-hybrid_stepwise_check}"
+LOCAL_PKG="${LOCAL_PKG:-final_version1}"
 REMOTE_DIR="${REMOTE_DIR:-/data/local/tmp/${LOCAL_PKG}}"
 TRACE_FILE_REMOTE="/data/misc/perfetto-traces/temp_trace.perfetto-trace"
 # 【注意】确保此 Config 的 duration_ms 足够长 (例如 60000ms)，我们会手动提前结束它
@@ -200,18 +230,18 @@ adb shell "killall -9 perfetto > /dev/null 2>&1"
 # 测试用例定义
 # 格式:
 #   "线程数:核心列表"
-#   或 "线程数:核心列表:阶段核心列表" (prefill/decode 共用同一组阶段核心)
+#   或 "线程数:核心列表:decode核心列表" (prefill 绑核=核心列表, decode 绑核=第三段)
 #   或 "线程数:核心列表:prefill核心列表:decode核心列表"
 #   或 "线程数:核心列表:prefill核心列表:decode核心列表:prefill线程:decode线程"
 # 示例:
 #   "4:4,5,6,7"                    -> -t 4, phase线程默认跟随 -t
-#   "6:2,3,4,5,6,7:2,3,4,5,7"      -> -t 6, -pt/-dt 自动=5，且 pids/dids=2,3,4,5,7
+#   "6:2,3,4,5,6,7:2,3,4,7"        -> -t 6, -pt 6 -dt 4, pids=2,3,4,5,6,7 dids=2,3,4,7
 #   "6:2,3,4,5,6,7:2,3,4,5,7:3,4,5" -> -t 6, pids=2,3,4,5,7 dids=3,4,5
 #   "6:2,3,4,5,6,7:2,3,4,5,7:3,4,5:5:3" -> 显式 -pt 5 -dt 3
 # ---------------------------------------------------------
 TEST_CASES=(
     # 7:2,3,4,5,6,7
-    "6:2,3,4,5,6,7:2,3,4,5,6,7"
+    "6:2,3,4,5,6,7:2,3,4,7"
     # 5:2,3,4,6,7
     
     # "4:4,5,6,7" 
@@ -223,7 +253,7 @@ TEST_CASES=(
 
 for case in "${TEST_CASES[@]}"; do
     # 解析参数:
-    # threads:ids[:phase_ids]
+    # threads:ids[:decode_ids]
     # threads:ids[:prefill_ids:decode_ids]
     # threads:ids[:prefill_ids:decode_ids:prefill_threads:decode_threads]
     IFS=":" read -r threads ids field3 field4 field5 field6 <<< "$case"
@@ -235,9 +265,12 @@ for case in "${TEST_CASES[@]}"; do
 
     if [[ -n "$field3" ]]; then
         if [[ -z "$field4" ]]; then
-            # 三段格式: threads:ids:phase_ids
-            case_prefill_ids="$field3"
+            # 三段格式: threads:ids:decode_ids
+            # 语义: -pt 跟随 -t，-dt 按 decode 核心数自动推导，pids 使用全局 ids。
+            case_prefill_ids="$ids"
             case_decode_ids="$field3"
+            case_prefill_threads="$threads"
+            case_decode_threads=$(count_csv_items "$case_decode_ids")
         else
             # 四段或六段格式: threads:ids:prefill_ids:decode_ids[:pt:dt]
             case_prefill_ids="$field3"

@@ -26,13 +26,13 @@
 
 
 
-extern std::atomic<int> g_small_task_count;
-extern std::atomic<int> g_total_task_count;
-extern std::atomic<int> g_task_count;
-extern std::atomic<long long> g_divide_size_total;
-extern std::atomic<int> g_divide_size_count;
-extern std::atomic<long long> g_pipeline_task_size_total;
-extern std::atomic<int> g_pipeline_task_count;
+// extern std::atomic<int> g_small_task_count;
+// extern std::atomic<int> g_total_task_count;
+// extern std::atomic<int> g_task_count;
+// extern std::atomic<long long> g_divide_size_total;
+// extern std::atomic<int> g_divide_size_count;
+// extern std::atomic<long long> g_pipeline_task_size_total;
+// extern std::atomic<int> g_pipeline_task_count;
 using namespace MNN::Transformer;
 
 struct RuntimeParameters
@@ -1005,7 +1005,7 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("      --decode-static-ratio <f[,f...]>      (default: 0)\n");
     printf("      --prefill-dynamic-blocks <n[,n...]>   (default: auto=4T)\n");
     printf("      --decode-dynamic-blocks <n[,n...]>    (default: auto=2T)\n");
-    printf("      --prefill-min-chunk <n>               (default: guided=32, else 1)\n");
+    printf("      --prefill-min-chunk <n>               (default: guided=5, else 1)\n");
     printf("      --decode-min-chunk <n>                (default: guided=8, else 1)\n");
     printf("      --sched-sweep <spec>                  (format: prefill=0,0.02;decode=0,0.02)\n");
     printf("      --split-phase-bench                   (default: false) | force separate prefill/decode benchmark passes\n");
@@ -2064,16 +2064,16 @@ int main(int argc, char ** argv) {
                     aecsController.checkPrefillTemperature();
                     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
                     MNN::AutoTuner::getInstance()->resetScheduleStats(MNN::InferencePhase::PREFILL);
-                    int p_start_total = g_task_count.load();
-                    int p_start_small = g_small_task_count.load();
+                    // int p_start_total = g_task_count.load();
+                    // int p_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (prefill_only)");
                     llm->response(tokens, nullptr, nullptr, 1);
                     end_trace_marker();
                     sampler_us += context->prefill_us;
                     printScheduleSummary(MNN::InferencePhase::PREFILL, context->prefill_us, prompt_tokens);
-                    int p_end_total = g_task_count.load();
-                    int p_end_small = g_small_task_count.load();
-                    print_task_stats("PREFILL", p_start_total, p_end_total, p_start_small, p_end_small);
+                    // int p_end_total = g_task_count.load();
+                    // int p_end_small = g_small_task_count.load();
+                    // print_task_stats("PREFILL", p_start_total, p_end_total, p_start_small, p_end_small);
                 }
 
                 // --- [修改 2] Prefill 结束后 ---
@@ -2092,17 +2092,17 @@ int main(int argc, char ** argv) {
                    
                     // --- [修改 3] Decode 开始前 ---
                     // MNN_PRINT("\n==================== [MARKER] DECODE START ====================\n");
-                    int d_start_total = g_task_count.load();
-                    int d_start_small = g_small_task_count.load();
+                    // int d_start_total = g_task_count.load();
+                    // int d_start_small = g_small_task_count.load();
                     begin_trace_marker("llm->response (decode_only)");
                     llm->response(tokens1, nullptr, nullptr, decodeTokens);
                     end_trace_marker();
 
                     sampler_us += context->decode_us;
                     printScheduleSummary(MNN::InferencePhase::DECODE, context->decode_us, decodeTokens);
-                    int d_end_total = g_task_count.load();
-                    int d_end_small = g_small_task_count.load();
-                    print_task_stats("DECODE", d_start_total, d_end_total, d_start_small, d_end_small);
+                    // int d_end_total = g_task_count.load();
+                    // int d_end_small = g_small_task_count.load();
+                    // print_task_stats("DECODE", d_start_total, d_end_total, d_start_small, d_end_small);
                     // --- [修改 4] Decode 结束后 ---
                     // MNN_PRINT("\n==================== [MARKER] DECODE END ====================\n");
                 }
@@ -2130,16 +2130,16 @@ int main(int argc, char ** argv) {
     
     // 打印任务大小统计信息
     // MNN_PRINT("\n==================== Task Size Statistics ====================\n");
-    int divide_count = g_divide_size_count.load();
-    long long divide_total = g_divide_size_total.load();
-    double divide_avg = (divide_count > 0) ? (double)divide_total / divide_count : 0.0;
-    // MNN_PRINT("computeDivideSizes - Total calls: %d, Total size: %lld, Average size: %.2f\n", 
+    // int divide_count = g_divide_size_count.load();
+    // long long divide_total = g_divide_size_total.load();
+    // double divide_avg = (divide_count > 0) ? (double)divide_total / divide_count : 0.0;
+    // MNN_PRINT("computeDivideSizes - Total calls: %d, Total size: %lld, Average size: %.2f\n",
     //           divide_count, divide_total, divide_avg);
-    
-    int pipeline_count = g_pipeline_task_count.load();
-    long long pipeline_total = g_pipeline_task_size_total.load();
-    double pipeline_avg = (pipeline_count > 0) ? (double)pipeline_total / pipeline_count : 0.0;
-    // MNN_PRINT("Pipeline tasks - Total tasks: %d, Total size: %lld, Average size: %.2f\n", 
+    //
+    // int pipeline_count = g_pipeline_task_count.load();
+    // long long pipeline_total = g_pipeline_task_size_total.load();
+    // double pipeline_avg = (pipeline_count > 0) ? (double)pipeline_total / pipeline_count : 0.0;
+    // MNN_PRINT("Pipeline tasks - Total tasks: %d, Total size: %lld, Average size: %.2f\n",
     //           pipeline_count, pipeline_total, pipeline_avg);
     // MNN_PRINT("==============================================================\n");
     

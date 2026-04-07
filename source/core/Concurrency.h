@@ -58,15 +58,16 @@
 
 // __total_size__: 总任务数，用于在执行时初始化动态状态
 // __step_size__: 动态任务的步长
-#define MNN_CONCURRENCY_HYBRID_BEGIN(__iter__, __num__, __divides__, __total_size__, __step_size__) \
-    {                                                                                \
-        auto cpuBn = (CPUBackend*)backend();                                         \
-        /* 在执行时重新初始化动态状态，避免被其他算子覆盖 */                              \
-        int __static_end__ = (__divides__)[__num__];                                 \
-        cpuBn->initDynamicTaskState(__static_end__, __total_size__, __step_size__);  \
-        std::pair<std::function<void(int)>, int> task;                               \
-        task.second = __num__;                                                       \
-        task.first  = [&, cpuBn](int __iter__) {
+// __policy__/__target_chunks__/__min_chunk_size__: 规划阶段产出的动态调度配置
+#define MNN_CONCURRENCY_HYBRID_BEGIN(iter_, num_, divides_, total_size_, step_size_, policy_, target_chunks_, min_chunk_size_) \
+    {                                                                                                                         \
+        auto cpuBn = (CPUBackend*)backend();                                                                                  \
+        /* 在执行时重新初始化动态状态，避免被其他算子覆盖；这里要带上完整计划，避免回退到 tuner 原始参数。 */                           \
+        int __static_end__ = (divides_)[num_];                                                                                \
+        cpuBn->initDynamicTaskState(__static_end__, total_size_, step_size_, policy_, num_, target_chunks_, min_chunk_size_); \
+        std::pair<std::function<void(int)>, int> task;                                                                        \
+        task.second = num_;                                                                                                   \
+        task.first  = [&, cpuBn](int iter_) {
 
 #define MNN_CONCURRENCY_HYBRID_END()                                   \
     }                                                                  \
@@ -148,8 +149,8 @@
 // iOS / OSX / Windows / Other: 非线程池模式的后备混合调度宏
 // 在这些平台上，混合调度退化为普通的静态分配
 
-#define MNN_CONCURRENCY_HYBRID_BEGIN(__iter__, __num__, __divides__, __total_size__, __step_size__) \
-    for (int __iter__ = 0; __iter__ < __num__; __iter__++) {
+#define MNN_CONCURRENCY_HYBRID_BEGIN(iter_, num_, divides_, total_size_, step_size_, policy_, target_chunks_, min_chunk_size_) \
+    for (int iter_ = 0; iter_ < num_; iter_++) {
 
 #define MNN_CONCURRENCY_HYBRID_END() }
 

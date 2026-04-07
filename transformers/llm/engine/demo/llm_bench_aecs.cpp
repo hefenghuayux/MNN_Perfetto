@@ -82,7 +82,9 @@ static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedul
     const SchedulerPolicy policy = phase_config.policy_explicit ? phase_config.policy : schedule_config.policy;
     const int default_target_chunks = is_prefill ? std::max(1, active_threads * 4)
                                                  : std::max(1, active_threads * 2);
-    const int default_min_chunk = policy == SchedulerPolicy::GUIDED ? (is_prefill ? 32 : 8) : 1;
+    // Guided 模式下 min_chunk_size 作为 K 使用：min_step_size = total_size / (active_threads * K)。
+    // Prefill 默认取 5，与纯 dynamic 在 active_threads * 5 分块附近的观测最优点对齐。
+    const int default_min_chunk = policy == SchedulerPolicy::GUIDED ? (is_prefill ? 5 : 8) : 1;
     TuningParams params;
     params.policy = policy;
     params.static_ratio = phase_config.static_ratio_explicit
@@ -387,7 +389,6 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
         mThermalGuard.reset(new ThermalGuard(mParams.tuning_config));
         mEnergyProfiler.reset(new EnergyProfiler(mParams.tuning_config));
 
-        AecsTuner tuner(mTopology, mParams.tuning_config, mParams.heuristic_params, mBuildPlan.pool_cpu_ids);
         AecsCacheKey cache_key;
         cache_key.device_fingerprint = mTopology.device_fingerprint;
         cache_key.model_path = mParams.model_path;
@@ -407,6 +408,46 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
                       mParams.prompt_tokens, tuning_prompt_tokens);
         }
 
+        LlmBenchScheduleConfig static_schedule_config = mParams.schedule_config;
+        static_schedule_config.prefill.policy = SchedulerPolicy::HYBRID;
+        static_schedule_config.prefill.policy_explicit = true;
+        static_schedule_config.prefill.static_ratio = 1.0f;
+        static_schedule_config.prefill.static_ratio_explicit = true;
+        AecsTuner static_tuner(mTopology, mParams.tuning_config, mParams.heuristic_params);
+        MNN_PRINT("[AECS] Start static calibration with build pool=%d/%s and inspected capacities=%s\n",
+                  mBuildPlan.pool_threads,
+                  joinCpuIds(mBuildPlan.pool_cpu_ids).c_str(),
+                  joinCpuIds(mBuildPlan.core_capacities).c_str());
+        const auto static_calibration = static_tuner.calibrateStaticCapacities(
+            cache_key,
+            [&](const std::vector<int>& cpu_ids, int threads, const std::vector<int>& core_capacities) {
+                return measurePrefillCandidate(llm,
+                                               tuning_prompt_tokens,
+                                               mParams.tuning_config.warmup_runs,
+                                               mParams.tuning_config.measure_runs,
+                                               cpu_ids,
+                                               threads,
+                                               mBuildPlan.pool_threads,
+                                               mBuildPlan.pool_cpu_ids,
+                                               mBuildPlan.pool_threads,
+                                               mBuildPlan.pool_cpu_ids,
+                                               static_schedule_config,
+                                               core_capacities,
+                                               mThermalGuard.get());
+            });
+        if (static_calibration.valid) {
+            mBuildPlan.core_capacities = static_calibration.core_capacities;
+            mRuntimePlan.core_capacities = static_calibration.core_capacities;
+            MNN_PRINT("[AECS] Static calibration %s cluster_count=%d capacities=%s\n",
+                      static_calibration.cache_hit ? "cache-hit" : "measured",
+                      static_calibration.cluster_count,
+                      joinCpuIds(static_calibration.core_capacities).c_str());
+        } else {
+            MNN_PRINT("[AECS] Static calibration unavailable, continue with inspected capacities=%s\n",
+                      joinCpuIds(mBuildPlan.core_capacities).c_str());
+        }
+
+        AecsTuner tuner(mTopology, mParams.tuning_config, mParams.heuristic_params, mBuildPlan.pool_cpu_ids);
         const auto tuned = tuner.tune(
             cache_key,
             mParams.prefill_manual ? mParams.prefill_cpu_ids : std::vector<int>(),
@@ -486,6 +527,8 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
               joinCpuIds(mRuntimePlan.final_decode_cpu_ids).c_str(),
               mRuntimePlan.final_decode_threads,
               mRuntimePlan.split_phase_bench ? 1 : 0);
+    MNN_PRINT("[AECS] Final static core capacities=%s\n",
+              joinCpuIds(mRuntimePlan.core_capacities).c_str());
     MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
     llm->reset();
     mPrepared = true;

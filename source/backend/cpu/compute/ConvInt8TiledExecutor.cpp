@@ -1573,7 +1573,14 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             MNN_CONCURRENCY_END();
         } else {
             // Phase 1: 混合调度路径 — 静态区间 + 动态抢占
-            MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
+            MNN_CONCURRENCY_HYBRID_BEGIN(tId,
+                                         threads,
+                                         mDivides.data(),
+                                         mTotalTasks,
+                                         mDynamicStepSize,
+                                         mDynamicPolicy,
+                                         mDynamicTargetChunks,
+                                         mDynamicMinChunkSize) {
                 MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), [&](int start, int end) {
                     AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, start, end);
                     processOcRange((int)tId, start, end);
@@ -1602,7 +1609,14 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
             MNN_CONCURRENCY_END();
         } else {
             // Phase 1: 混合调度路径 — 静态区间 + 动态抢占
-            MNN_CONCURRENCY_HYBRID_BEGIN(tId, threads, mDivides.data(), mTotalTasks, mDynamicStepSize) {
+            MNN_CONCURRENCY_HYBRID_BEGIN(tId,
+                                         threads,
+                                         mDivides.data(),
+                                         mTotalTasks,
+                                         mDynamicStepSize,
+                                         mDynamicPolicy,
+                                         mDynamicTargetChunks,
+                                         mDynamicMinChunkSize) {
                 // 阶段1: 执行静态私有区间
                 MNN_HYBRID_STATIC_RANGE(tId, mDivides.data(), [&](int start, int end) {
                     AutoTuner::getInstance()->noteStaticRange(phase, (int)tId, start, end);

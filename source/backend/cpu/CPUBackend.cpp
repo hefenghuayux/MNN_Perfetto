@@ -9,7 +9,9 @@
 #include "backend/cpu/CPUBackend.hpp"
 #include "AutoTuner.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <mutex>
 #include <numeric>
 #include <unordered_map>
@@ -48,13 +50,21 @@
 #define MNN_CPU_MAX_BUFFER_INDEX 2
 #define MNN_CPU_CHECK_NAN 1
 #define MNN_CPU_USE_DEFAULT_BACKEND 4
-extern "C" {
-    __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
-    __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
-    __attribute__((visibility("default"))) std::atomic<long long> g_divide_size_total(0);
-    __attribute__((visibility("default"))) std::atomic<int> g_divide_size_count(0);
-}
+// extern "C" {
+//     __attribute__((visibility("default"))) std::atomic<int> g_small_task_count(0);
+//     __attribute__((visibility("default"))) std::atomic<int> g_task_count(0);
+//     __attribute__((visibility("default"))) std::atomic<long long> g_divide_size_total(0);
+//     __attribute__((visibility("default"))) std::atomic<int> g_divide_size_count(0);
+// }
 namespace MNN {
+static bool _hybridPlanLogEnabled() {
+    static const bool enabled = []() {
+        const char* value = std::getenv("MNN_ENABLE_HYBRID_INSTRUMENT");
+        return value != nullptr && value[0] != '0';
+    }();
+    return enabled;
+}
+
 static int _effectiveThreadCount(int configuredThreads) {
     int activeThreads = AutoTuner::getInstance()->getActiveThreadCount();
     activeThreads = std::max(1, activeThreads);
@@ -271,9 +281,10 @@ ErrorCode CastWrapExecution::onExecute(const std::vector<Tensor*>& inputs, const
 }
 void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
     begin_trace_marker("CPUBackend::computeDivideSizes");
-    g_task_count++;
-    g_divide_size_total += size;
-    g_divide_size_count++;
+    // 测试统计已禁用
+    // g_task_count++;
+    // g_divide_size_total += size;
+    // g_divide_size_count++;
 
     const int effectiveThreads = _effectiveThreadCount(mThreadNumber);
     const auto* cpuInfo = MNNGetCPUInfo();
@@ -282,7 +293,7 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
                                               effectiveThreads);
     if (!_hasWeightVariance(weights) || (avgDiv > 0 && avgDiv < mComputeI)) {
         _fillUniformDivides(size, dst, effectiveThreads, mThreadNumber, size);
-        g_small_task_count++;
+        // g_small_task_count++;
         end_trace_marker();
         return;
     }
@@ -295,9 +306,10 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
 
 DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) const {
     begin_trace_marker("CPUBackend::computeDivideSizesHybrid");
-    g_task_count++;
-    g_divide_size_total += size;
-    g_divide_size_count++;
+    // 测试统计已禁用
+    // g_task_count++;
+    // g_divide_size_total += size;
+    // g_divide_size_count++;
     DivideSchedulePlan plan;
     plan.total_size = size;
     plan.active_threads = _effectiveThreadCount(mThreadNumber);
@@ -308,6 +320,7 @@ DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, floa
     const auto* cpuInfo = MNNGetCPUInfo();
     const auto weights = _activeThreadWeights(cpuInfo, tuner->getFastAffinityMask(), plan.active_threads);
     const bool hasVariance = _hasWeightVariance(weights);
+    const float requestedStaticRatio = params.static_ratio;
     plan.policy = params.policy;
     plan.min_chunk_size = std::max(1, params.min_chunk_size);
     plan.target_chunks = params.dynamic_target_chunks > 0
@@ -319,18 +332,18 @@ DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, floa
         plan.total_static = size;
         plan.dynamic_size = 0;
         plan.step_size = 1;
-        g_small_task_count++;
+        // g_small_task_count++;
         end_trace_marker();
         return plan;
     }
 
     float staticRatio = params.static_ratio;
+    bool smallTask = false;
     if (plan.policy == SchedulerPolicy::DYNAMIC) {
         staticRatio = 0.0f;
     } else if (plan.policy == SchedulerPolicy::GUIDED) {
-        const bool smallTask = size < plan.active_threads * 2;
-        const bool highVariance = _hasHighWeightVariance(weights);
-        if (smallTask || (highVariance && size < plan.active_threads * 4)) {
+        smallTask = size < plan.active_threads * 2;
+        if (smallTask) {
             staticRatio = 0.0f;
         }
     }
@@ -345,7 +358,11 @@ DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, floa
     plan.dynamic_size = std::max(0, size - plan.total_static);
     if (plan.dynamic_size > 0) {
         if (plan.policy == SchedulerPolicy::GUIDED) {
-            plan.step_size = std::max(plan.min_chunk_size, UP_DIV(plan.dynamic_size, std::max(1, plan.active_threads * 2)));
+            // Guided 相对下限：将 min_chunk_size 解释为 K，按 total_size/(threads*K) 计算实际最小块。
+            // 这样不同任务规模下都能保持相近的粒度比例，避免固定绝对块大小带来的不公平。
+            const int k = std::max(1, params.min_chunk_size);
+            plan.min_chunk_size = std::max(1, UP_DIV(plan.total_size, std::max(1, plan.active_threads * k)));
+            plan.step_size = std::max(plan.min_chunk_size, UP_DIV(plan.total_size, std::max(1, plan.active_threads * 2)));
             plan.theoretical_dynamic_chunks = _simulateGuidedChunks(plan.dynamic_size,
                                                                     plan.active_threads,
                                                                     plan.min_chunk_size);
@@ -357,6 +374,32 @@ DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, floa
     } else {
         plan.step_size = 1;
         plan.theoretical_dynamic_chunks = 0;
+    }
+
+    if (_hybridPlanLogEnabled()) {
+        static std::atomic<int> sHybridPlanSeq{0};
+        const int seq = sHybridPlanSeq.fetch_add(1, std::memory_order_relaxed);
+        const float finalStaticRatio = size > 0 ? static_cast<float>(plan.total_static) / static_cast<float>(size) : 0.0f;
+        const auto phase = tuner->getPhase();
+        const char* phaseName = phase == InferencePhase::PREFILL ? "prefill" :
+                                (phase == InferencePhase::DECODE ? "decode" : "unknown");
+        MNN_PRINT("[HybridPlan] seq=%d phase=%s size=%d avgDiv=%.4f decodeByAvg=%d policy=%s req_static=%.4f final_static=%.4f total_static=%d dynamic=%d threads=%d hasVariance=%d smallTask=%d target=%d min=%d step=%d\n",
+                  seq,
+                  phaseName,
+                  size,
+                  avgDiv,
+                  isDecodeFeatures ? 1 : 0,
+                  schedulerPolicyName(plan.policy),
+                  requestedStaticRatio,
+                  finalStaticRatio,
+                  plan.total_static,
+                  plan.dynamic_size,
+                  plan.active_threads,
+                  hasVariance ? 1 : 0,
+                  smallTask ? 1 : 0,
+                  plan.target_chunks,
+                  plan.min_chunk_size,
+                  plan.step_size);
     }
 
     end_trace_marker();
@@ -411,21 +454,37 @@ void CPUBackend::initDynamicTaskState(int static_end,
 }
 
 std::pair<int, int> CPUBackend::fetchDynamicChunk() const {
+    auto* tuner = AutoTuner::getInstance();
+    const auto phase = tuner->getPhase();
+    const bool instrumentEnabled = _hybridPlanLogEnabled();
+    const auto claimStart = instrumentEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
+    int casRetries = 0;
+    auto noteClaim = [&](bool success) {
+        if (!instrumentEnabled) {
+            return;
+        }
+        const auto claimEnd = std::chrono::steady_clock::now();
+        const auto claimNs = std::chrono::duration_cast<std::chrono::nanoseconds>(claimEnd - claimStart).count();
+        tuner->noteDynamicClaim(phase, success, casRetries, claimNs);
+    };
     if (mDynamicState.policy != SchedulerPolicy::GUIDED) {
         int start = mDynamicState.cursor.fetch_add(mDynamicState.step_size, std::memory_order_acq_rel);
         int end = start + mDynamicState.step_size;
         if (start >= mDynamicState.end) {
+            noteClaim(false);
             return {0, 0};
         }
         if (end > mDynamicState.end) {
             end = mDynamicState.end;
         }
+        noteClaim(true);
         return {start, end};
     }
 
     while (true) {
         int start = mDynamicState.cursor.load(std::memory_order_acquire);
         if (start >= mDynamicState.end) {
+            noteClaim(false);
             return {0, 0};
         }
         const int remaining = mDynamicState.end - start;
@@ -434,8 +493,10 @@ std::pair<int, int> CPUBackend::fetchDynamicChunk() const {
         const int end = std::min(mDynamicState.end, start + guidedStep);
         int expected = start;
         if (mDynamicState.cursor.compare_exchange_weak(expected, end, std::memory_order_acq_rel)) {
+            noteClaim(true);
             return {start, end};
         }
+        ++casRetries;
     }
 }
 

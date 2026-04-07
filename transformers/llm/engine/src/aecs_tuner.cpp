@@ -693,6 +693,126 @@ static bool jsonGetBool(const rapidjson::Value& value, const char* key, bool fal
     return value[key].GetBool();
 }
 
+static std::vector<int> parseCpuIdArray(const rapidjson::Value& value);
+static void writeCpuIdArray(rapidjson::Value* dst,
+                            const std::vector<int>& cpu_ids,
+                            rapidjson::Document::AllocatorType& allocator);
+
+static std::vector<double> parseDoubleArray(const rapidjson::Value& value) {
+    std::vector<double> result;
+    if (!value.IsArray()) {
+        return result;
+    }
+    for (auto iter = value.Begin(); iter != value.End(); ++iter) {
+        if (iter->IsNumber()) {
+            result.push_back(iter->GetDouble());
+        }
+    }
+    return result;
+}
+
+static void writeDoubleArray(rapidjson::Value* dst,
+                             const std::vector<double>& values,
+                             rapidjson::Document::AllocatorType& allocator) {
+    dst->SetArray();
+    for (auto value : values) {
+        dst->PushBack(value, allocator);
+    }
+}
+
+static std::vector<std::vector<int>> parseCpuIdMatrix(const rapidjson::Value& value) {
+    std::vector<std::vector<int>> result;
+    if (!value.IsArray()) {
+        return result;
+    }
+    for (auto iter = value.Begin(); iter != value.End(); ++iter) {
+        result.push_back(parseCpuIdArray(*iter));
+    }
+    return result;
+}
+
+static void writeCpuIdMatrix(rapidjson::Value* dst,
+                             const std::vector<std::vector<int>>& values,
+                             rapidjson::Document::AllocatorType& allocator) {
+    dst->SetArray();
+    for (const auto& cpu_ids : values) {
+        rapidjson::Value row(rapidjson::kArrayType);
+        writeCpuIdArray(&row, cpu_ids, allocator);
+        dst->PushBack(row, allocator);
+    }
+}
+
+template <typename T>
+static T medianValue(std::vector<T> values) {
+    if (values.empty()) {
+        return T();
+    }
+    std::sort(values.begin(), values.end());
+    const size_t middle = values.size() / 2;
+    if ((values.size() & 1U) != 0U) {
+        return values[middle];
+    }
+    return static_cast<T>((values[middle - 1] + values[middle]) / static_cast<T>(2));
+}
+
+static std::vector<int> clusterWeightsFromTopology(const AecsCpuTopology& topology) {
+    std::vector<int> weights;
+    weights.reserve(topology.clusters_desc.size());
+    for (const auto& cluster : topology.clusters_desc) {
+        int weight = cluster.capacity;
+        if (weight <= 0) {
+            weight = static_cast<int>(cluster.max_freq);
+        }
+        weights.push_back(std::max(1, weight));
+    }
+    return weights;
+}
+
+static std::vector<int> expandClusterWeightsToCpuCapacities(const AecsCpuTopology& topology,
+                                                            const std::vector<int>& cluster_weights) {
+    int max_cpu_id = -1;
+    for (auto cpu_id : topology.all_cpu_ids_desc) {
+        max_cpu_id = std::max(max_cpu_id, cpu_id);
+    }
+    if (max_cpu_id < 0) {
+        return {};
+    }
+    std::vector<int> capacities(max_cpu_id + 1, 0);
+    for (size_t i = 0; i < topology.clusters_desc.size() && i < cluster_weights.size(); ++i) {
+        const int weight = std::max(1, cluster_weights[i]);
+        for (auto cpu_id : topology.clusters_desc[i].cpu_ids) {
+            if (cpu_id >= 0 && cpu_id < static_cast<int>(capacities.size())) {
+                capacities[cpu_id] = weight;
+            }
+        }
+    }
+    return capacities;
+}
+
+static double ratioFromClusterWeights(int higher_weight, int lower_weight) {
+    if (higher_weight <= 0 || lower_weight <= 0) {
+        return 1.0;
+    }
+    return static_cast<double>(higher_weight) / static_cast<double>(lower_weight);
+}
+
+static std::vector<double> ratiosFromClusterWeights(const std::vector<int>& cluster_weights) {
+    std::vector<double> ratios;
+    if (cluster_weights.size() <= 1) {
+        return ratios;
+    }
+    ratios.reserve(cluster_weights.size() - 1);
+    for (size_t i = 0; i + 1 < cluster_weights.size(); ++i) {
+        ratios.push_back(ratioFromClusterWeights(cluster_weights[i], cluster_weights[i + 1]));
+    }
+    return ratios;
+}
+
+struct StaticRatioCandidate {
+    double ratio = 1.0;
+    AecsMeasurement measurement;
+};
+
 static std::vector<int> removeCpuIdsInCluster(const std::vector<int>& cpu_ids,
                                               const std::vector<int>& cluster_cpu_ids) {
     std::vector<int> result;
@@ -922,11 +1042,18 @@ void ThermalGuard::waitUntilCool(const std::string& reason) const {
         return;
     }
 
+    const auto minimum_pause = std::chrono::seconds(5);
     const double pause_begin_s = nowSeconds();
     MNN_PRINT("[AECS][Thermal] Pause %s because %s exceeded thresholds\n",
               reason.c_str(),
               mLatest.summary.c_str());
-    mCondition.wait(lock, [&]() { return mStop || cooled(mLatest); });
+    mCondition.wait(lock, [&]() {
+        if (mStop) {
+            return true;
+        }
+        const bool paused_long_enough = nowSeconds() - pause_begin_s >= minimum_pause.count();
+        return paused_long_enough && cooled(mLatest);
+    });
     if (!mStop) {
         MNN_PRINT("[AECS][Thermal] Resume %s at %s after %.2f s\n",
                   reason.c_str(),
@@ -1269,6 +1396,331 @@ std::vector<int> AecsTuner::normalizeCpuIds(const std::vector<int>& cpu_ids) con
         }
     }
     return ordered;
+}
+
+bool AecsTuner::matchesStaticCalibrationLayout(const AecsStaticCalibrationResult& result) const {
+    if (result.cluster_count != static_cast<int>(mTopology.clusters_desc.size())) {
+        return false;
+    }
+    if (result.cluster_cpu_ids.size() != mTopology.clusters_desc.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < mTopology.clusters_desc.size(); ++i) {
+        if (result.cluster_cpu_ids[i] != mTopology.clusters_desc[i].cpu_ids) {
+            return false;
+        }
+    }
+    return true;
+}
+
+AecsStaticCalibrationResult AecsTuner::calibrateStaticCapacities(const AecsCacheKey& cache_key,
+                                                                 const StaticCalibrationMeasureFn& measure) const {
+    PhaseTuningResult cached_result;
+    const bool cache_loaded = loadCache(cache_key, &cached_result);
+    if (!mConfig.force_retune && cached_result.static_calibration.valid) {
+        return cached_result.static_calibration;
+    }
+
+    auto calibration = tuneStaticCalibration(measure);
+    if (!calibration.valid) {
+        MNN_PRINT("[AECS][Static] calibration failed, keep inspected topology capacities\n");
+        return calibration;
+    }
+
+    PhaseTuningResult result_to_save = cache_loaded ? cached_result : PhaseTuningResult();
+    calibration.cache_hit = false;
+    result_to_save.static_calibration = calibration;
+    saveCache(cache_key, result_to_save);
+    return calibration;
+}
+
+AecsStaticCalibrationResult AecsTuner::tuneStaticCalibration(const StaticCalibrationMeasureFn& measure) const {
+    AecsStaticCalibrationResult result;
+    result.cluster_count = static_cast<int>(mTopology.clusters_desc.size());
+    result.cluster_cpu_ids.reserve(mTopology.clusters_desc.size());
+    for (const auto& cluster : mTopology.clusters_desc) {
+        result.cluster_cpu_ids.push_back(cluster.cpu_ids);
+    }
+
+    auto inspected_cluster_weights = clusterWeightsFromTopology(mTopology);
+    if (inspected_cluster_weights.empty()) {
+        MNN_PRINT("[AECS][Static] unable to derive cluster weights from topology\n");
+        return result;
+    }
+
+    if (mTopology.clusters_desc.size() <= 1) {
+        result.core_capacities = expandClusterWeightsToCpuCapacities(mTopology, inspected_cluster_weights);
+        result.cluster_ratios = ratiosFromClusterWeights(inspected_cluster_weights);
+        result.valid = !result.core_capacities.empty();
+        if (result.valid) {
+            MNN_PRINT("[AECS][Static] single cluster topology, reuse inspected capacities\n");
+        }
+        return result;
+    }
+
+    const auto representative_cpu_ids = !mTopology.decode_stage1_order.empty()
+                                            ? mTopology.decode_stage1_order
+                                            : (!mTopology.prefill_order.empty() ? mTopology.prefill_order
+                                                                               : mTopology.all_cpu_ids_desc);
+    const int representative_threads = static_cast<int>(representative_cpu_ids.size());
+    const auto inspected_capacities = expandClusterWeightsToCpuCapacities(mTopology, inspected_cluster_weights);
+    if (representative_threads <= 0 || inspected_capacities.empty()) {
+        MNN_PRINT("[AECS][Static] no representative prefill candidate available before ratio sweep\n");
+        return result;
+    }
+    MNN_PRINT("[AECS][Static] representative warmup cpu_ids=%s threads=%d capacities=%s before pair measurements\n",
+              joinCpuIds(representative_cpu_ids).c_str(),
+              representative_threads,
+              joinCpuIds(inspected_capacities).c_str());
+    const auto representative_measurement =
+        measure(representative_cpu_ids, representative_threads, inspected_capacities);
+    MNN_PRINT("[AECS][Static] representative warmup speed=%.3f tok/s time=%.6f s\n",
+              representative_measurement.speed_tok_s,
+              representative_measurement.time_s);
+
+    const auto better_candidate = [](const StaticRatioCandidate& candidate,
+                                     const StaticRatioCandidate& best,
+                                     double init_ratio) {
+        const double speed_eps = 1e-9;
+        if (candidate.measurement.speed_tok_s > best.measurement.speed_tok_s + speed_eps) {
+            return true;
+        }
+        if (std::fabs(candidate.measurement.speed_tok_s - best.measurement.speed_tok_s) > speed_eps) {
+            return false;
+        }
+        const double candidate_distance = std::fabs(candidate.ratio - init_ratio);
+        const double best_distance = std::fabs(best.ratio - init_ratio);
+        if (candidate_distance + speed_eps < best_distance) {
+            return true;
+        }
+        if (std::fabs(candidate_distance - best_distance) <= speed_eps) {
+            return candidate.ratio < best.ratio;
+        }
+        return false;
+    };
+
+    std::vector<double> pair_ratios;
+    pair_ratios.reserve(mTopology.clusters_desc.size() - 1);
+
+    for (size_t i = 0; i + 1 < mTopology.clusters_desc.size(); ++i) {
+        const auto& higher = mTopology.clusters_desc[i];
+        const auto& lower = mTopology.clusters_desc[i + 1];
+        const bool skip_lowest_pair_measurement =
+            (mTopology.clusters_desc.size() >= 3) && (i + 2 == mTopology.clusters_desc.size());
+        if (skip_lowest_pair_measurement) {
+            const double inherited_ratio = !pair_ratios.empty()
+                                               ? pair_ratios.back()
+                                               : ratioFromClusterWeights(inspected_cluster_weights[i],
+                                                                         inspected_cluster_weights[i + 1]);
+            MNN_PRINT("[AECS][Static] skip pair=%s/%s measurement and inherit ratio=%.4f from previous calibrated pair because prefill does not use the slowest cluster\n",
+                      joinCpuIds(higher.cpu_ids).c_str(),
+                      joinCpuIds(lower.cpu_ids).c_str(),
+                      inherited_ratio);
+            pair_ratios.push_back(inherited_ratio);
+            continue;
+        }
+        std::vector<int> pair_cpu_ids = higher.cpu_ids;
+        pair_cpu_ids.insert(pair_cpu_ids.end(), lower.cpu_ids.begin(), lower.cpu_ids.end());
+        const int pair_threads = static_cast<int>(pair_cpu_ids.size());
+        const double init_ratio = ratioFromClusterWeights(inspected_cluster_weights[i], inspected_cluster_weights[i + 1]);
+        const double coarse_step = init_ratio * 0.10;
+        if (pair_threads <= 0 || coarse_step <= 0.0) {
+            MNN_PRINT("[AECS][Static] invalid pair layout cluster[%zu]=%s cluster[%zu]=%s, keep inspected ratio=%.4f\n",
+                      i,
+                      joinCpuIds(higher.cpu_ids).c_str(),
+                      i + 1,
+                      joinCpuIds(lower.cpu_ids).c_str(),
+                      init_ratio);
+            pair_ratios.push_back(init_ratio);
+            continue;
+        }
+
+        std::vector<StaticRatioCandidate> candidates;
+        const auto pair_inspected_capacities = expandClusterWeightsToCpuCapacities(mTopology, inspected_cluster_weights);
+        MNN_PRINT("[AECS][Static] warmup pair=%s/%s with inspected capacities before ratio sweep, pair_threads=%d candidate_cpu_ids=%s capacities=%s\n",
+                  joinCpuIds(higher.cpu_ids).c_str(),
+                  joinCpuIds(lower.cpu_ids).c_str(),
+                  pair_threads,
+                  joinCpuIds(pair_cpu_ids).c_str(),
+                  joinCpuIds(pair_inspected_capacities).c_str());
+        const auto pair_warmup_measurement = measure(pair_cpu_ids, pair_threads, pair_inspected_capacities);
+        MNN_PRINT("[AECS][Static] warmup pair=%s/%s speed=%.3f tok/s time=%.6f s\n",
+                  joinCpuIds(higher.cpu_ids).c_str(),
+                  joinCpuIds(lower.cpu_ids).c_str(),
+                  pair_warmup_measurement.speed_tok_s,
+                  pair_warmup_measurement.time_s);
+        auto evaluate_ratio = [&](double ratio, const char* stage) {
+            if (ratio < 1.0) {
+                return;
+            }
+            if (ratio <= 0.0) {
+                return;
+            }
+            for (const auto& existing : candidates) {
+                if (std::fabs(existing.ratio - ratio) <= 1e-9) {
+                    return;
+                }
+            }
+            auto pair_cluster_weights = inspected_cluster_weights;
+            const int lower_weight_base = std::max(1, inspected_cluster_weights[i + 1]);
+            pair_cluster_weights[i + 1] = lower_weight_base;
+            pair_cluster_weights[i] =
+                std::max(1, static_cast<int>(std::llround(static_cast<double>(lower_weight_base) * ratio)));
+            const auto core_capacities = expandClusterWeightsToCpuCapacities(mTopology, pair_cluster_weights);
+            MNN_PRINT("[AECS][Static][%s] begin pair=%s/%s ratio=%.4f pair_threads=%d candidate_cpu_ids=%s capacities=%s\n",
+                      stage,
+                      joinCpuIds(higher.cpu_ids).c_str(),
+                      joinCpuIds(lower.cpu_ids).c_str(),
+                      ratio,
+                      pair_threads,
+                      joinCpuIds(pair_cpu_ids).c_str(),
+                      joinCpuIds(core_capacities).c_str());
+            StaticRatioCandidate candidate;
+            candidate.ratio = ratio;
+            candidate.measurement = measure(pair_cpu_ids, pair_threads, core_capacities);
+            MNN_PRINT("[AECS][Static][%s] pair=%s/%s ratio=%.4f weights=%d:%d speed=%.3f tok/s time=%.6f s\n",
+                      stage,
+                      joinCpuIds(higher.cpu_ids).c_str(),
+                      joinCpuIds(lower.cpu_ids).c_str(),
+                      ratio,
+                      pair_cluster_weights[i],
+                      pair_cluster_weights[i + 1],
+                      candidate.measurement.speed_tok_s,
+                      candidate.measurement.time_s);
+            candidates.push_back(candidate);
+        };
+
+        if (init_ratio < 1.0) {
+            MNN_PRINT("[AECS][Static] pair=%s/%s inspected ratio=%.4f is below 1.0, clamp search to >= 1.0 because cluster order is already performance-descending\n",
+                      joinCpuIds(higher.cpu_ids).c_str(),
+                      joinCpuIds(lower.cpu_ids).c_str(),
+                      init_ratio);
+        }
+        evaluate_ratio(1.0, "coarse-anchor");
+        const double coarse_multipliers[] = {0.70, 0.80, 0.90, 1.00, 1.10, 1.20, 1.30};
+        for (double multiplier : coarse_multipliers) {
+            evaluate_ratio(init_ratio * multiplier, "coarse");
+        }
+
+        while (!candidates.empty()) {
+            size_t best_index = 0;
+            for (size_t candidate_index = 1; candidate_index < candidates.size(); ++candidate_index) {
+                if (better_candidate(candidates[candidate_index], candidates[best_index], init_ratio)) {
+                    best_index = candidate_index;
+                }
+            }
+
+            double min_ratio = candidates.front().ratio;
+            double max_ratio = candidates.front().ratio;
+            for (const auto& candidate : candidates) {
+                min_ratio = std::min(min_ratio, candidate.ratio);
+                max_ratio = std::max(max_ratio, candidate.ratio);
+            }
+
+            const bool best_on_min = std::fabs(candidates[best_index].ratio - min_ratio) <= 1e-9;
+            const bool best_on_max = std::fabs(candidates[best_index].ratio - max_ratio) <= 1e-9;
+            if (!best_on_min && !best_on_max) {
+                break;
+            }
+
+            if (best_on_min) {
+                const double next_ratio = min_ratio - coarse_step;
+                if (next_ratio <= 0.0) {
+                    break;
+                }
+                evaluate_ratio(next_ratio, "coarse-expand");
+                continue;
+            }
+            evaluate_ratio(max_ratio + coarse_step, "coarse-expand");
+        }
+
+        size_t coarse_best_index = 0;
+        for (size_t candidate_index = 1; candidate_index < candidates.size(); ++candidate_index) {
+            if (better_candidate(candidates[candidate_index], candidates[coarse_best_index], init_ratio)) {
+                coarse_best_index = candidate_index;
+            }
+        }
+        const double fine_deltas[] = {-0.06, -0.04, -0.02, 0.0, 0.02, 0.04, 0.06};
+        for (double delta : fine_deltas) {
+            evaluate_ratio(candidates[coarse_best_index].ratio + delta, "fine");
+        }
+
+        size_t best_index = 0;
+        for (size_t candidate_index = 1; candidate_index < candidates.size(); ++candidate_index) {
+            if (better_candidate(candidates[candidate_index], candidates[best_index], init_ratio)) {
+                best_index = candidate_index;
+            }
+        }
+        const auto& best = candidates[best_index];
+        MNN_PRINT("[AECS][Static] selected pair=%s/%s ratio=%.4f speed=%.3f tok/s after %zu measurements\n",
+                  joinCpuIds(higher.cpu_ids).c_str(),
+                  joinCpuIds(lower.cpu_ids).c_str(),
+                  best.ratio,
+                  best.measurement.speed_tok_s,
+                  candidates.size());
+        pair_ratios.push_back(best.ratio);
+    }
+
+    std::vector<int> calibrated_cluster_weights(mTopology.clusters_desc.size(), 100);
+    for (int i = static_cast<int>(mTopology.clusters_desc.size()) - 2; i >= 0; --i) {
+        calibrated_cluster_weights[i] =
+            std::max(1, static_cast<int>(std::llround(static_cast<double>(calibrated_cluster_weights[i + 1]) *
+                                                      pair_ratios[i])));
+    }
+
+    const auto calibrated_capacities = expandClusterWeightsToCpuCapacities(mTopology, calibrated_cluster_weights);
+    if (calibrated_capacities.empty() || inspected_capacities.empty()) {
+        MNN_PRINT("[AECS][Static] failed to expand calibrated capacities to per-cpu weights\n");
+        return result;
+    }
+
+    const auto& validation_cpu_ids = !mTopology.decode_stage1_order.empty()
+                                         ? mTopology.decode_stage1_order
+                                         : (!mTopology.prefill_order.empty() ? mTopology.prefill_order
+                                                                            : mTopology.all_cpu_ids_desc);
+    const int validation_threads = static_cast<int>(validation_cpu_ids.size());
+    if (validation_threads <= 0) {
+        MNN_PRINT("[AECS][Static] no cpu ids available for validation\n");
+        return result;
+    }
+
+    MNN_PRINT("[AECS][Static] begin validation cpu_ids=%s threads=%d inspected_capacities=%s calibrated_capacities=%s\n",
+              joinCpuIds(validation_cpu_ids).c_str(),
+              validation_threads,
+              joinCpuIds(inspected_capacities).c_str(),
+              joinCpuIds(calibrated_capacities).c_str());
+    const auto inspected_measurement = measure(validation_cpu_ids, validation_threads, inspected_capacities);
+    const auto calibrated_measurement = measure(validation_cpu_ids, validation_threads, calibrated_capacities);
+    const bool adopt_calibrated =
+        calibrated_measurement.speed_tok_s + 1e-9 >= inspected_measurement.speed_tok_s;
+    const auto& adopted_cluster_weights = adopt_calibrated ? calibrated_cluster_weights : inspected_cluster_weights;
+    const auto& adopted_capacities = adopt_calibrated ? calibrated_capacities : inspected_capacities;
+    if (!adopt_calibrated) {
+        MNN_PRINT("[AECS][Static] calibrated profile speed=%.3f tok/s is slower than inspected profile speed=%.3f tok/s, keep inspected capacities\n",
+                  calibrated_measurement.speed_tok_s,
+                  inspected_measurement.speed_tok_s);
+    } else {
+        MNN_PRINT("[AECS][Static] calibrated profile accepted speed=%.3f tok/s baseline=%.3f tok/s\n",
+                  calibrated_measurement.speed_tok_s,
+                  inspected_measurement.speed_tok_s);
+    }
+
+    result.core_capacities = adopted_capacities;
+    result.cluster_ratios = ratiosFromClusterWeights(adopted_cluster_weights);
+    result.valid = true;
+    if (!result.cluster_ratios.empty()) {
+        std::ostringstream stream;
+        for (size_t ratio_index = 0; ratio_index < result.cluster_ratios.size(); ++ratio_index) {
+            if (ratio_index > 0) {
+                stream << ", ";
+            }
+            stream << result.cluster_ratios[ratio_index];
+        }
+        MNN_PRINT("[AECS][Static] final cluster ratios=[%s]\n", stream.str().c_str());
+    }
+    MNN_PRINT("[AECS][Static] adopted per-cpu capacities=%s\n",
+              joinCpuIds(result.core_capacities).c_str());
+    return result;
 }
 
 std::vector<std::vector<int>> AecsTuner::buildPrefillCandidates() const {
@@ -1697,13 +2149,34 @@ bool AecsTuner::loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* resu
             result->decode_cpu_ids = parseCpuIdArray(saved_result["decode_cpu_ids"]);
         }
         result->decode_threads = jsonGetInt(saved_result, "decode_threads", static_cast<int>(result->decode_cpu_ids.size()));
+        result->static_calibration.cluster_count =
+            jsonGetInt(saved_result, "static_cluster_count", static_cast<int>(mTopology.clusters_desc.size()));
+        if (saved_result.HasMember("static_core_capacities")) {
+            result->static_calibration.core_capacities = parseCpuIdArray(saved_result["static_core_capacities"]);
+        }
+        if (saved_result.HasMember("static_cluster_ratios")) {
+            result->static_calibration.cluster_ratios = parseDoubleArray(saved_result["static_cluster_ratios"]);
+        }
+        if (saved_result.HasMember("static_cluster_cpu_ids")) {
+            result->static_calibration.cluster_cpu_ids = parseCpuIdMatrix(saved_result["static_cluster_cpu_ids"]);
+        }
+        if (!result->static_calibration.core_capacities.empty()) {
+            if (!matchesStaticCalibrationLayout(result->static_calibration)) {
+                MNN_PRINT("[AECS][Static] cached cluster layout mismatch, remeasure static capacities\n");
+                result->static_calibration = AecsStaticCalibrationResult();
+            } else {
+                result->static_calibration.valid = true;
+                result->static_calibration.cache_hit = true;
+            }
+        }
         result->cache_hit = true;
         result->prefill_from_cache = !result->prefill_cpu_ids.empty();
         result->decode_from_cache = !result->decode_cpu_ids.empty();
-        MNN_PRINT("[AECS] Cache hit for model=%s, prefill=%s, decode=%s\n",
+        MNN_PRINT("[AECS] Cache hit for model=%s, prefill=%s, decode=%s, static=%d\n",
                   cache_key.model_path.c_str(),
                   joinCpuIds(result->prefill_cpu_ids).c_str(),
-                  joinCpuIds(result->decode_cpu_ids).c_str());
+                  joinCpuIds(result->decode_cpu_ids).c_str(),
+                  result->static_calibration.valid ? 1 : 0);
         return true;
     }
     return false;
@@ -1769,6 +2242,16 @@ void AecsTuner::saveCache(const AecsCacheKey& cache_key, const PhaseTuningResult
     writeCpuIdArray(&decode_ids, result.decode_cpu_ids, allocator);
     result_json.AddMember("decode_cpu_ids", decode_ids, allocator);
     result_json.AddMember("decode_threads", result.decode_threads, allocator);
+    result_json.AddMember("static_cluster_count", result.static_calibration.cluster_count, allocator);
+    rapidjson::Value static_core_capacities;
+    writeCpuIdArray(&static_core_capacities, result.static_calibration.core_capacities, allocator);
+    result_json.AddMember("static_core_capacities", static_core_capacities, allocator);
+    rapidjson::Value static_cluster_ratios;
+    writeDoubleArray(&static_cluster_ratios, result.static_calibration.cluster_ratios, allocator);
+    result_json.AddMember("static_cluster_ratios", static_cluster_ratios, allocator);
+    rapidjson::Value static_cluster_cpu_ids;
+    writeCpuIdMatrix(&static_cluster_cpu_ids, result.static_calibration.cluster_cpu_ids, allocator);
+    result_json.AddMember("static_cluster_cpu_ids", static_cluster_cpu_ids, allocator);
     entry.AddMember("result", result_json, allocator);
 
     auto& entries = doc["entries"];
