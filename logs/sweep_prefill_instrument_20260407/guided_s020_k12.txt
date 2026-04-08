@@ -1,0 +1,19 @@
+>>> [模式] Perfetto Tracing 已关闭 (默认)
+>>> [模式] Hybrid instrumentation 已开启 (--instrument)
+>>> [模式] AECS 离线搜索已关闭 (默认)
+>>> [参数] 脚本默认调度参数: --sched-policy dynamic --prefill-sched-policy guided --decode-sched-policy dynamic --prefill-static-ratio 0.2 --prefill-dynamic-blocks 240 --decode-dynamic-blocks 4 --prefill-min-chunk 12
+>>> [参数] 脚本功能参数: --split-phase-bench
+============================================================
+正在运行: 线程=6
+Prefill线程: 6 | Decode线程: 4
+全局绑核 Ids: 2,3,4,5,6,7
+测试包目录: /data/local/tmp/final_version6
+Prefill绑核 Ids: 2,3,4,5,6,7 | Decode绑核 Ids: 2,3,4,7
+============================================================
+>>> [Step 2] 运行 llm_bench...
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | g=dynamic,p=guided,d=dynamic,ps=0.2,ds=0,pc=240,dc=4,pm=12,dm=1 | prompt=512<br>decode=1 | 588.08 ± 0.84<br>49.93 ± 0.70 |
+
+>>> [Done] 本轮结束。
+

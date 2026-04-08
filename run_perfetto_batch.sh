@@ -6,28 +6,28 @@
 # DECODE_SCHED_POLICY=guided \
 # bash ./run_perfetto_batch.sh
 
-# LOCAL_PKG=final_version6 \ 
+# LOCAL_PKG=final_version7 \
 # PREFILL_SCHED_POLICY=guided \
 # PREFILL_STATIC_RATIO=0.5 \
-# PREFILL_MIN_CHUNK=1 \
+# PREFILL_MIN_CHUNK=8 \
 # DECODE_SCHED_POLICY=dynamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
 # bash ./run_perfetto_batch.sh
 
-# LOCAL_PKG=final_version6 \ 
+# LOCAL_PKG=final_version7 \
 # PREFILL_SCHED_POLICY=dynamic \
+# PREFILL_STATIC_RATIO=0.8 \
 # PREFILL_DYNAMIC_BLOCKS=30 \
 # DECODE_SCHED_POLICY=dynamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
 # bash ./run_perfetto_batch.sh
 
 # LOCAL_PKG=final_version2 \
-# PREFILL_SCHED_POLICY=dynamic \
-# DECODE_DYNAMIC_BLOCKS=30 \
-# DECODE_SCHED_POLICY=dynamic \
+# PREFILL_SCHED_POLICY=dyamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
-# bash ./run_perfetto_batch.sh
-
+# bash ./run_perfetto_batch.shnamic \
+# PREFILL_DYNAMIC_BLOCKS=60 \
+# DECODE_SCHED_POLICY=dyn
 
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
@@ -35,6 +35,7 @@
 
 # 0. 参数解析
 ENABLE_TRACE=false
+ENABLE_INSTRUMENT=false
 ENABLE_AECS_RETUNE=false
 LLM_BENCH_ARGS=()
 
@@ -51,6 +52,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --trace)
             ENABLE_TRACE=true
+            shift
+            ;;
+        --instrument)
+            ENABLE_INSTRUMENT=true
             shift
             ;;
         --aecs-retune)
@@ -75,6 +80,12 @@ if [ "$ENABLE_TRACE" = true ]; then
     echo ">>> [模式] Perfetto Tracing 已开启 (--trace)"
 else
     echo ">>> [模式] Perfetto Tracing 已关闭 (默认)"
+fi
+
+if [ "$ENABLE_INSTRUMENT" = true ]; then
+    echo ">>> [模式] Hybrid instrumentation 已开启 (--instrument)"
+else
+    echo ">>> [模式] Hybrid instrumentation 已关闭 (默认)"
 fi
 
 if [ "$ENABLE_AECS_RETUNE" = true ]; then
@@ -198,9 +209,8 @@ if [ ${#SCRIPT_FEATURE_ARGS[@]} -gt 0 ]; then
 fi
 
 REMOTE_BENCH_PREFIX=""
-if [ "$ENABLE_TRACE" = true ]; then
+if [ "$ENABLE_TRACE" = true ] || [ "$ENABLE_INSTRUMENT" = true ]; then
     REMOTE_BENCH_PREFIX="export MNN_ENABLE_HYBRID_INSTRUMENT=1; "
-    echo ">>> [模式] Hybrid instrumentation 已开启"
 fi
 
 # 1. 基础配置
@@ -241,7 +251,7 @@ adb shell "killall -9 perfetto > /dev/null 2>&1"
 # ---------------------------------------------------------
 TEST_CASES=(
     # 7:2,3,4,5,6,7
-    "6:2,3,4,5,6,7:2,3,4,7"
+    "6:2,3,4,5,6,7:2,3,6,7"
     # 5:2,3,4,6,7
     
     # "4:4,5,6,7" 

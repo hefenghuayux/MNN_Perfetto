@@ -97,9 +97,6 @@ static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedul
     params.min_chunk_size = phase_config.min_chunk_size_explicit
         ? std::max(1, phase_config.min_chunk_size)
         : default_min_chunk;
-    if (policy == SchedulerPolicy::DYNAMIC) {
-        params.static_ratio = 0.0f;
-    }
     return params;
 }
 
