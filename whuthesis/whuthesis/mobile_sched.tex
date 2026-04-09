@@ -1,0 +1,44 @@
+\documentclass[type = master,class = academic]{whu-thesis}
+
+\whusetup{
+  info = {
+    title      = {论文题目，楷体一号},
+    title*     = {A QoS-aware Self-Adaptive System Approach in Service Computing Environment},
+    department  = {数学与统计学院},
+    department* = {School of Mathematics and Statistics},
+    author     = {张三},
+    author*    = {Xxxxxx Xxxxx},
+    student-id = {2021202012345},
+    supervisor  = {李某某},
+    supervisor* = {Xxx Xxxxx},
+    academic-title  = {教授},
+    academic-title* = {Prof},
+    subject = {英语},
+    major   = {英国语言文学},
+    major*  = {English language and literature},
+    research-area  = {英语语言学},
+    research-area* = {Operator Theory},
+    year = 2024,
+    month = 4,
+  },
+  style = {
+    font = termes,
+    math-font = termes,
+    cjk-font = fandol,
+    bib-backend = bibtex,
+    bib-resource = {ref/mnn_worksteal_refs.bib},
+  }
+}
+\whumodule{algorithm2e}
+
+\begin{document}
+
+\tableofcontents
+
+\mainmatter
+
+\include{pages/chapter1_mobile_sched.tex}
+
+\printbibliography
+
+\end{document}

@@ -5,9 +5,9 @@
 #include <cstring>
 #include <string>
 
-inline bool mnn_hybrid_instrumentation_enabled() {
+inline bool mnn_schedule_instrumentation_enabled() {
     static const bool enabled = []() {
-        const char* value = std::getenv("MNN_ENABLE_HYBRID_INSTRUMENT");
+        const char* value = std::getenv("MNN_ENABLE_SCHEDULE_INSTRUMENT");
         if (value == nullptr) {
             return false;
         }

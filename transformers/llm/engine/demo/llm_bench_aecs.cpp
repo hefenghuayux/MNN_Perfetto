@@ -79,24 +79,21 @@ static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedul
                                            bool is_prefill,
                                            int active_threads) {
     const auto& phase_config = is_prefill ? schedule_config.prefill : schedule_config.decode;
-    const SchedulerPolicy policy = phase_config.policy_explicit ? phase_config.policy : schedule_config.policy;
-    const int default_target_chunks = is_prefill ? std::max(1, active_threads * 4)
-                                                 : std::max(1, active_threads * 2);
-    // Guided 模式下 min_chunk_size 作为 K 使用：min_step_size = total_size / (active_threads * K)。
-    // Prefill 默认取 5，与纯 dynamic 在 active_threads * 5 分块附近的观测最优点对齐。
-    const int default_min_chunk = policy == SchedulerPolicy::GUIDED ? (is_prefill ? 5 : 8) : 1;
     TuningParams params;
-    params.policy = policy;
-    params.static_ratio = phase_config.static_ratio_explicit
-        ? phase_config.static_ratio
-        : ((policy == SchedulerPolicy::GUIDED) ? (is_prefill ? 0.05f : 0.02f) : 0.0f);
-    params.dynamic_target_chunks = phase_config.dynamic_target_chunks_explicit
-        ? std::max(1, phase_config.dynamic_target_chunks)
-        : default_target_chunks;
-    params.dynamic_blocks = params.dynamic_target_chunks;
-    params.min_chunk_size = phase_config.min_chunk_size_explicit
-        ? std::max(1, phase_config.min_chunk_size)
-        : default_min_chunk;
+    // 调度策略固定：prefill=work_steal，decode=dynamic。
+    params.policy = is_prefill ? SchedulerPolicy::WORK_STEAL : SchedulerPolicy::DYNAMIC;
+    if (phase_config.policy != params.policy) {
+        MNN_PRINT("[llm_bench] Ignore phase policy override: phase=%s requested=%s fixed=%s\n",
+                  is_prefill ? "prefill" : "decode",
+                  schedulerPolicyName(phase_config.policy),
+                  schedulerPolicyName(params.policy));
+    }
+    if (!is_prefill) {
+        params.dynamic_target_chunks = phase_config.dynamic_target_chunks_explicit
+            ? std::max(1, phase_config.dynamic_target_chunks)
+            : std::max(1, active_threads * 2);
+        params.dynamic_blocks = params.dynamic_target_chunks;
+    }
     return params;
 }
 
@@ -310,16 +307,9 @@ void configurePhaseExecutionPlan(int pool_threads,
                   joinCpuIds(prefill_cpu_ids).c_str(), prefill_affinity_mask);
         MNN_PRINT("[llm_bench] Decode  cpu ids: %s | affinity mask: 0x%lX\n",
                   joinCpuIds(decode_cpu_ids).c_str(), decode_affinity_mask);
-        MNN_PRINT("[llm_bench] Scheduler global=%s prefill=%s decode=%s prefill_static=%.3f decode_static=%.3f prefill_chunks=%d decode_chunks=%d prefill_min=%d decode_min=%d\n",
-                  schedulerPolicyName(schedule_config.policy),
+        MNN_PRINT("[llm_bench] Scheduler prefill=%s decode=%s\n",
                   schedulerPolicyName(prefill_params.policy),
-                  schedulerPolicyName(decode_params.policy),
-                  prefill_params.static_ratio,
-                  decode_params.static_ratio,
-                  prefill_params.dynamic_target_chunks,
-                  decode_params.dynamic_target_chunks,
-                  prefill_params.min_chunk_size,
-                  decode_params.min_chunk_size);
+                  schedulerPolicyName(decode_params.policy));
     }
 }
 
@@ -406,10 +396,6 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
         }
 
         LlmBenchScheduleConfig static_schedule_config = mParams.schedule_config;
-        static_schedule_config.prefill.policy = SchedulerPolicy::HYBRID;
-        static_schedule_config.prefill.policy_explicit = true;
-        static_schedule_config.prefill.static_ratio = 1.0f;
-        static_schedule_config.prefill.static_ratio_explicit = true;
         AecsTuner static_tuner(mTopology, mParams.tuning_config, mParams.heuristic_params);
         MNN_PRINT("[AECS] Start static calibration with build pool=%d/%s and inspected capacities=%s\n",
                   mBuildPlan.pool_threads,

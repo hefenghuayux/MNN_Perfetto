@@ -57,14 +57,6 @@
 //     __attribute__((visibility("default"))) std::atomic<int> g_divide_size_count(0);
 // }
 namespace MNN {
-static bool _hybridPlanLogEnabled() {
-    static const bool enabled = []() {
-        const char* value = std::getenv("MNN_ENABLE_HYBRID_INSTRUMENT");
-        return value != nullptr && value[0] != '0';
-    }();
-    return enabled;
-}
-
 static int _effectiveThreadCount(int configuredThreads) {
     int activeThreads = AutoTuner::getInstance()->getActiveThreadCount();
     activeThreads = std::max(1, activeThreads);
@@ -214,14 +206,6 @@ static bool _hasWeightVariance(const std::vector<float>& weights) {
     return dispersion.ratio >= 1.12f || dispersion.cv >= 0.05f;
 }
 
-static bool _hasHighWeightVariance(const std::vector<float>& weights) {
-    if (weights.size() <= 1) {
-        return false;
-    }
-    const auto dispersion = _weightDispersion(weights);
-    return dispersion.ratio >= 1.50f || dispersion.cv >= 0.15f;
-}
-
 static void _fillUniformDivides(int size, int* dst, int effectiveThreads, int totalThreads, int fillValue) {
     const int length = effectiveThreads > 0 ? UP_DIV(size, effectiveThreads) : size;
     int cur = length;
@@ -260,16 +244,34 @@ static void _fillWeightedDivides(int size,
     }
 }
 
-static int _simulateGuidedChunks(int dynamicSize, int activeThreads, int minChunkSize) {
-    int chunks = 0;
-    int remaining = std::max(0, dynamicSize);
-    const int divisor = std::max(1, activeThreads * 2);
-    while (remaining > 0) {
-        const int chunk = std::max(minChunkSize, UP_DIV(remaining, divisor));
-        remaining -= chunk;
-        ++chunks;
+#if __cplusplus >= 201703L
+static_assert(std::atomic<uint64_t>::is_always_lock_free, "64-bit atomic bounds must be lock-free");
+#else
+static_assert(ATOMIC_LLONG_LOCK_FREE == 2, "64-bit atomic bounds must be lock-free");
+#endif
+
+static inline uint64_t _packBounds(uint32_t begin, uint32_t end) {
+    return static_cast<uint64_t>(begin) | (static_cast<uint64_t>(end) << 32);
+}
+
+static inline uint32_t _unpackBegin(uint64_t packed) {
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+}
+
+static inline uint32_t _unpackEnd(uint64_t packed) {
+    return static_cast<uint32_t>(packed >> 32);
+}
+
+static void _resetPrefillThreadStats(PrefillWorkStealState& state) {
+    for (auto& stats : state.thread_stats) {
+        stats = PrefillWorkStealThreadStats{};
     }
-    return chunks;
+}
+
+static void _resetDecodeThreadStats(DynamicTaskState& state) {
+    for (auto& stats : state.thread_stats) {
+        stats = DecodeDynamicThreadStats{};
+    }
 }
 
 void registerCPUOps();
@@ -302,207 +304,219 @@ void CPUBackend::computeDivideSizes(int size, int* dst, float avgDiv) const {
     end_trace_marker();
 }
 
-// ===================== Phase 1: mixed scheduling implementation =====================
-
-DivideSchedulePlan CPUBackend::computeDivideSizesHybrid(int size, int* dst, float avgDiv) const {
-    begin_trace_marker("CPUBackend::computeDivideSizesHybrid");
-    // 测试统计已禁用
-    // g_task_count++;
-    // g_divide_size_total += size;
-    // g_divide_size_count++;
+DivideSchedulePlan CPUBackend::computeDivideSizesByPhase(int size, int* dst, float avgDiv) const {
+    begin_trace_marker("CPUBackend::computeDivideSizesByPhase");
     DivideSchedulePlan plan;
-    plan.total_size = size;
-    plan.active_threads = _effectiveThreadCount(mThreadNumber);
+    plan.total_size = std::max(0, size);
+    plan.active_threads = std::max(1, std::min(_effectiveThreadCount(mThreadNumber), MNN_MAX_SCHEDULER_THREADS));
 
-    auto tuner = AutoTuner::getInstance();
-    const bool isDecodeFeatures = (avgDiv > 0 && avgDiv < mComputeI);
-    const TuningParams params = isDecodeFeatures ? tuner->getDecodeParams() : tuner->getPrefillParams();
-    const auto* cpuInfo = MNNGetCPUInfo();
-    const auto weights = _activeThreadWeights(cpuInfo, tuner->getFastAffinityMask(), plan.active_threads);
-    const bool hasVariance = _hasWeightVariance(weights);
-    const float requestedStaticRatio = params.static_ratio;
-    plan.policy = params.policy;
-    plan.min_chunk_size = std::max(1, params.min_chunk_size);
-    plan.target_chunks = params.dynamic_target_chunks > 0
-        ? params.dynamic_target_chunks
-        : (isDecodeFeatures ? std::max(1, plan.active_threads * 2) : std::max(1, plan.active_threads * 4));
+    auto* tuner = AutoTuner::getInstance();
+    auto phase = tuner->getPhase();
+    if (phase == InferencePhase::UNKNOWN) {
+        phase = (avgDiv > 0.0f && avgDiv < mComputeI) ? InferencePhase::DECODE : InferencePhase::PREFILL;
+    }
 
-    if (plan.active_threads <= 1 || !hasVariance) {
-        _fillUniformDivides(size, dst, plan.active_threads, mThreadNumber, size);
-        plan.total_static = size;
-        plan.dynamic_size = 0;
-        plan.step_size = 1;
-        // g_small_task_count++;
+    if (phase == InferencePhase::DECODE) {
+        plan.policy = SchedulerPolicy::DYNAMIC;
+        const auto params = tuner->getDecodeParams();
+        plan.target_chunks = params.dynamic_target_chunks > 0
+            ? params.dynamic_target_chunks
+            : std::max(1, plan.active_threads * 2);
+        plan.step_size = std::max(1, UP_DIV(plan.total_size, std::max(1, plan.target_chunks)));
+        _fillUniformDivides(plan.total_size, dst, plan.active_threads, mThreadNumber, plan.total_size);
         end_trace_marker();
         return plan;
     }
 
-    float staticRatio = params.static_ratio;
-    bool smallTask = false;
-    if (plan.policy == SchedulerPolicy::GUIDED) {
-        smallTask = size < plan.active_threads * 2;
-        if (smallTask) {
-            staticRatio = 0.0f;
-        }
-    }
-
-    plan.total_static = std::min(size, std::max(0, static_cast<int>(size * staticRatio)));
-    if (plan.total_static > 0) {
-        _fillWeightedDivides(plan.total_static, dst, weights, plan.active_threads, mThreadNumber, plan.total_static);
-    } else {
-        _fillUniformDivides(0, dst, plan.active_threads, mThreadNumber, 0);
-    }
-
-    plan.dynamic_size = std::max(0, size - plan.total_static);
-    if (plan.dynamic_size > 0) {
-        if (plan.policy == SchedulerPolicy::GUIDED) {
-            // Guided 相对下限：将 min_chunk_size 解释为 K，按 total_size/(threads*K) 计算实际最小块。
-            // 这样不同任务规模下都能保持相近的粒度比例，避免固定绝对块大小带来的不公平。
-            const int k = std::max(1, params.min_chunk_size);
-            plan.min_chunk_size = std::max(1, UP_DIV(plan.total_size, std::max(1, plan.active_threads * k)));
-            plan.step_size = std::max(plan.min_chunk_size, UP_DIV(plan.total_size, std::max(1, plan.active_threads * 2)));
-            plan.theoretical_dynamic_chunks = _simulateGuidedChunks(plan.dynamic_size,
-                                                                    plan.active_threads,
-                                                                    plan.min_chunk_size);
-        } else {
-            plan.step_size = std::max(1, UP_DIV(size, std::max(1, plan.target_chunks)));
-            plan.step_size = std::min(plan.dynamic_size, plan.step_size);
-            plan.theoretical_dynamic_chunks = UP_DIV(plan.dynamic_size, std::max(1, plan.step_size));
-        }
-    } else {
-        plan.step_size = 1;
-        plan.theoretical_dynamic_chunks = 0;
-    }
-
-    if (_hybridPlanLogEnabled()) {
-        static std::atomic<int> sHybridPlanSeq{0};
-        const int seq = sHybridPlanSeq.fetch_add(1, std::memory_order_relaxed);
-        const float finalStaticRatio = size > 0 ? static_cast<float>(plan.total_static) / static_cast<float>(size) : 0.0f;
-        const auto phase = tuner->getPhase();
-        const char* phaseName = phase == InferencePhase::PREFILL ? "prefill" :
-                                (phase == InferencePhase::DECODE ? "decode" : "unknown");
-        MNN_PRINT("[HybridPlan] seq=%d phase=%s size=%d avgDiv=%.4f decodeByAvg=%d policy=%s req_static=%.4f final_static=%.4f total_static=%d dynamic=%d threads=%d hasVariance=%d smallTask=%d target=%d min=%d step=%d\n",
-                  seq,
-                  phaseName,
-                  size,
-                  avgDiv,
-                  isDecodeFeatures ? 1 : 0,
-                  schedulerPolicyName(plan.policy),
-                  requestedStaticRatio,
-                  finalStaticRatio,
-                  plan.total_static,
-                  plan.dynamic_size,
-                  plan.active_threads,
-                  hasVariance ? 1 : 0,
-                  smallTask ? 1 : 0,
-                  plan.target_chunks,
-                  plan.min_chunk_size,
-                  plan.step_size);
-    }
-
+    plan.policy = SchedulerPolicy::WORK_STEAL;
+    plan.step_size = std::max(1, UP_DIV(plan.total_size, std::max(1, plan.active_threads * 10)));
+    const auto* cpuInfo = MNNGetCPUInfo();
+    const auto weights = _activeThreadWeights(cpuInfo, tuner->getFastAffinityMask(), plan.active_threads);
+    _fillWeightedDivides(plan.total_size, dst, weights, plan.active_threads, mThreadNumber, plan.total_size);
     end_trace_marker();
     return plan;
 }
 
-void CPUBackend::initDynamicTaskState(int static_end,
-                                      int total_size,
-                                      int step_size,
-                                      SchedulerPolicy policy,
-                                      int active_threads,
-                                      int target_chunks,
-                                      int min_chunk_size) const {
-    auto tuner = AutoTuner::getInstance();
-    const auto phase = tuner->getPhase();
-    const auto tuning = tuner->getTuningParams();
-    if (active_threads <= 0) {
-        active_threads = std::max(1, tuner->getActiveThreadCount());
-    }
-    if (target_chunks <= 0) {
-        target_chunks = tuning.dynamic_target_chunks > 0
-            ? tuning.dynamic_target_chunks
-            : ((phase == InferencePhase::DECODE) ? std::max(1, active_threads * 2) : std::max(1, active_threads * 4));
-    }
-    if (min_chunk_size < 1) {
-        min_chunk_size = std::max(1, tuning.min_chunk_size);
-    }
-    if (policy == SchedulerPolicy::DYNAMIC) {
-        policy = tuning.policy;
-    }
-    mDynamicState.cursor.store(static_end, std::memory_order_release);
-    mDynamicState.end = total_size;
-    mDynamicState.step_size = std::max(1, step_size);
-    mDynamicState.min_step_size = std::max(1, min_chunk_size);
-    mDynamicState.active_threads = std::max(1, active_threads);
-    mDynamicState.target_chunks = std::max(0, target_chunks);
-    mDynamicState.policy = policy;
-    const int dynamicSize = std::max(0, total_size - static_end);
-    const int theoreticalChunks = (policy == SchedulerPolicy::GUIDED)
-        ? _simulateGuidedChunks(dynamicSize, mDynamicState.active_threads, mDynamicState.min_step_size)
-        : (dynamicSize > 0 ? UP_DIV(dynamicSize, std::max(1, mDynamicState.step_size)) : 0);
-    tuner->noteSchedulePlan(phase,
-                            policy,
-                            mDynamicState.active_threads,
-                            total_size,
-                            static_end,
-                            dynamicSize,
-                            mDynamicState.step_size,
-                            mDynamicState.target_chunks,
-                            theoreticalChunks,
-                            mDynamicState.min_step_size);
-}
-
-std::pair<int, int> CPUBackend::fetchDynamicChunk() const {
+void CPUBackend::initPrefillWorkStealState(const int* divides,
+                                           int active_threads,
+                                           int total_size,
+                                           int step_size) const {
     auto* tuner = AutoTuner::getInstance();
-    const auto phase = tuner->getPhase();
-    const bool instrumentEnabled = _hybridPlanLogEnabled();
-    const auto claimStart = instrumentEnabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
-    int casRetries = 0;
-    auto noteClaim = [&](bool success) {
-        if (!instrumentEnabled) {
-            return;
-        }
-        const auto claimEnd = std::chrono::steady_clock::now();
-        const auto claimNs = std::chrono::duration_cast<std::chrono::nanoseconds>(claimEnd - claimStart).count();
-        tuner->noteDynamicClaim(phase, success, casRetries, claimNs);
-    };
-    if (mDynamicState.policy != SchedulerPolicy::GUIDED) {
-        int start = mDynamicState.cursor.fetch_add(mDynamicState.step_size, std::memory_order_acq_rel);
-        int end = start + mDynamicState.step_size;
-        if (start >= mDynamicState.end) {
-            noteClaim(false);
-            return {0, 0};
-        }
-        if (end > mDynamicState.end) {
-            end = mDynamicState.end;
-        }
-        noteClaim(true);
-        return {start, end};
-    }
+    auto& state = mPrefillWorkStealState;
+    state.total_size = std::max(0, total_size);
+    state.step_size = std::max(1, step_size);
+    state.active_threads = std::max(1, std::min(active_threads, MNN_MAX_SCHEDULER_THREADS));
+    _resetPrefillThreadStats(state);
 
+    uint64_t nonEmptyMask = 0;
+    for (int tid = 0; tid < MNN_MAX_SCHEDULER_THREADS; ++tid) {
+        uint32_t begin = 0;
+        uint32_t end = 0;
+        uint32_t localStep = static_cast<uint32_t>(std::max(1, state.step_size));
+        if (tid < state.active_threads) {
+            begin = static_cast<uint32_t>(std::max(0, divides[tid]));
+            const int beginInt = static_cast<int>(begin);
+            end = static_cast<uint32_t>(std::max(beginInt, divides[tid + 1]));
+            if (state.total_size > 0 && begin < end) {
+                const uint32_t seedSize = end - begin;
+                const double ratio = static_cast<double>(seedSize) * static_cast<double>(state.active_threads) /
+                                     static_cast<double>(state.total_size);
+                localStep = static_cast<uint32_t>(std::max<double>(1.0, std::round(static_cast<double>(state.step_size) * ratio)));
+            }
+            if (begin < end) {
+                nonEmptyMask |= (1ULL << tid);
+            }
+        }
+        state.local_steps[tid] = localStep;
+        state.queues[tid].bounds.store(_packBounds(begin, end), std::memory_order_relaxed);
+        for (int offset = 0; offset < MNN_MAX_SCHEDULER_THREADS; ++offset) {
+            state.victim_order[tid][offset] = static_cast<uint8_t>(tid);
+        }
+    }
+    for (int tid = 0; tid < state.active_threads; ++tid) {
+        for (int offset = 0; offset + 1 < state.active_threads; ++offset) {
+            state.victim_order[tid][offset] = static_cast<uint8_t>((tid + offset + 1) % state.active_threads);
+        }
+    }
+    state.non_empty_mask.store(nonEmptyMask, std::memory_order_release);
+    tuner->noteSchedulePlan(InferencePhase::PREFILL,
+                            SchedulerPolicy::WORK_STEAL,
+                            state.active_threads,
+                            state.total_size,
+                            state.step_size);
+}
+
+std::pair<int, int> CPUBackend::fetchPrefillWorkStealChunk(int thread_id) const {
+    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS) {
+        MNN_ERROR("fetchPrefillWorkStealChunk invalid thread_id=%d\n", thread_id);
+        return {0, 0};
+    }
+    const auto& state = mPrefillWorkStealState;
+    if (thread_id >= state.active_threads) {
+        return {0, 0};
+    }
+    auto& localStats = mPrefillWorkStealState.thread_stats[thread_id];
+    auto& localQueue = mPrefillWorkStealState.queues[thread_id].bounds;
+    const uint32_t localStep = std::max<uint32_t>(1, state.local_steps[thread_id]);
+
+    ++localStats.local_pop_calls;
     while (true) {
-        int start = mDynamicState.cursor.load(std::memory_order_acquire);
-        if (start >= mDynamicState.end) {
-            noteClaim(false);
-            return {0, 0};
+        uint64_t current = localQueue.load(std::memory_order_acquire);
+        const uint32_t begin = _unpackBegin(current);
+        const uint32_t end = _unpackEnd(current);
+        if (begin >= end) {
+            break;
         }
-        const int remaining = mDynamicState.end - start;
-        const int guidedStep = std::max(mDynamicState.min_step_size,
-                                        UP_DIV(remaining, std::max(1, mDynamicState.active_threads * 2)));
-        const int end = std::min(mDynamicState.end, start + guidedStep);
-        int expected = start;
-        if (mDynamicState.cursor.compare_exchange_weak(expected, end, std::memory_order_acq_rel)) {
-            noteClaim(true);
-            return {start, end};
+        const uint32_t chunk = std::min<uint32_t>(end - begin, localStep);
+        const uint64_t next = _packBounds(begin + chunk, end);
+        if (localQueue.compare_exchange_weak(current, next, std::memory_order_acq_rel, std::memory_order_acquire)) {
+            ++localStats.local_pop_success;
+            localStats.tasks_executed += static_cast<long long>(chunk);
+            return {static_cast<int>(begin), static_cast<int>(begin + chunk)};
         }
-        ++casRetries;
+    }
+
+    const uint64_t mask = state.non_empty_mask.load(std::memory_order_relaxed);
+    for (int index = 0; index + 1 < state.active_threads; ++index) {
+        const int victimTid = state.victim_order[thread_id][index];
+        if (victimTid == thread_id) {
+            continue;
+        }
+        const uint64_t victimBit = (1ULL << victimTid);
+        if ((mask & victimBit) == 0) {
+            continue;
+        }
+
+        ++localStats.steal_attempts;
+        int casRetries = 0;
+        auto& victimQueue = mPrefillWorkStealState.queues[victimTid].bounds;
+        while (true) {
+            uint64_t current = victimQueue.load(std::memory_order_acquire);
+            const uint32_t begin = _unpackBegin(current);
+            const uint32_t end = _unpackEnd(current);
+            if (begin >= end) {
+                ++localStats.steal_empty;
+                localStats.steal_cas_retries += casRetries;
+                mPrefillWorkStealState.non_empty_mask.fetch_and(~victimBit, std::memory_order_relaxed);
+                break;
+            }
+
+            const uint32_t remaining = end - begin;
+            const uint32_t stealChunk = std::max<uint32_t>(1, remaining / 2);
+            const uint32_t newEnd = end - stealChunk;
+            const uint64_t next = _packBounds(begin, newEnd);
+            if (victimQueue.compare_exchange_weak(current, next, std::memory_order_acq_rel, std::memory_order_acquire)) {
+                if (begin >= newEnd) {
+                    mPrefillWorkStealState.non_empty_mask.fetch_and(~victimBit, std::memory_order_relaxed);
+                }
+                ++localStats.steal_success;
+                localStats.steal_cas_retries += casRetries;
+                localStats.stolen_tasks += static_cast<long long>(stealChunk);
+                localStats.tasks_executed += static_cast<long long>(stealChunk);
+                return {static_cast<int>(newEnd), static_cast<int>(end)};
+            }
+            ++casRetries;
+        }
+    }
+    return {0, 0};
+}
+
+void CPUBackend::flushPrefillWorkStealStats() const {
+    auto* tuner = AutoTuner::getInstance();
+    const int activeThreads = std::max(1, std::min(mPrefillWorkStealState.active_threads, MNN_MAX_SCHEDULER_THREADS));
+    for (int tid = 0; tid < activeThreads; ++tid) {
+        tuner->notePrefillThreadStats(tid, mPrefillWorkStealState.thread_stats[tid]);
     }
 }
 
-bool CPUBackend::hasDynamicTasks() const {
-    return mDynamicState.cursor.load(std::memory_order_acquire) < mDynamicState.end;
+void CPUBackend::initDecodeDynamicState(int total_size,
+                                        int step_size,
+                                        int active_threads) const {
+    auto& state = mDecodeDynamicState;
+    state.cursor.store(0, std::memory_order_release);
+    state.end = std::max(0, total_size);
+    state.step_size = std::max(1, step_size);
+    state.active_threads = std::max(1, std::min(active_threads, MNN_MAX_SCHEDULER_THREADS));
+    const auto params = AutoTuner::getInstance()->getDecodeParams();
+    state.target_chunks = params.dynamic_target_chunks > 0
+        ? params.dynamic_target_chunks
+        : std::max(1, state.active_threads * 2);
+    state.policy = SchedulerPolicy::DYNAMIC;
+    _resetDecodeThreadStats(state);
+    AutoTuner::getInstance()->noteSchedulePlan(InferencePhase::DECODE,
+                                               SchedulerPolicy::DYNAMIC,
+                                               state.active_threads,
+                                               state.end,
+                                               state.step_size,
+                                               state.target_chunks);
 }
 
-// ===================== Phase 1 implementation end =====================
+std::pair<int, int> CPUBackend::fetchDecodeDynamicChunk(int thread_id) const {
+    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS) {
+        MNN_ERROR("fetchDecodeDynamicChunk invalid thread_id=%d\n", thread_id);
+        return {0, 0};
+    }
+    auto& localStats = mDecodeDynamicState.thread_stats[thread_id];
+    ++localStats.claim_calls;
+    const int start = mDecodeDynamicState.cursor.fetch_add(mDecodeDynamicState.step_size, std::memory_order_acq_rel);
+    if (start >= mDecodeDynamicState.end) {
+        ++localStats.claim_empty;
+        return {0, 0};
+    }
+    const int end = std::min(mDecodeDynamicState.end, start + mDecodeDynamicState.step_size);
+    ++localStats.claim_success;
+    localStats.claimed_tasks += static_cast<long long>(end - start);
+    localStats.tasks_executed += static_cast<long long>(end - start);
+    return {start, end};
+}
+
+void CPUBackend::flushDecodeDynamicStats() const {
+    auto* tuner = AutoTuner::getInstance();
+    const int activeThreads = std::max(1, std::min(mDecodeDynamicState.active_threads, MNN_MAX_SCHEDULER_THREADS));
+    for (int tid = 0; tid < activeThreads; ++tid) {
+        tuner->noteDecodeDynamicThreadStats(tid, mDecodeDynamicState.thread_stats[tid]);
+    }
+}
 
 void CPURuntime::_bindCPUCore() const {
     if (mCpuIds.empty()) {

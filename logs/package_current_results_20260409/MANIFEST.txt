@@ -1,0 +1,9 @@
+# MANIFEST
+
+Generated: 2026-04-09 15:06:16 CST
+Root: /home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/logs/package_current_results_20260409
+
+143	bc85368f9278dc2dae49d0c41334a64dec204dd65fde187415bc0ae058a91662	./MANIFEST.txt
+2349	3f87ebb9ff41f5e9c2f4b1d67491d8465d55f05a3917931b1d8124588af8e322	./README_说明.md
+1353	ef9306c18b2e61aaf61665f9551d3c0568868fdd91735e31747a2d935e2c6f43	./docs/subtaskB_baseline_anchor_20260403.md
+3148	75bb3b664f6cb61ca90703b7445a712681b22c1e53a9ee59e839a828db528113	./docs/work_steal_remeasure_checklist_20260409.md

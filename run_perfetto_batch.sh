@@ -1,34 +1,58 @@
 #!/bin/bash
-# LOCAL_PKG=final_version \
-# PREFILL_SCHED_POLICY=guided \
-# PREFILL_STATIC_RATIO=0.05 \
-# PREFILL_MIN_CHUNK=32 \
-# DECODE_SCHED_POLICY=guided \
+# LOCAL_PKG=final_version1 \
+# PREFILL_THREADS=6 \
+# DECODE_THREADS=6 \
+# PREFILL_CPU_IDS=2,3,4,5,6,7 \
+# DECODE_CPU_IDS=2,3,6,7 \
 # bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=final_version2 \
+# PREFILL_SCHED_POLICY=dynamic \
+# PREFILL_DYNAMIC_BLOCKS=240 \
+# DECODE_SCHED_POLICY=dynamic \
+# DECODE_DYNAMIC_BLOCKS=4 \
+# bash ./run_perfetto_batch.sh 
 
 # LOCAL_PKG=final_version7 \
 # PREFILL_SCHED_POLICY=guided \
 # PREFILL_STATIC_RATIO=0.5 \
-# PREFILL_MIN_CHUNK=8 \
+# PREFILL_DYNAMIC_BLOCKS=10 \
 # DECODE_SCHED_POLICY=dynamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
-# bash ./run_perfetto_batch.sh
+# bash ./run_perfetto_batch.sh 
 
 # LOCAL_PKG=final_version7 \
-# PREFILL_SCHED_POLICY=dynamic \
-# PREFILL_STATIC_RATIO=0.8 \
-# PREFILL_DYNAMIC_BLOCKS=30 \
 # DECODE_SCHED_POLICY=dynamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
+# bash ./run_perfetto_batch.sh --trace --instrument
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal \
+# REMOTE_DIR=/data/local/tmp/work_steal \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh --trace --instrument
+
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_opt1 \
+# REMOTE_DIR=/data/local/tmp/work_steal_opt1 \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
 # bash ./run_perfetto_batch.sh
 
-# LOCAL_PKG=final_version2 \
-# PREFILL_SCHED_POLICY=dyamic \
-# DECODE_DYNAMIC_BLOCKS=4 \
-# bash ./run_perfetto_batch.shnamic \
-# PREFILL_DYNAMIC_BLOCKS=60 \
-# DECODE_SCHED_POLICY=dyn
-
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_decode_chunks_eq_threads_stats  \
+# REMOTE_DIR=/data/local/tmp/work_steal_decode_chunks_eq_threads_stats \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================
@@ -83,9 +107,9 @@ else
 fi
 
 if [ "$ENABLE_INSTRUMENT" = true ]; then
-    echo ">>> [模式] Hybrid instrumentation 已开启 (--instrument)"
+    echo ">>> [模式] Schedule instrumentation 已开启 (--instrument)"
 else
-    echo ">>> [模式] Hybrid instrumentation 已关闭 (默认)"
+    echo ">>> [模式] Schedule instrumentation 已关闭 (默认)"
 fi
 
 if [ "$ENABLE_AECS_RETUNE" = true ]; then
@@ -100,45 +124,13 @@ if [ ${#LLM_BENCH_ARGS[@]} -gt 0 ]; then
     echo ">>> [参数] 透传 llm_bench 参数: ${LLM_BENCH_ARGS[*]}"
 fi
 
-# 0.5 调度参数（在脚本里直接调 prefill/decode）
-# 留空表示不向 llm_bench 传该参数。
-# 参考可用参数：
-#   -pt/--prefill-threads -dt/--decode-threads
-#   -pids/--prefill-cpu-ids -dids/--decode-cpu-ids
-#   --sched-policy
-#   --prefill-sched-policy --decode-sched-policy
-#   --prefill-static-ratio --decode-static-ratio
-#   --prefill-dynamic-blocks --decode-dynamic-blocks
-#   --prefill-min-chunk --decode-min-chunk
-#
-# guided 常见起点（按需取消注释）：
-# PREFILL_SCHED_POLICY="guided"
-# DECODE_SCHED_POLICY="guided"
-# PREFILL_STATIC_RATIO="0.05"
-# DECODE_STATIC_RATIO="0.02"
-# PREFILL_MIN_CHUNK="32"
-# DECODE_MIN_CHUNK="8"
-# 当前脚本默认直接对齐手工最优回归参数，可通过同名环境变量覆盖。
-# 例如：
-#   PREFILL_SCHED_POLICY=guided
-#   PREFILL_STATIC_RATIO=0.05
-#   PREFILL_MIN_CHUNK=32
-#   DECODE_SCHED_POLICY=guided
-#   DECODE_MIN_CHUNK=8
-SCHED_POLICY="${SCHED_POLICY:-dynamic}"
+# 0.5 执行参数（调度策略在 llm_bench 内固定为 prefill=work_steal, decode=dynamic）
 PREFILL_THREADS="${PREFILL_THREADS:-6}"
 DECODE_THREADS="${DECODE_THREADS:-6}"
 PREFILL_CPU_IDS="${PREFILL_CPU_IDS:-}"
 DECODE_CPU_IDS="${DECODE_CPU_IDS:-}"
-PREFILL_SCHED_POLICY="${PREFILL_SCHED_POLICY:-}"
-DECODE_SCHED_POLICY="${DECODE_SCHED_POLICY:-}"
-PREFILL_STATIC_RATIO="${PREFILL_STATIC_RATIO:-0}"
-DECODE_STATIC_RATIO="${DECODE_STATIC_RATIO:-}"
-PREFILL_DYNAMIC_BLOCKS="${PREFILL_DYNAMIC_BLOCKS:-240}"
-DECODE_DYNAMIC_BLOCKS="${DECODE_DYNAMIC_BLOCKS:-}"
-PREFILL_MIN_CHUNK="${PREFILL_MIN_CHUNK:-32}"
-DECODE_MIN_CHUNK="${DECODE_MIN_CHUNK:-}"
 SPLIT_PHASE_BENCH="${SPLIT_PHASE_BENCH:-true}"
+DECODE_DYNAMIC_BLOCKS="${DECODE_DYNAMIC_BLOCKS:-}"
 
 # 基线 workload 默认与手工最优回归保持一致。
 KV_CACHE="${KV_CACHE:-true}"
@@ -173,24 +165,16 @@ count_csv_items() {
     echo "$count"
 }
 
-append_sched_arg "--sched-policy" "$SCHED_POLICY"
 if [ "$ENABLE_AECS_RETUNE" != true ]; then
     append_sched_arg "--prefill-cpu-ids" "$PREFILL_CPU_IDS"
     append_sched_arg "--decode-cpu-ids" "$DECODE_CPU_IDS"
+    append_sched_arg "--decode-dynamic-blocks" "$DECODE_DYNAMIC_BLOCKS"
 fi
-append_sched_arg "--prefill-sched-policy" "$PREFILL_SCHED_POLICY"
-append_sched_arg "--decode-sched-policy" "$DECODE_SCHED_POLICY"
-append_sched_arg "--prefill-static-ratio" "$PREFILL_STATIC_RATIO"
-append_sched_arg "--decode-static-ratio" "$DECODE_STATIC_RATIO"
-append_sched_arg "--prefill-dynamic-blocks" "$PREFILL_DYNAMIC_BLOCKS"
-append_sched_arg "--decode-dynamic-blocks" "$DECODE_DYNAMIC_BLOCKS"
-append_sched_arg "--prefill-min-chunk" "$PREFILL_MIN_CHUNK"
-append_sched_arg "--decode-min-chunk" "$DECODE_MIN_CHUNK"
 
 SCRIPT_SCHED_ARGS_STR=""
 if [ ${#SCRIPT_SCHED_ARGS[@]} -gt 0 ]; then
     SCRIPT_SCHED_ARGS_STR=$(join_quoted_args "${SCRIPT_SCHED_ARGS[@]}")
-    echo ">>> [参数] 脚本默认调度参数: ${SCRIPT_SCHED_ARGS[*]}"
+    echo ">>> [参数] 脚本默认绑核参数: ${SCRIPT_SCHED_ARGS[*]}"
 fi
 
 if [ "$SPLIT_PHASE_BENCH" = true ]; then
@@ -210,7 +194,7 @@ fi
 
 REMOTE_BENCH_PREFIX=""
 if [ "$ENABLE_TRACE" = true ] || [ "$ENABLE_INSTRUMENT" = true ]; then
-    REMOTE_BENCH_PREFIX="export MNN_ENABLE_HYBRID_INSTRUMENT=1; "
+    REMOTE_BENCH_PREFIX="export MNN_ENABLE_TRACE_MARKER=1; export MNN_ENABLE_SCHEDULE_INSTRUMENT=1; "
 fi
 
 # 1. 基础配置

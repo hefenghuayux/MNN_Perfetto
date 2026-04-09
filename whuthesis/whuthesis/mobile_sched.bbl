@@ -1,0 +1,37 @@
+\begin{thebibliography}{4}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{#1}
+\expandafter\ifx\csname urlstyle\endcsname\relax\else
+  \urlstyle{same}\fi
+\expandafter\ifx\csname href\endcsname\relax
+  \DeclareUrlCommand\doi{\urlstyle{rm}}
+  \def\eprint#1#2{#2}
+\else
+  \def\doi#1{\href{https://doi.org/#1}{\nolinkurl{#1}}}
+  \let\eprint\href
+\fi
+
+\bibitem[Blumofe et~al.(1999)Blumofe and Leiserson]{blumofe1999workstealing}
+BLUMOFE R~D, LEISERSON C~E. 1999.
+\newblock Scheduling multithreaded computations by work stealing\allowbreak[J].
+\newblock Journal of the ACM, 46\allowbreak (5): 720-748.
+
+\bibitem[Chase et~al.(2005)Chase and Lev]{chase2005deque}
+CHASE D, LEV Y. 2005.
+\newblock Dynamic circular work-stealing deque\allowbreak[C]//\allowbreak
+Proceedings of the Seventeenth Annual ACM Symposium on Parallelism in Algorithms and Architectures.
+\newblock 21-28.
+
+\bibitem[Jiang et~al.(2020)Jiang, Wang, Chen, Wu, Wang, Zou, Yang, Cui, Cai, and Yu]{jiang2020mnn}
+JIANG X, WANG H, CHEN Y, et~al. 2020.
+\newblock MNN: a universal and efficient inference engine\allowbreak[Z/OL].
+\newblock arXiv (2020).
+\newblock \url{https://arxiv.org/abs/2002.12418}.
+
+\bibitem[L{\^e} et~al.(2013)L{\^e}, Pop, Cohen, and Nardelli]{le2013weakmemory}
+L{\^E} N~M, POP A, COHEN A, et~al. 2013.
+\newblock Correct and efficient work-stealing for weak memory models\allowbreak[C]//\allowbreak
+Proceedings of the 18th ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming.
+\newblock 69-80.
+
+\end{thebibliography}

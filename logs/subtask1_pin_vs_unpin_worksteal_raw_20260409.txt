@@ -1,0 +1,348 @@
+===== CASE t=4 ids=none =====
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | p=work_steal,d=dynamic,dc=0 | prompt=512<br>decode=128 | 434.32 ± 1.09<br>86.78 ± 0.61 |
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Thread config: pool=4, prefill=4, decode=4
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Pool    cpu ids:  | affinity mask: 0x0
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Prefill cpu ids:  | affinity mask: 0x0
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Decode  cpu ids:  | affinity mask: 0x0
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench] Active bindings pool=4/[] prefill=4/[] decode=4/[]
+04-09 15:27:53.292 14533 14533 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=4 bind=[]
+04-09 15:27:54.482 14533 14533 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5708 ws_local_pop_success=3691 ws_steal_attempts=1655 ws_steal_success=1341 ws_steal_empty=314 ws_steal_cas_retries=21 ws_stolen_tasks=1875 ws_total_chunks=5032 tasks_per_thread=[0:9102,1:6025,2:6301,3:6300] latency_us=1173393 tok_s=436.341
+04-09 15:27:54.482 14533 14533 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=1.173393 s speed=436.341 tok/s
+04-09 15:27:54.482 14533 14533 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=4 bind=[]
+04-09 15:27:56.087 14533 14533 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1847258,1:1828960,2:1829534,3:1829288] latency_us=1476536 tok_s=86.689
+04-09 15:27:56.087 14533 14533 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.476536 s speed=86.689 tok/s
+04-09 15:27:56.087 14533 14533 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=1.173393 s decode=1.476536 s prefill_bind=[] decode_bind=[]
+04-09 15:27:56.087 14533 14533 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=4 bind=[]
+04-09 15:27:57.284 14533 14533 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5701 ws_local_pop_success=3684 ws_steal_attempts=1654 ws_steal_success=1341 ws_steal_empty=313 ws_steal_cas_retries=26 ws_stolen_tasks=2430 ws_total_chunks=5025 tasks_per_thread=[0:9489,1:6107,2:5832,3:6300] latency_us=1180155 tok_s=433.841
+04-09 15:27:57.284 14533 14533 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=1.180155 s speed=433.841 tok/s
+04-09 15:27:57.284 14533 14533 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=4 bind=[]
+04-09 15:27:58.876 14533 14533 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1845712,1:1830308,2:1830082,3:1828938] latency_us=1463608 tok_s=87.455
+04-09 15:27:58.876 14533 14533 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.463608 s speed=87.455 tok/s
+04-09 15:27:58.876 14533 14533 I MNNJNI  : [llm_bench][measure 1/5] result prefill=1.180155 s decode=1.463608 s prefill_bind=[] decode_bind=[]
+04-09 15:27:58.876 14533 14533 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=4 bind=[]
+04-09 15:28:00.067 14533 14533 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5708 ws_local_pop_success=3689 ws_steal_attempts=1650 ws_steal_success=1343 ws_steal_empty=307 ws_steal_cas_retries=22 ws_stolen_tasks=1930 ws_total_chunks=5032 tasks_per_thread=[0:9044,1:6489,2:5895,3:6300] latency_us=1175258 tok_s=435.649
+04-09 15:28:00.067 14533 14533 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=1.175258 s speed=435.649 tok/s
+04-09 15:28:00.067 14533 14533 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=4 bind=[]
+04-09 15:28:01.678 14533 14533 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1845748,1:1829546,2:1829824,3:1829922] latency_us=1480972 tok_s=86.430
+04-09 15:28:01.678 14533 14533 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.480972 s speed=86.430 tok/s
+04-09 15:28:01.678 14533 14533 I MNNJNI  : [llm_bench][measure 2/5] result prefill=1.175258 s decode=1.480972 s prefill_bind=[] decode_bind=[]
+04-09 15:28:01.678 14533 14533 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=4 bind=[]
+04-09 15:28:02.877 14533 14533 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5683 ws_local_pop_success=3683 ws_steal_attempts=1633 ws_steal_success=1324 ws_steal_empty=309 ws_steal_cas_retries=16 ws_stolen_tasks=1986 ws_total_chunks=5007 tasks_per_thread=[0:9250,1:5882,2:6296,3:6300] latency_us=1182335 tok_s=433.041
+04-09 15:28:02.877 14533 14533 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=1.182335 s speed=433.041 tok/s
+04-09 15:28:02.877 14533 14533 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=4 bind=[]
+04-09 15:28:04.473 14533 14533 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1849324,1:1826932,2:1829028,3:1829756] latency_us=1466643 tok_s=87.274
+04-09 15:28:04.473 14533 14533 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.466643 s speed=87.274 tok/s
+04-09 15:28:04.473 14533 14533 I MNNJNI  : [llm_bench][measure 3/5] result prefill=1.182335 s decode=1.466643 s prefill_bind=[] decode_bind=[]
+04-09 15:28:04.473 14533 14533 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=4 bind=[]
+04-09 15:28:05.669 14533 14533 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5704 ws_local_pop_success=3685 ws_steal_attempts=1651 ws_steal_success=1343 ws_steal_empty=308 ws_steal_cas_retries=23 ws_stolen_tasks=2221 ws_total_chunks=5028 tasks_per_thread=[0:9323,1:6247,2:6321,3:5837] latency_us=1180211 tok_s=433.821
+04-09 15:28:05.669 14533 14533 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=1.180211 s speed=433.821 tok/s
+04-09 15:28:05.669 14533 14533 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=4 bind=[]
+04-09 15:28:07.274 14533 14533 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1846958,1:1829304,2:1829510,3:1829268] latency_us=1475166 tok_s=86.770
+04-09 15:28:07.274 14533 14533 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.475166 s speed=86.770 tok/s
+04-09 15:28:07.274 14533 14533 I MNNJNI  : [llm_bench][measure 4/5] result prefill=1.180211 s decode=1.475166 s prefill_bind=[] decode_bind=[]
+04-09 15:28:07.274 14533 14533 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=4 bind=[]
+04-09 15:28:08.466 14533 14533 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5698 ws_local_pop_success=3684 ws_steal_attempts=1660 ws_steal_success=1338 ws_steal_empty=322 ws_steal_cas_retries=18 ws_stolen_tasks=1888 ws_total_chunks=5022 tasks_per_thread=[0:8882,1:6364,2:6529,3:5953] latency_us=1176347 tok_s=435.246
+04-09 15:28:08.466 14533 14533 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=1.176347 s speed=435.246 tok/s
+04-09 15:28:08.466 14533 14533 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=4 bind=[]
+04-09 15:28:10.085 14533 14533 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1850950,1:1827384,2:1829714,3:1826992] latency_us=1488945 tok_s=85.967
+04-09 15:28:10.085 14533 14533 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.488945 s speed=85.967 tok/s
+04-09 15:28:10.085 14533 14533 I MNNJNI  : [llm_bench][measure 5/5] result prefill=1.176347 s decode=1.488945 s prefill_bind=[] decode_bind=[]
+04-09 15:28:10.085 14533 14533 I MNNJNI  : [llm_bench] Final result prefill=434.320 +- 1.088 tok/s decode=86.779 +- 0.609 tok/s prefill=4/[] decode=4/[]
+
+===== END CASE t=4 ids=none =====
+
+===== CASE t=4 ids=4,5,6,7 =====
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | p=work_steal,d=dynamic,dc=0 | prompt=512<br>decode=128 | 459.00 ± 0.77<br>94.93 ± 0.52 |
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Thread config: pool=4, prefill=4, decode=4
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Pool    cpu ids: 4,5,6,7 | affinity mask: 0xF0
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Prefill cpu ids: 4,5,6,7 | affinity mask: 0xF0
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Decode  cpu ids: 4,5,6,7 | affinity mask: 0xF0
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench] Active bindings pool=4/[4,5,6,7] prefill=4/[4,5,6,7] decode=4/[4,5,6,7]
+04-09 15:28:11.347 14544 14544 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=4 bind=[4,5,6,7]
+04-09 15:28:12.480 14544 14544 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5592 ws_local_pop_success=3743 ws_steal_attempts=1352 ws_steal_success=1173 ws_steal_empty=179 ws_steal_cas_retries=33 ws_stolen_tasks=1341 ws_total_chunks=4916 tasks_per_thread=[0:8631,1:6309,2:6343,3:6445] latency_us=1116601 tok_s=458.534
+04-09 15:28:12.480 14544 14544 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=1.116601 s speed=458.534 tok/s
+04-09 15:28:12.480 14544 14544 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=4 bind=[4,5,6,7]
+04-09 15:28:13.965 14544 14544 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1839726,1:1832644,2:1832302,3:1830368] latency_us=1356874 tok_s=94.334
+04-09 15:28:13.966 14544 14544 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.356874 s speed=94.334 tok/s
+04-09 15:28:13.966 14544 14544 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=1.116601 s decode=1.356874 s prefill_bind=[4,5,6,7] decode_bind=[4,5,6,7]
+04-09 15:28:13.966 14544 14544 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=4 bind=[4,5,6,7]
+04-09 15:28:15.094 14544 14544 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5592 ws_local_pop_success=3743 ws_steal_attempts=1353 ws_steal_success=1173 ws_steal_empty=180 ws_steal_cas_retries=24 ws_stolen_tasks=1343 ws_total_chunks=4916 tasks_per_thread=[0:8636,1:6307,2:6345,3:6440] latency_us=1113861 tok_s=459.662
+04-09 15:28:15.094 14544 14544 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=1.113861 s speed=459.662 tok/s
+04-09 15:28:15.094 14544 14544 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=4 bind=[4,5,6,7]
+04-09 15:28:16.569 14544 14544 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1839744,1:1832598,2:1832446,3:1830252] latency_us=1345554 tok_s=95.128
+04-09 15:28:16.569 14544 14544 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.345554 s speed=95.128 tok/s
+04-09 15:28:16.569 14544 14544 I MNNJNI  : [llm_bench][measure 1/5] result prefill=1.113861 s decode=1.345554 s prefill_bind=[4,5,6,7] decode_bind=[4,5,6,7]
+04-09 15:28:16.569 14544 14544 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=4 bind=[4,5,6,7]
+04-09 15:28:17.703 14544 14544 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5593 ws_local_pop_success=3739 ws_steal_attempts=1362 ws_steal_success=1178 ws_steal_empty=184 ws_steal_cas_retries=32 ws_stolen_tasks=1350 ws_total_chunks=4917 tasks_per_thread=[0:8635,1:6330,2:6324,3:6439] latency_us=1118192 tok_s=457.882
+04-09 15:28:17.703 14544 14544 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=1.118192 s speed=457.882 tok/s
+04-09 15:28:17.703 14544 14544 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=4 bind=[4,5,6,7]
+04-09 15:28:19.188 14544 14544 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1838916,1:1833454,2:1831922,3:1830748] latency_us=1355594 tok_s=94.424
+04-09 15:28:19.188 14544 14544 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.355594 s speed=94.424 tok/s
+04-09 15:28:19.188 14544 14544 I MNNJNI  : [llm_bench][measure 2/5] result prefill=1.118192 s decode=1.355594 s prefill_bind=[4,5,6,7] decode_bind=[4,5,6,7]
+04-09 15:28:19.188 14544 14544 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=4 bind=[4,5,6,7]
+04-09 15:28:20.321 14544 14544 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5593 ws_local_pop_success=3742 ws_steal_attempts=1352 ws_steal_success=1175 ws_steal_empty=177 ws_steal_cas_retries=48 ws_stolen_tasks=1342 ws_total_chunks=4917 tasks_per_thread=[0:8631,1:6313,2:6340,3:6444] latency_us=1116553 tok_s=458.554
+04-09 15:28:20.321 14544 14544 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=1.116553 s speed=458.554 tok/s
+04-09 15:28:20.321 14544 14544 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=4 bind=[4,5,6,7]
+04-09 15:28:21.790 14544 14544 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1839516,1:1832916,2:1832114,3:1830494] latency_us=1339508 tok_s=95.557
+04-09 15:28:21.790 14544 14544 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.339508 s speed=95.557 tok/s
+04-09 15:28:21.790 14544 14544 I MNNJNI  : [llm_bench][measure 3/5] result prefill=1.116553 s decode=1.339508 s prefill_bind=[4,5,6,7] decode_bind=[4,5,6,7]
+04-09 15:28:21.790 14544 14544 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=4 bind=[4,5,6,7]
+04-09 15:28:22.920 14544 14544 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5593 ws_local_pop_success=3740 ws_steal_attempts=1352 ws_steal_success=1177 ws_steal_empty=175 ws_steal_cas_retries=52 ws_stolen_tasks=1345 ws_total_chunks=4917 tasks_per_thread=[0:8621,1:6337,2:6330,3:6440] latency_us=1114852 tok_s=459.254
+04-09 15:28:22.920 14544 14544 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=1.114852 s speed=459.254 tok/s
+04-09 15:28:22.920 14544 14544 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=4 bind=[4,5,6,7]
+04-09 15:28:24.405 14544 14544 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1838708,1:1833044,2:1832458,3:1830830] latency_us=1356486 tok_s=94.361
+04-09 15:28:24.405 14544 14544 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.356486 s speed=94.361 tok/s
+04-09 15:28:24.405 14544 14544 I MNNJNI  : [llm_bench][measure 4/5] result prefill=1.114852 s decode=1.356486 s prefill_bind=[4,5,6,7] decode_bind=[4,5,6,7]
+04-09 15:28:24.405 14544 14544 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=4 bind=[4,5,6,7]
+04-09 15:28:25.536 14544 14544 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=475 threads=4 ws_total_tasks=27728 ws_local_pop_calls=5592 ws_local_pop_success=3744 ws_steal_attempts=1352 ws_steal_success=1172 ws_steal_empty=180 ws_steal_cas_retries=41 ws_stolen_tasks=1339 ws_total_chunks=4916 tasks_per_thread=[0:8659,1:6300,2:6326,3:6443] latency_us=1113948 tok_s=459.626
+04-09 15:28:25.536 14544 14544 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=1.113948 s speed=459.626 tok/s
+04-09 15:28:25.536 14544 14544 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=4 bind=[4,5,6,7]
+04-09 15:28:27.007 14544 14544 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1838958,1:1833498,2:1832070,3:1830514] latency_us=1344650 tok_s=95.192
+04-09 15:28:27.007 14544 14544 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.344650 s speed=95.192 tok/s
+04-09 15:28:27.007 14544 14544 I MNNJNI  : [llm_bench][measure 5/5] result prefill=1.113948 s decode=1.344650 s prefill_bind=[4,5,6,7] decode_bind=[4,5,6,7]
+04-09 15:28:27.007 14544 14544 I MNNJNI  : [llm_bench] Final result prefill=458.996 +- 0.766 tok/s decode=94.933 +- 0.520 tok/s prefill=4/[4,5,6,7] decode=4/[4,5,6,7]
+
+===== END CASE t=4 ids=4,5,6,7 =====
+
+===== CASE t=5 ids=none =====
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | p=work_steal,d=dynamic,dc=0 | prompt=512<br>decode=128 | 531.67 ± 2.47<br>96.07 ± 0.76 |
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Thread config: pool=5, prefill=5, decode=5
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Pool    cpu ids:  | affinity mask: 0x0
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Prefill cpu ids:  | affinity mask: 0x0
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Decode  cpu ids:  | affinity mask: 0x0
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench] Active bindings pool=5/[] prefill=5/[] decode=5/[]
+04-09 15:28:28.318 14562 14562 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=5 bind=[]
+04-09 15:28:29.300 14562 14562 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=6003 ws_local_pop_success=3783 ws_steal_attempts=1601 ws_steal_success=1375 ws_steal_empty=226 ws_steal_cas_retries=35 ws_stolen_tasks=2232 ws_total_chunks=5158 tasks_per_thread=[0:7910,1:5041,2:4735,3:5128,4:4914] latency_us=965585 tok_s=530.249
+04-09 15:28:29.300 14562 14562 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=0.965585 s speed=530.249 tok/s
+04-09 15:28:29.300 14562 14562 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=5 bind=[]
+04-09 15:28:30.734 14562 14562 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1442563,1:1472817,2:1474222,3:1473353,4:1472085] latency_us=1308894 tok_s=97.792
+04-09 15:28:30.734 14562 14562 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.308894 s speed=97.792 tok/s
+04-09 15:28:30.734 14562 14562 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=0.965585 s decode=1.308894 s prefill_bind=[] decode_bind=[]
+04-09 15:28:30.734 14562 14562 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=5 bind=[]
+04-09 15:28:31.714 14562 14562 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5999 ws_local_pop_success=3780 ws_steal_attempts=1591 ws_steal_success=1374 ws_steal_empty=217 ws_steal_cas_retries=26 ws_stolen_tasks=2231 ws_total_chunks=5154 tasks_per_thread=[0:7919,1:5029,2:4739,3:5126,4:4915] latency_us=963571 tok_s=531.357
+04-09 15:28:31.714 14562 14562 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=0.963571 s speed=531.357 tok/s
+04-09 15:28:31.714 14562 14562 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=5 bind=[]
+04-09 15:28:33.174 14562 14562 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1445702,1:1470847,2:1472702,3:1472329,4:1473460] latency_us=1334471 tok_s=95.918
+04-09 15:28:33.174 14562 14562 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.334471 s speed=95.918 tok/s
+04-09 15:28:33.174 14562 14562 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.963571 s decode=1.334471 s prefill_bind=[] decode_bind=[]
+04-09 15:28:33.174 14562 14562 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=5 bind=[]
+04-09 15:28:34.151 14562 14562 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5905 ws_local_pop_success=3871 ws_steal_attempts=1596 ws_steal_success=1189 ws_steal_empty=407 ws_steal_cas_retries=33 ws_stolen_tasks=2108 ws_total_chunks=5060 tasks_per_thread=[0:7907,1:4563,2:5238,3:5113,4:4907] latency_us=961865 tok_s=532.299
+04-09 15:28:34.151 14562 14562 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=0.961865 s speed=532.299 tok/s
+04-09 15:28:34.151 14562 14562 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=5 bind=[]
+04-09 15:28:35.624 14562 14562 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1438256,1:1473317,2:1474303,3:1474313,4:1474851] latency_us=1348202 tok_s=94.941
+04-09 15:28:35.624 14562 14562 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.348202 s speed=94.941 tok/s
+04-09 15:28:35.624 14562 14562 I MNNJNI  : [llm_bench][measure 2/5] result prefill=0.961865 s decode=1.348202 s prefill_bind=[] decode_bind=[]
+04-09 15:28:35.624 14562 14562 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=5 bind=[]
+04-09 15:28:36.609 14562 14562 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5779 ws_local_pop_success=3928 ws_steal_attempts=1467 ws_steal_success=1006 ws_steal_empty=461 ws_steal_cas_retries=4 ws_stolen_tasks=2243 ws_total_chunks=4934 tasks_per_thread=[0:7963,1:4959,2:4803,3:5113,4:4890] latency_us=969090 tok_s=528.331
+04-09 15:28:36.609 14562 14562 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=0.969090 s speed=528.331 tok/s
+04-09 15:28:36.609 14562 14562 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=5 bind=[]
+04-09 15:28:38.067 14562 14562 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1434163,1:1474793,2:1476799,3:1474353,4:1474932] latency_us=1332113 tok_s=96.088
+04-09 15:28:38.067 14562 14562 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.332113 s speed=96.088 tok/s
+04-09 15:28:38.067 14562 14562 I MNNJNI  : [llm_bench][measure 3/5] result prefill=0.969090 s decode=1.332113 s prefill_bind=[] decode_bind=[]
+04-09 15:28:38.067 14562 14562 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=5 bind=[]
+04-09 15:28:39.045 14562 14562 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=6011 ws_local_pop_success=3772 ws_steal_attempts=1599 ws_steal_success=1394 ws_steal_empty=205 ws_steal_cas_retries=37 ws_stolen_tasks=2150 ws_total_chunks=5166 tasks_per_thread=[0:7804,1:5051,2:4842,3:5129,4:4902] latency_us=963955 tok_s=531.145
+04-09 15:28:39.046 14562 14562 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=0.963955 s speed=531.145 tok/s
+04-09 15:28:39.046 14562 14562 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=5 bind=[]
+04-09 15:28:40.499 14562 14562 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1434832,1:1474650,2:1476008,3:1474635,4:1474915] latency_us=1327756 tok_s=96.403
+04-09 15:28:40.499 14562 14562 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.327756 s speed=96.403 tok/s
+04-09 15:28:40.499 14562 14562 I MNNJNI  : [llm_bench][measure 4/5] result prefill=0.963955 s decode=1.327756 s prefill_bind=[] decode_bind=[]
+04-09 15:28:40.499 14562 14562 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=5 bind=[]
+04-09 15:28:41.471 14562 14562 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5779 ws_local_pop_success=3939 ws_steal_attempts=1492 ws_steal_success=995 ws_steal_empty=497 ws_steal_cas_retries=6 ws_stolen_tasks=2188 ws_total_chunks=4934 tasks_per_thread=[0:7971,1:4846,2:4906,3:4756,4:5249] latency_us=956646 tok_s=535.203
+04-09 15:28:41.472 14562 14562 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.956646 s speed=535.203 tok/s
+04-09 15:28:41.472 14562 14562 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=5 bind=[]
+04-09 15:28:42.917 14562 14562 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1436623,1:1473926,2:1475340,3:1474978,4:1474173] latency_us=1319509 tok_s=97.006
+04-09 15:28:42.917 14562 14562 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.319509 s speed=97.006 tok/s
+04-09 15:28:42.917 14562 14562 I MNNJNI  : [llm_bench][measure 5/5] result prefill=0.956646 s decode=1.319509 s prefill_bind=[] decode_bind=[]
+04-09 15:28:42.917 14562 14562 I MNNJNI  : [llm_bench] Final result prefill=531.667 +- 2.470 tok/s decode=96.071 +- 0.756 tok/s prefill=5/[] decode=5/[]
+
+===== END CASE t=5 ids=none =====
+
+===== CASE t=5 ids=3,4,5,6,7 =====
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | p=work_steal,d=dynamic,dc=0 | prompt=512<br>decode=128 | 549.48 ± 1.15<br>95.20 ± 0.46 |
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Thread config: pool=5, prefill=5, decode=5
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Pool    cpu ids: 3,4,5,6,7 | affinity mask: 0xF8
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Prefill cpu ids: 3,4,5,6,7 | affinity mask: 0xF8
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Decode  cpu ids: 3,4,5,6,7 | affinity mask: 0xF8
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench] Active bindings pool=5/[3,4,5,6,7] prefill=5/[3,4,5,6,7] decode=5/[3,4,5,6,7]
+04-09 15:28:44.183 14579 14579 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:45.131 14579 14579 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5941 ws_local_pop_success=3748 ws_steal_attempts=1534 ws_steal_success=1348 ws_steal_empty=186 ws_steal_cas_retries=49 ws_stolen_tasks=1983 ws_total_chunks=5096 tasks_per_thread=[0:7525,1:5386,2:4847,3:4821,4:5149] latency_us=933409 tok_s=548.527
+04-09 15:28:45.132 14579 14579 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=0.933409 s speed=548.527 tok/s
+04-09 15:28:45.132 14579 14579 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:46.594 14579 14579 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1429061,1:1479065,2:1481992,3:1472977,4:1471945] latency_us=1333690 tok_s=95.974
+04-09 15:28:46.594 14579 14579 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.333690 s speed=95.974 tok/s
+04-09 15:28:46.594 14579 14579 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=0.933409 s decode=1.333690 s prefill_bind=[3,4,5,6,7] decode_bind=[3,4,5,6,7]
+04-09 15:28:46.594 14579 14579 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:47.543 14579 14579 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5952 ws_local_pop_success=3746 ws_steal_attempts=1541 ws_steal_success=1361 ws_steal_empty=180 ws_steal_cas_retries=59 ws_stolen_tasks=2075 ws_total_chunks=5107 tasks_per_thread=[0:7517,1:5436,2:4850,3:4773,4:5152] latency_us=933335 tok_s=548.570
+04-09 15:28:47.543 14579 14579 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=0.933335 s speed=548.570 tok/s
+04-09 15:28:47.543 14579 14579 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:49.022 14579 14579 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1425574,1:1480368,2:1482233,3:1473121,4:1473744] latency_us=1349773 tok_s=94.831
+04-09 15:28:49.022 14579 14579 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.349773 s speed=94.831 tok/s
+04-09 15:28:49.022 14579 14579 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.933335 s decode=1.349773 s prefill_bind=[3,4,5,6,7] decode_bind=[3,4,5,6,7]
+04-09 15:28:49.022 14579 14579 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:49.967 14579 14579 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5944 ws_local_pop_success=3744 ws_steal_attempts=1536 ws_steal_success=1355 ws_steal_empty=181 ws_steal_cas_retries=55 ws_stolen_tasks=1991 ws_total_chunks=5099 tasks_per_thread=[0:7504,1:5378,2:4925,3:4774,4:5147] latency_us=929919 tok_s=550.586
+04-09 15:28:49.967 14579 14579 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=0.929919 s speed=550.586 tok/s
+04-09 15:28:49.967 14579 14579 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:51.432 14579 14579 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1435690,1:1478557,2:1481185,3:1469916,4:1469692] latency_us=1336662 tok_s=95.761
+04-09 15:28:51.432 14579 14579 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.336662 s speed=95.761 tok/s
+04-09 15:28:51.432 14579 14579 I MNNJNI  : [llm_bench][measure 2/5] result prefill=0.929919 s decode=1.336662 s prefill_bind=[3,4,5,6,7] decode_bind=[3,4,5,6,7]
+04-09 15:28:51.432 14579 14579 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:52.381 14579 14579 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5949 ws_local_pop_success=3745 ws_steal_attempts=1536 ws_steal_success=1359 ws_steal_empty=177 ws_steal_cas_retries=50 ws_stolen_tasks=2065 ws_total_chunks=5104 tasks_per_thread=[0:7488,1:5445,2:4859,3:4773,4:5163] latency_us=934229 tok_s=548.046
+04-09 15:28:52.381 14579 14579 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=0.934229 s speed=548.046 tok/s
+04-09 15:28:52.381 14579 14579 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:53.858 14579 14579 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1436891,1:1476766,2:1480840,3:1470626,4:1469917] latency_us=1348290 tok_s=94.935
+04-09 15:28:53.858 14579 14579 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.348290 s speed=94.935 tok/s
+04-09 15:28:53.858 14579 14579 I MNNJNI  : [llm_bench][measure 3/5] result prefill=0.934229 s decode=1.348290 s prefill_bind=[3,4,5,6,7] decode_bind=[3,4,5,6,7]
+04-09 15:28:53.858 14579 14579 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:54.805 14579 14579 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5949 ws_local_pop_success=3747 ws_steal_attempts=1538 ws_steal_success=1357 ws_steal_empty=181 ws_steal_cas_retries=51 ws_stolen_tasks=2063 ws_total_chunks=5104 tasks_per_thread=[0:7567,1:5414,2:4811,3:4785,4:5151] latency_us=929962 tok_s=550.560
+04-09 15:28:54.805 14579 14579 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=0.929962 s speed=550.560 tok/s
+04-09 15:28:54.805 14579 14579 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:56.284 14579 14579 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1421326,1:1481323,2:1482580,3:1474557,4:1475254] latency_us=1349992 tok_s=94.815
+04-09 15:28:56.284 14579 14579 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.349992 s speed=94.815 tok/s
+04-09 15:28:56.284 14579 14579 I MNNJNI  : [llm_bench][measure 4/5] result prefill=0.929962 s decode=1.349992 s prefill_bind=[3,4,5,6,7] decode_bind=[3,4,5,6,7]
+04-09 15:28:56.284 14579 14579 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:57.230 14579 14579 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=380 threads=5 ws_total_tasks=27728 ws_local_pop_calls=5947 ws_local_pop_success=3745 ws_steal_attempts=1536 ws_steal_success=1357 ws_steal_empty=179 ws_steal_cas_retries=46 ws_stolen_tasks=2032 ws_total_chunks=5102 tasks_per_thread=[0:7453,1:5465,2:4882,3:4773,4:5155] latency_us=931554 tok_s=549.619
+04-09 15:28:57.230 14579 14579 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.931554 s speed=549.619 tok/s
+04-09 15:28:57.230 14579 14579 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=5 bind=[3,4,5,6,7]
+04-09 15:28:58.698 14579 14579 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1900 threads=5 dyn_total_tasks=7335040 dyn_target_chunks=10 dyn_claim_calls=314616 dyn_claim_success=205616 dyn_claim_empty=109000 dyn_claim_tasks=7335040 dyn_total_chunks=205616 tasks_per_thread=[0:1437362,1:1477887,2:1480481,3:1469713,4:1469597] latency_us=1338404 tok_s=95.636
+04-09 15:28:58.698 14579 14579 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.338404 s speed=95.636 tok/s
+04-09 15:28:58.698 14579 14579 I MNNJNI  : [llm_bench][measure 5/5] result prefill=0.931554 s decode=1.338404 s prefill_bind=[3,4,5,6,7] decode_bind=[3,4,5,6,7]
+04-09 15:28:58.698 14579 14579 I MNNJNI  : [llm_bench] Final result prefill=549.476 +- 1.150 tok/s decode=95.196 +- 0.464 tok/s prefill=5/[3,4,5,6,7] decode=5/[3,4,5,6,7]
+
+===== END CASE t=5 ids=3,4,5,6,7 =====
+
+===== CASE t=6 ids=none =====
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | p=work_steal,d=dynamic,dc=0 | prompt=512<br>decode=128 | 606.28 ± 2.42<br>94.38 ± 0.52 |
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=6, decode=6
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Pool    cpu ids:  | affinity mask: 0x0
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Prefill cpu ids:  | affinity mask: 0x0
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Decode  cpu ids:  | affinity mask: 0x0
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench] Active bindings pool=6/[] prefill=6/[] decode=6/[]
+04-09 15:28:59.973 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[]
+04-09 15:29:00.830 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9810 ws_local_pop_success=7777 ws_steal_attempts=1595 ws_steal_success=1019 ws_steal_empty=576 ws_steal_cas_retries=17 ws_stolen_tasks=1331 ws_total_chunks=8796 tasks_per_thread=[0:6352,1:4034,2:4348,3:4516,4:4323,5:4155] latency_us=843114 tok_s=607.273
+04-09 15:29:00.831 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=0.843114 s speed=607.273 tok/s
+04-09 15:29:00.831 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=6 bind=[]
+04-09 15:29:02.314 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1241664,1:1218046,2:1220709,3:1218990,4:1218308,5:1217323] latency_us=1354898 tok_s=94.472
+04-09 15:29:02.314 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.354898 s speed=94.472 tok/s
+04-09 15:29:02.314 14593 14593 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=0.843114 s decode=1.354898 s prefill_bind=[] decode_bind=[]
+04-09 15:29:02.314 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=6 bind=[]
+04-09 15:29:03.178 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9825 ws_local_pop_success=7656 ws_steal_attempts=1627 ws_steal_success=1155 ws_steal_empty=472 ws_steal_cas_retries=38 ws_stolen_tasks=1970 ws_total_chunks=8811 tasks_per_thread=[0:6282,1:4290,2:4206,3:4116,4:4155,5:4679] latency_us=848639 tok_s=603.319
+04-09 15:29:03.178 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=0.848639 s speed=603.319 tok/s
+04-09 15:29:03.178 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=6 bind=[]
+04-09 15:29:04.661 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1240561,1:1217879,2:1218711,3:1219411,4:1218924,5:1219554] latency_us=1353711 tok_s=94.555
+04-09 15:29:04.661 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.353711 s speed=94.555 tok/s
+04-09 15:29:04.661 14593 14593 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.848639 s decode=1.353711 s prefill_bind=[] decode_bind=[]
+04-09 15:29:04.661 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[]
+04-09 15:29:05.526 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9824 ws_local_pop_success=7559 ws_steal_attempts=1729 ws_steal_success=1251 ws_steal_empty=478 ws_steal_cas_retries=53 ws_stolen_tasks=2114 ws_total_chunks=8810 tasks_per_thread=[0:6236,1:4834,2:4271,3:4075,4:3877,5:4435] latency_us=847680 tok_s=604.002
+04-09 15:29:05.526 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=0.847680 s speed=604.002 tok/s
+04-09 15:29:05.526 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=6 bind=[]
+04-09 15:29:07.009 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1239262,1:1214610,2:1218414,3:1220597,4:1220602,5:1221555] latency_us=1354443 tok_s=94.504
+04-09 15:29:07.009 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.354443 s speed=94.504 tok/s
+04-09 15:29:07.009 14593 14593 I MNNJNI  : [llm_bench][measure 2/5] result prefill=0.847680 s decode=1.354443 s prefill_bind=[] decode_bind=[]
+04-09 15:29:07.009 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[]
+04-09 15:29:07.867 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9830 ws_local_pop_success=7779 ws_steal_attempts=1604 ws_steal_success=1037 ws_steal_empty=567 ws_steal_cas_retries=11 ws_stolen_tasks=2252 ws_total_chunks=8816 tasks_per_thread=[0:6301,1:4129,2:3877,3:4206,4:4975,5:4240] latency_us=842752 tok_s=607.533
+04-09 15:29:07.867 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=0.842752 s speed=607.533 tok/s
+04-09 15:29:07.867 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=6 bind=[]
+04-09 15:29:09.346 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1242859,1:1216711,2:1219242,3:1219603,4:1222117,5:1214508] latency_us=1349702 tok_s=94.836
+04-09 15:29:09.346 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.349702 s speed=94.836 tok/s
+04-09 15:29:09.346 14593 14593 I MNNJNI  : [llm_bench][measure 3/5] result prefill=0.842752 s decode=1.349702 s prefill_bind=[] decode_bind=[]
+04-09 15:29:09.346 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[]
+04-09 15:29:10.205 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9828 ws_local_pop_success=7780 ws_steal_attempts=1615 ws_steal_success=1034 ws_steal_empty=581 ws_steal_cas_retries=17 ws_stolen_tasks=2105 ws_total_chunks=8814 tasks_per_thread=[0:6580,1:4254,2:4075,3:4206,4:4640,5:3973] latency_us=842004 tok_s=608.073
+04-09 15:29:10.205 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=0.842004 s speed=608.073 tok/s
+04-09 15:29:10.205 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=6 bind=[]
+04-09 15:29:11.703 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1237583,1:1220180,2:1219761,3:1217628,4:1218344,5:1221544] latency_us=1369144 tok_s=93.489
+04-09 15:29:11.703 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.369144 s speed=93.489 tok/s
+04-09 15:29:11.703 14593 14593 I MNNJNI  : [llm_bench][measure 4/5] result prefill=0.842004 s decode=1.369144 s prefill_bind=[] decode_bind=[]
+04-09 15:29:11.703 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[]
+04-09 15:29:12.560 14593 14593 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9810 ws_local_pop_success=7774 ws_steal_attempts=1588 ws_steal_success=1022 ws_steal_empty=566 ws_steal_cas_retries=16 ws_stolen_tasks=1644 ws_total_chunks=8796 tasks_per_thread=[0:6664,1:4033,2:4193,3:4360,4:4323,5:4155] latency_us=841473 tok_s=608.457
+04-09 15:29:12.560 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.841473 s speed=608.457 tok/s
+04-09 15:29:12.560 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=6 bind=[]
+04-09 15:29:14.043 14593 14593 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1242083,1:1218357,2:1217493,3:1216277,4:1218187,5:1222643] latency_us=1353938 tok_s=94.539
+04-09 15:29:14.043 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.353938 s speed=94.539 tok/s
+04-09 15:29:14.043 14593 14593 I MNNJNI  : [llm_bench][measure 5/5] result prefill=0.841473 s decode=1.353938 s prefill_bind=[] decode_bind=[]
+04-09 15:29:14.043 14593 14593 I MNNJNI  : [llm_bench] Final result prefill=606.277 +- 2.423 tok/s decode=94.385 +- 0.518 tok/s prefill=6/[] decode=6/[]
+
+===== END CASE t=6 ids=none =====
+
+===== CASE t=6 ids=2,3,4,5,6,7 =====
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | p=work_steal,d=dynamic,dc=0 | prompt=512<br>decode=128 | 604.06 ± 0.93<br>95.15 ± 0.31 |
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=6, decode=6
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Pool    cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Prefill cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Decode  cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench] Active bindings pool=6/[2,3,4,5,6,7] prefill=6/[2,3,4,5,6,7] decode=6/[2,3,4,5,6,7]
+04-09 15:29:15.311 14607 14607 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:16.173 14607 14607 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9823 ws_local_pop_success=7434 ws_steal_attempts=1734 ws_steal_success=1375 ws_steal_empty=359 ws_steal_cas_retries=68 ws_stolen_tasks=2164 ws_total_chunks=8809 tasks_per_thread=[0:6396,1:4591,2:4262,3:4053,4:4350,5:4076] latency_us=846337 tok_s=604.960
+04-09 15:29:16.173 14607 14607 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=0.846337 s speed=604.960 tok/s
+04-09 15:29:16.173 14607 14607 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:17.646 14607 14607 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1232861,1:1200238,2:1236428,3:1230313,4:1228045,5:1207155] latency_us=1344429 tok_s=95.208
+04-09 15:29:17.646 14607 14607 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=1.344429 s speed=95.208 tok/s
+04-09 15:29:17.646 14607 14607 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=0.846337 s decode=1.344429 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-09 15:29:17.646 14607 14607 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:18.508 14607 14607 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9813 ws_local_pop_success=7437 ws_steal_attempts=1698 ws_steal_success=1362 ws_steal_empty=336 ws_steal_cas_retries=53 ws_stolen_tasks=2356 ws_total_chunks=8799 tasks_per_thread=[0:6299,1:4961,2:4105,3:3894,4:4121,5:4348] latency_us=847004 tok_s=604.484
+04-09 15:29:18.508 14607 14607 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=0.847004 s speed=604.484 tok/s
+04-09 15:29:18.508 14607 14607 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:19.985 14607 14607 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1228951,1:1198565,2:1236299,3:1231407,4:1228323,5:1211495] latency_us=1347414 tok_s=94.997
+04-09 15:29:19.985 14607 14607 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=1.347414 s speed=94.997 tok/s
+04-09 15:29:19.985 14607 14607 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.847004 s decode=1.347414 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-09 15:29:19.985 14607 14607 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:20.847 14607 14607 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9825 ws_local_pop_success=7427 ws_steal_attempts=1723 ws_steal_success=1384 ws_steal_empty=339 ws_steal_cas_retries=61 ws_stolen_tasks=2208 ws_total_chunks=8811 tasks_per_thread=[0:6445,1:4531,2:4259,3:4068,4:4349,5:4076] latency_us=847384 tok_s=604.212
+04-09 15:29:20.847 14607 14607 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=0.847384 s speed=604.212 tok/s
+04-09 15:29:20.847 14607 14607 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:22.323 14607 14607 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1238849,1:1196786,2:1235308,3:1229387,4:1226173,5:1208537] latency_us=1346852 tok_s=95.036
+04-09 15:29:22.323 14607 14607 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=1.346852 s speed=95.036 tok/s
+04-09 15:29:22.323 14607 14607 I MNNJNI  : [llm_bench][measure 2/5] result prefill=0.847384 s decode=1.346852 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-09 15:29:22.323 14607 14607 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:23.190 14607 14607 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9813 ws_local_pop_success=7412 ws_steal_attempts=1726 ws_steal_success=1387 ws_steal_empty=339 ws_steal_cas_retries=77 ws_stolen_tasks=2381 ws_total_chunks=8799 tasks_per_thread=[0:6299,1:4957,2:4104,3:3903,4:4117,5:4348] latency_us=849577 tok_s=602.653
+04-09 15:29:23.190 14607 14607 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=0.849577 s speed=602.653 tok/s
+04-09 15:29:23.190 14607 14607 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:24.664 14607 14607 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1237541,1:1197559,2:1235591,3:1229485,4:1226228,5:1208636] latency_us=1345132 tok_s=95.158
+04-09 15:29:24.664 14607 14607 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=1.345132 s speed=95.158 tok/s
+04-09 15:29:24.664 14607 14607 I MNNJNI  : [llm_bench][measure 3/5] result prefill=0.849577 s decode=1.345132 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-09 15:29:24.664 14607 14607 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:25.526 14607 14607 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9820 ws_local_pop_success=7434 ws_steal_attempts=1703 ws_steal_success=1372 ws_steal_empty=331 ws_steal_cas_retries=88 ws_stolen_tasks=1819 ws_total_chunks=8806 tasks_per_thread=[0:6297,1:4461,2:4210,3:4061,4:4350,5:4349] latency_us=846052 tok_s=605.164
+04-09 15:29:25.526 14607 14607 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=0.846052 s speed=605.164 tok/s
+04-09 15:29:25.526 14607 14607 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:27.005 14607 14607 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1238886,1:1195277,2:1235484,3:1229493,4:1226519,5:1209381] latency_us=1349271 tok_s=94.866
+04-09 15:29:27.005 14607 14607 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.349271 s speed=94.866 tok/s
+04-09 15:29:27.005 14607 14607 I MNNJNI  : [llm_bench][measure 4/5] result prefill=0.846052 s decode=1.349271 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-09 15:29:27.005 14607 14607 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:27.868 14607 14607 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9811 ws_local_pop_success=7422 ws_steal_attempts=1727 ws_steal_success=1375 ws_steal_empty=352 ws_steal_cas_retries=82 ws_stolen_tasks=2371 ws_total_chunks=8797 tasks_per_thread=[0:6291,1:4966,2:4110,3:3893,4:4120,5:4348] latency_us=847989 tok_s=603.781
+04-09 15:29:27.868 14607 14607 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.847989 s speed=603.781 tok/s
+04-09 15:29:27.868 14607 14607 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=6 bind=[2,3,4,5,6,7]
+04-09 15:29:29.335 14607 14607 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=1583 threads=6 dyn_total_tasks=7335040 dyn_target_chunks=12 dyn_claim_calls=367632 dyn_claim_success=236832 dyn_claim_empty=130800 dyn_claim_tasks=7335040 dyn_total_chunks=236832 tasks_per_thread=[0:1234255,1:1199213,2:1235782,3:1229696,4:1226427,5:1209667] latency_us=1337865 tok_s=95.675
+04-09 15:29:29.336 14607 14607 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.337865 s speed=95.675 tok/s
+04-09 15:29:29.336 14607 14607 I MNNJNI  : [llm_bench][measure 5/5] result prefill=0.847989 s decode=1.337865 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-09 15:29:29.336 14607 14607 I MNNJNI  : [llm_bench] Final result prefill=604.059 +- 0.933 tok/s decode=95.146 +- 0.313 tok/s prefill=6/[2,3,4,5,6,7] decode=6/[2,3,4,5,6,7]
+
+===== END CASE t=6 ids=2,3,4,5,6,7 =====
+

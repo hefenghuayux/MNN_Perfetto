@@ -9,7 +9,7 @@
 namespace {
 
 int trace_marker_fd() {
-    static int fd = mnn_hybrid_instrumentation_enabled()
+    static int fd = mnn_schedule_instrumentation_enabled()
         ? open("/sys/kernel/tracing/trace_marker", O_WRONLY)
         : -1;
     return fd;
@@ -18,7 +18,7 @@ int trace_marker_fd() {
 }
 
 void begin_trace_marker(const std::string & message) {
-    if (!mnn_hybrid_instrumentation_enabled()) {
+    if (!mnn_schedule_instrumentation_enabled()) {
         return;
     }
     const int fd = trace_marker_fd();
@@ -46,7 +46,7 @@ void begin_trace_marker(const std::string & message) {
 }
 
 void end_trace_marker() {
-    if (!mnn_hybrid_instrumentation_enabled()) {
+    if (!mnn_schedule_instrumentation_enabled()) {
         return;
     }
     const int fd = trace_marker_fd();

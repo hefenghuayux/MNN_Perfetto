@@ -1,0 +1,48 @@
+===== CASE: t4_bind_4567 =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv 1 -p 512 -n 128 -rep 5 -t 4 -ids 4,5,6,7
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | prompt=512<br>decode=0 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | prompt=0<br>decode=128 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+
+
+===== CASE: t4_default =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv 1 -p 512 -n 128 -rep 5 -t 4
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | prompt=512<br>decode=0 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | prompt=0<br>decode=128 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+
+
+===== CASE: t5_bind_34567 =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv 1 -p 512 -n 128 -rep 5 -t 5 -ids 3,4,5,6,7
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | prompt=512<br>decode=0 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | prompt=0<br>decode=128 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+
+
+===== CASE: t5_default =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv 1 -p 512 -n 128 -rep 5 -t 5
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | prompt=512<br>decode=0 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | prompt=0<br>decode=128 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+
+
+===== CASE: t6_bind_234567 =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv 1 -p 512 -n 128 -rep 5 -t 6 -ids 2,3,4,5,6,7
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | prompt=512<br>decode=0 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | prompt=0<br>decode=128 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+
+
+===== CASE: t6_default =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv 1 -p 512 -n 128 -rep 5 -t 6
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | prompt=512<br>decode=0 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | prompt=0<br>decode=128 | 0.00 ± 0.00<br>0.00 ± 0.00 |
+
+

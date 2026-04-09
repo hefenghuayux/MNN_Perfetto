@@ -107,13 +107,9 @@ private:
 
 struct DivideSchedulePlan {
     int total_size = 0;
-    int total_static = 0;
-    int dynamic_size = 0;
     int step_size = 1;
-    int target_chunks = 0;
-    int theoretical_dynamic_chunks = 0;
     int active_threads = 1;
-    int min_chunk_size = 1;
+    int target_chunks = 0;
     SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
 };
 
@@ -128,46 +124,18 @@ public:
     // dividedSize's length should be larger than threadNumber
     void computeDivideSizes(int size, int* dst, float computeI = 0.f) const;
     
-    /**
-     * @brief [Phase 1] 混合调度版本的任务划分
-     * @param size 总任务数
-     * @param dst 输出数组，存储每个线程的任务边界（累积形式）
-     * @param computeI 用于判断是否启用异构分配的阈值
-     * 
-     * 从 AutoTuner 获取当前阶段参数（不再需要传递 is_prefill）
-     * 逻辑：
-     * 1. 从 AutoTuner 获取 static_ratio, affinity_mask 和 dynamic_blocks
-     * 2. 静态部分按 mGroupWithComputeRate 性能比分配
-     * 3. 动态部分通过原子计数器竞争获取
-     * 
-     * @return pair<total_size, step> 用于执行时初始化动态状态
-     */
-    DivideSchedulePlan computeDivideSizesHybrid(int size, int* dst, float computeI = 0.f) const;
-    
-    /**
-     * @brief 初始化动态任务调度状态
-     * @param static_end 静态任务结束边界
-     * @param total_size 总任务数
-     * @param step_size 每次抢占的步长
-     */
-    void initDynamicTaskState(int static_end,
-                              int total_size,
-                              int step_size,
-                              SchedulerPolicy policy = SchedulerPolicy::DYNAMIC,
-                              int active_threads = 0,
-                              int target_chunks = 0,
-                              int min_chunk_size = 0) const;
-    
-    /**
-     * @brief 抢占下一个动态任务块
-     * @return pair<start, end> 任务区间，若 start >= end 表示任务已耗尽
-     */
-    std::pair<int, int> fetchDynamicChunk() const;
-    
-    /**
-     * @brief 检查是否还有剩余动态任务
-     */
-    bool hasDynamicTasks() const;
+    DivideSchedulePlan computeDivideSizesByPhase(int size, int* dst, float computeI = 0.f) const;
+    void initPrefillWorkStealState(const int* divides,
+                                   int active_threads,
+                                   int total_size,
+                                   int step_size) const;
+    std::pair<int, int> fetchPrefillWorkStealChunk(int thread_id) const;
+    void flushPrefillWorkStealStats() const;
+    void initDecodeDynamicState(int total_size,
+                                int step_size,
+                                int active_threads) const;
+    std::pair<int, int> fetchDecodeDynamicChunk(int thread_id) const;
+    void flushDecodeDynamicStats() const;
 
 public:
     virtual MemObj* onAcquire(const Tensor* nativeTensor, StorageType storageType) override;
@@ -249,7 +217,8 @@ private:
     float mComputeI = 0.f;
     
     // ===== 动态调度相关成员（Cache Line 对齐避免 False Sharing）=====
-    mutable DynamicTaskState mDynamicState;
+    mutable PrefillWorkStealState mPrefillWorkStealState;
+    mutable DynamicTaskState mDecodeDynamicState;
 
     std::shared_ptr<CPURuntime::DynamicAllocator> mDmaInfo;
     CPURuntime* mRuntime;

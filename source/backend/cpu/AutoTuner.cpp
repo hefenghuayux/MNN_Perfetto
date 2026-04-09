@@ -19,12 +19,6 @@ namespace {
 
 static TuningParams sanitizeTuningParams(const TuningParams& input) {
     TuningParams params = input;
-    if (params.static_ratio < 0.0f) {
-        params.static_ratio = 0.0f;
-    }
-    if (params.static_ratio > 1.0f) {
-        params.static_ratio = 1.0f;
-    }
     if (params.dynamic_blocks < 0) {
         params.dynamic_blocks = 0;
     }
@@ -33,9 +27,6 @@ static TuningParams sanitizeTuningParams(const TuningParams& input) {
     }
     if (params.dynamic_target_chunks < 0) {
         params.dynamic_target_chunks = 0;
-    }
-    if (params.min_chunk_size < 1) {
-        params.min_chunk_size = 1;
     }
     return params;
 }
@@ -57,9 +48,9 @@ static void appendThreadLoads(std::ostringstream& stream,
     stream << "]";
 }
 
-static bool hybridInstrumentEnabled() {
+static bool scheduleInstrumentEnabled() {
     static const bool enabled = []() {
-        const char* value = std::getenv("MNN_ENABLE_HYBRID_INSTRUMENT");
+        const char* value = std::getenv("MNN_ENABLE_SCHEDULE_INSTRUMENT");
         return value != nullptr && value[0] != '0';
     }();
     return enabled;
@@ -72,10 +63,8 @@ std::mutex AutoTuner::sInstanceMutex;
 
 const char* schedulerPolicyName(SchedulerPolicy policy) {
     switch (policy) {
-        case SchedulerPolicy::HYBRID:
-            return "hybrid";
-        case SchedulerPolicy::GUIDED:
-            return "guided";
+        case SchedulerPolicy::WORK_STEAL:
+            return "work_steal";
         case SchedulerPolicy::DYNAMIC:
         default:
             return "dynamic";
@@ -89,30 +78,25 @@ PhaseScheduleStats::PhaseScheduleStats() {
 void PhaseScheduleStats::reset() {
     op_count.store(0, std::memory_order_relaxed);
     total_tasks.store(0, std::memory_order_relaxed);
-    total_static_tasks.store(0, std::memory_order_relaxed);
-    total_dynamic_tasks.store(0, std::memory_order_relaxed);
-    total_step_size.store(0, std::memory_order_relaxed);
-    step_samples.store(0, std::memory_order_relaxed);
-    total_target_chunks.store(0, std::memory_order_relaxed);
-    target_chunk_samples.store(0, std::memory_order_relaxed);
-    theoretical_dynamic_chunks.store(0, std::memory_order_relaxed);
-    actual_dynamic_chunks.store(0, std::memory_order_relaxed);
+    total_chunks.store(0, std::memory_order_relaxed);
+    local_pop_calls.store(0, std::memory_order_relaxed);
+    local_pop_success.store(0, std::memory_order_relaxed);
+    steal_attempts.store(0, std::memory_order_relaxed);
+    steal_success.store(0, std::memory_order_relaxed);
+    steal_empty.store(0, std::memory_order_relaxed);
+    steal_cas_retries.store(0, std::memory_order_relaxed);
+    stolen_tasks.store(0, std::memory_order_relaxed);
     dynamic_claim_calls.store(0, std::memory_order_relaxed);
     dynamic_claim_success.store(0, std::memory_order_relaxed);
     dynamic_claim_empty.store(0, std::memory_order_relaxed);
-    dynamic_claim_cas_retries.store(0, std::memory_order_relaxed);
-    dynamic_claim_time_ns.store(0, std::memory_order_relaxed);
+    dynamic_claim_tasks.store(0, std::memory_order_relaxed);
     last_total_size.store(0, std::memory_order_relaxed);
-    last_total_static.store(0, std::memory_order_relaxed);
-    last_dynamic_size.store(0, std::memory_order_relaxed);
     last_step_size.store(1, std::memory_order_relaxed);
-    last_target_chunks.store(0, std::memory_order_relaxed);
     last_active_threads.store(1, std::memory_order_relaxed);
-    last_min_chunk_size.store(1, std::memory_order_relaxed);
+    last_target_chunks.store(0, std::memory_order_relaxed);
     last_policy.store(static_cast<int>(SchedulerPolicy::DYNAMIC), std::memory_order_relaxed);
-    for (size_t i = 0; i < static_tasks_per_thread.size(); ++i) {
-        static_tasks_per_thread[i].store(0, std::memory_order_relaxed);
-        dynamic_tasks_per_thread[i].store(0, std::memory_order_relaxed);
+    for (size_t i = 0; i < tasks_per_thread.size(); ++i) {
+        tasks_per_thread[i].store(0, std::memory_order_relaxed);
     }
 }
 
@@ -120,30 +104,25 @@ PhaseScheduleStatsSnapshot PhaseScheduleStats::snapshot() const {
     PhaseScheduleStatsSnapshot result;
     result.op_count = op_count.load(std::memory_order_relaxed);
     result.total_tasks = total_tasks.load(std::memory_order_relaxed);
-    result.total_static_tasks = total_static_tasks.load(std::memory_order_relaxed);
-    result.total_dynamic_tasks = total_dynamic_tasks.load(std::memory_order_relaxed);
-    result.total_step_size = total_step_size.load(std::memory_order_relaxed);
-    result.step_samples = step_samples.load(std::memory_order_relaxed);
-    result.total_target_chunks = total_target_chunks.load(std::memory_order_relaxed);
-    result.target_chunk_samples = target_chunk_samples.load(std::memory_order_relaxed);
-    result.theoretical_dynamic_chunks = theoretical_dynamic_chunks.load(std::memory_order_relaxed);
-    result.actual_dynamic_chunks = actual_dynamic_chunks.load(std::memory_order_relaxed);
+    result.total_chunks = total_chunks.load(std::memory_order_relaxed);
+    result.local_pop_calls = local_pop_calls.load(std::memory_order_relaxed);
+    result.local_pop_success = local_pop_success.load(std::memory_order_relaxed);
+    result.steal_attempts = steal_attempts.load(std::memory_order_relaxed);
+    result.steal_success = steal_success.load(std::memory_order_relaxed);
+    result.steal_empty = steal_empty.load(std::memory_order_relaxed);
+    result.steal_cas_retries = steal_cas_retries.load(std::memory_order_relaxed);
+    result.stolen_tasks = stolen_tasks.load(std::memory_order_relaxed);
     result.dynamic_claim_calls = dynamic_claim_calls.load(std::memory_order_relaxed);
     result.dynamic_claim_success = dynamic_claim_success.load(std::memory_order_relaxed);
     result.dynamic_claim_empty = dynamic_claim_empty.load(std::memory_order_relaxed);
-    result.dynamic_claim_cas_retries = dynamic_claim_cas_retries.load(std::memory_order_relaxed);
-    result.dynamic_claim_time_ns = dynamic_claim_time_ns.load(std::memory_order_relaxed);
+    result.dynamic_claim_tasks = dynamic_claim_tasks.load(std::memory_order_relaxed);
     result.last_total_size = last_total_size.load(std::memory_order_relaxed);
-    result.last_total_static = last_total_static.load(std::memory_order_relaxed);
-    result.last_dynamic_size = last_dynamic_size.load(std::memory_order_relaxed);
     result.last_step_size = last_step_size.load(std::memory_order_relaxed);
-    result.last_target_chunks = last_target_chunks.load(std::memory_order_relaxed);
     result.last_active_threads = last_active_threads.load(std::memory_order_relaxed);
-    result.last_min_chunk_size = last_min_chunk_size.load(std::memory_order_relaxed);
+    result.last_target_chunks = last_target_chunks.load(std::memory_order_relaxed);
     result.last_policy = static_cast<SchedulerPolicy>(last_policy.load(std::memory_order_relaxed));
-    for (size_t i = 0; i < static_tasks_per_thread.size(); ++i) {
-        result.static_tasks_per_thread[i] = static_tasks_per_thread[i].load(std::memory_order_relaxed);
-        result.dynamic_tasks_per_thread[i] = dynamic_tasks_per_thread[i].load(std::memory_order_relaxed);
+    for (size_t i = 0; i < tasks_per_thread.size(); ++i) {
+        result.tasks_per_thread[i] = tasks_per_thread[i].load(std::memory_order_relaxed);
     }
     return result;
 }
@@ -167,8 +146,8 @@ void AutoTuner::destroy() {
 }
 
 AutoTuner::AutoTuner()
-    : mPrefillParams(0.0f, 60, 60, SchedulerPolicy::DYNAMIC, 1)
-    , mDecodeParams(0.0f, 2, 2, SchedulerPolicy::DYNAMIC, 1)
+    : mPrefillParams(SchedulerPolicy::WORK_STEAL)
+    , mDecodeParams(SchedulerPolicy::DYNAMIC)
     , mDefaultExecution(1, 0)
     , mPrefillExecution(1, 0)
     , mDecodeExecution(1, 0)
@@ -176,16 +155,14 @@ AutoTuner::AutoTuner()
     , mPanicMode(false) {
     refreshFallbackExecutionState();
     updateFastPhaseState(InferencePhase::UNKNOWN);
-    MNN_PRINT("[AutoTuner] Initialized. Default(threads=%d, affinity=0x%lX) Prefill(policy=%s, static=%.2f, target_chunks=%d, threads=%d, affinity=0x%lX) Decode(policy=%s, static=%.2f, target_chunks=%d, threads=%d, affinity=0x%lX)\n",
+    MNN_PRINT("[AutoTuner] Initialized. Default(threads=%d, affinity=0x%lX) Prefill(policy=%s, target_chunks=%d, threads=%d, affinity=0x%lX) Decode(policy=%s, target_chunks=%d, threads=%d, affinity=0x%lX)\n",
               mDefaultExecution.active_threads,
               mDefaultExecution.affinity_mask,
               schedulerPolicyName(mPrefillParams.policy),
-              mPrefillParams.static_ratio,
               mPrefillParams.dynamic_target_chunks,
               mPrefillExecution.active_threads,
               mPrefillExecution.affinity_mask,
               schedulerPolicyName(mDecodeParams.policy),
-              mDecodeParams.static_ratio,
               mDecodeParams.dynamic_target_chunks,
               mDecodeExecution.active_threads,
               mDecodeExecution.affinity_mask);
@@ -245,7 +222,7 @@ InferencePhase AutoTuner::getPhase() const {
 
 TuningParams AutoTuner::getTuningParams() const {
     if (mPanicMode.load(std::memory_order_relaxed)) {
-        return TuningParams(1.0f, 0, 0, SchedulerPolicy::HYBRID, 1);
+        return TuningParams(SchedulerPolicy::WORK_STEAL);
     }
 
     switch (mCurrentPhase.load(std::memory_order_acquire)) {
@@ -259,34 +236,18 @@ TuningParams AutoTuner::getTuningParams() const {
     }
 }
 
-void AutoTuner::setPrefillParams(float static_ratio, int dynamic_blocks) {
-    setPrefillParams(TuningParams(static_ratio, dynamic_blocks, dynamic_blocks,
-                                  static_ratio > 0.0f ? SchedulerPolicy::HYBRID : SchedulerPolicy::DYNAMIC,
-                                  1));
-}
-
-void AutoTuner::setDecodeParams(float static_ratio, int dynamic_blocks) {
-    setDecodeParams(TuningParams(static_ratio, dynamic_blocks, dynamic_blocks,
-                                 static_ratio > 0.0f ? SchedulerPolicy::HYBRID : SchedulerPolicy::DYNAMIC,
-                                 1));
-}
-
 void AutoTuner::setPrefillParams(const TuningParams& params) {
     mPrefillParams = sanitizeTuningParams(params);
-    MNN_PRINT("[AutoTuner] Prefill tuning updated: policy=%s, static_ratio=%.2f, target_chunks=%d, min_chunk=%d\n",
+    MNN_PRINT("[AutoTuner] Prefill tuning updated: policy=%s, target_chunks=%d\n",
               schedulerPolicyName(mPrefillParams.policy),
-              mPrefillParams.static_ratio,
-              mPrefillParams.dynamic_target_chunks,
-              mPrefillParams.min_chunk_size);
+              mPrefillParams.dynamic_target_chunks);
 }
 
 void AutoTuner::setDecodeParams(const TuningParams& params) {
     mDecodeParams = sanitizeTuningParams(params);
-    MNN_PRINT("[AutoTuner] Decode tuning updated: policy=%s, static_ratio=%.2f, target_chunks=%d, min_chunk=%d\n",
+    MNN_PRINT("[AutoTuner] Decode tuning updated: policy=%s, target_chunks=%d\n",
               schedulerPolicyName(mDecodeParams.policy),
-              mDecodeParams.static_ratio,
-              mDecodeParams.dynamic_target_chunks,
-              mDecodeParams.min_chunk_size);
+              mDecodeParams.dynamic_target_chunks);
 }
 
 void AutoTuner::setDefaultExecution(int active_threads, unsigned long affinity_mask) {
@@ -369,64 +330,90 @@ void AutoTuner::noteSchedulePlan(InferencePhase phase,
                                  SchedulerPolicy policy,
                                  int active_threads,
                                  int total_size,
-                                 int total_static,
-                                 int dynamic_size,
                                  int step_size,
-                                 int target_chunks,
-                                 int theoretical_dynamic_chunks,
-                                 int min_chunk_size) {
+                                 int target_chunks) {
     auto& stats = scheduleStats(phase);
     stats.op_count.fetch_add(1, std::memory_order_relaxed);
     stats.total_tasks.fetch_add(total_size, std::memory_order_relaxed);
-    stats.total_static_tasks.fetch_add(total_static, std::memory_order_relaxed);
-    stats.total_dynamic_tasks.fetch_add(dynamic_size, std::memory_order_relaxed);
-    stats.total_step_size.fetch_add(step_size, std::memory_order_relaxed);
-    stats.step_samples.fetch_add(1, std::memory_order_relaxed);
-    stats.total_target_chunks.fetch_add(target_chunks, std::memory_order_relaxed);
-    stats.target_chunk_samples.fetch_add(1, std::memory_order_relaxed);
-    stats.theoretical_dynamic_chunks.fetch_add(theoretical_dynamic_chunks, std::memory_order_relaxed);
     stats.last_total_size.store(total_size, std::memory_order_relaxed);
-    stats.last_total_static.store(total_static, std::memory_order_relaxed);
-    stats.last_dynamic_size.store(dynamic_size, std::memory_order_relaxed);
     stats.last_step_size.store(std::max(1, step_size), std::memory_order_relaxed);
-    stats.last_target_chunks.store(target_chunks, std::memory_order_relaxed);
     stats.last_active_threads.store(std::max(1, active_threads), std::memory_order_relaxed);
-    stats.last_min_chunk_size.store(std::max(1, min_chunk_size), std::memory_order_relaxed);
+    stats.last_target_chunks.store(std::max(0, target_chunks), std::memory_order_relaxed);
     stats.last_policy.store(static_cast<int>(policy), std::memory_order_relaxed);
 }
 
-void AutoTuner::noteStaticRange(InferencePhase phase, int thread_id, int start, int end) {
-    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS || end <= start) {
+void AutoTuner::noteThreadTasks(InferencePhase phase, int thread_id, int task_count) {
+    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS || task_count <= 0) {
         return;
     }
-    scheduleStats(phase).static_tasks_per_thread[thread_id].fetch_add(end - start, std::memory_order_relaxed);
+    scheduleStats(phase).tasks_per_thread[thread_id].fetch_add(task_count, std::memory_order_relaxed);
 }
 
-void AutoTuner::noteDynamicRange(InferencePhase phase, int thread_id, int start, int end) {
-    if (end <= start) {
-        return;
-    }
-    auto& stats = scheduleStats(phase);
-    stats.actual_dynamic_chunks.fetch_add(1, std::memory_order_relaxed);
-    if (thread_id >= 0 && thread_id < MNN_MAX_SCHEDULER_THREADS) {
-        stats.dynamic_tasks_per_thread[thread_id].fetch_add(end - start, std::memory_order_relaxed);
+void AutoTuner::notePrefillLocalPop(bool success) {
+    auto& stats = scheduleStats(InferencePhase::PREFILL);
+    stats.local_pop_calls.fetch_add(1, std::memory_order_relaxed);
+    if (success) {
+        stats.local_pop_success.fetch_add(1, std::memory_order_relaxed);
     }
 }
 
-void AutoTuner::noteDynamicClaim(InferencePhase phase, bool success, int cas_retries, long long claim_time_ns) {
-    auto& stats = scheduleStats(phase);
+void AutoTuner::notePrefillStealAttempt() {
+    scheduleStats(InferencePhase::PREFILL).steal_attempts.fetch_add(1, std::memory_order_relaxed);
+}
+
+void AutoTuner::notePrefillStealResult(bool success, int task_count, int cas_retries) {
+    auto& stats = scheduleStats(InferencePhase::PREFILL);
+    if (success) {
+        stats.steal_success.fetch_add(1, std::memory_order_relaxed);
+        stats.stolen_tasks.fetch_add(task_count, std::memory_order_relaxed);
+        stats.total_chunks.fetch_add(1, std::memory_order_relaxed);
+    } else {
+        stats.steal_empty.fetch_add(1, std::memory_order_relaxed);
+    }
+    if (cas_retries > 0) {
+        stats.steal_cas_retries.fetch_add(cas_retries, std::memory_order_relaxed);
+    }
+}
+
+void AutoTuner::noteDecodeDynamicClaim(bool success, int task_count) {
+    auto& stats = scheduleStats(InferencePhase::DECODE);
     stats.dynamic_claim_calls.fetch_add(1, std::memory_order_relaxed);
     if (success) {
         stats.dynamic_claim_success.fetch_add(1, std::memory_order_relaxed);
+        stats.dynamic_claim_tasks.fetch_add(task_count, std::memory_order_relaxed);
+        stats.total_chunks.fetch_add(1, std::memory_order_relaxed);
     } else {
         stats.dynamic_claim_empty.fetch_add(1, std::memory_order_relaxed);
     }
-    if (cas_retries > 0) {
-        stats.dynamic_claim_cas_retries.fetch_add(cas_retries, std::memory_order_relaxed);
+}
+
+void AutoTuner::notePrefillThreadStats(int thread_id, const PrefillWorkStealThreadStats& localStats) {
+    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS) {
+        return;
     }
-    if (claim_time_ns > 0) {
-        stats.dynamic_claim_time_ns.fetch_add(claim_time_ns, std::memory_order_relaxed);
+    auto& stats = scheduleStats(InferencePhase::PREFILL);
+    stats.local_pop_calls.fetch_add(localStats.local_pop_calls, std::memory_order_relaxed);
+    stats.local_pop_success.fetch_add(localStats.local_pop_success, std::memory_order_relaxed);
+    stats.steal_attempts.fetch_add(localStats.steal_attempts, std::memory_order_relaxed);
+    stats.steal_success.fetch_add(localStats.steal_success, std::memory_order_relaxed);
+    stats.steal_empty.fetch_add(localStats.steal_empty, std::memory_order_relaxed);
+    stats.steal_cas_retries.fetch_add(localStats.steal_cas_retries, std::memory_order_relaxed);
+    stats.stolen_tasks.fetch_add(localStats.stolen_tasks, std::memory_order_relaxed);
+    stats.total_chunks.fetch_add(localStats.local_pop_success + localStats.steal_success, std::memory_order_relaxed);
+    stats.tasks_per_thread[thread_id].fetch_add(localStats.tasks_executed, std::memory_order_relaxed);
+}
+
+void AutoTuner::noteDecodeDynamicThreadStats(int thread_id, const DecodeDynamicThreadStats& localStats) {
+    if (thread_id < 0 || thread_id >= MNN_MAX_SCHEDULER_THREADS) {
+        return;
     }
+    auto& stats = scheduleStats(InferencePhase::DECODE);
+    stats.dynamic_claim_calls.fetch_add(localStats.claim_calls, std::memory_order_relaxed);
+    stats.dynamic_claim_success.fetch_add(localStats.claim_success, std::memory_order_relaxed);
+    stats.dynamic_claim_empty.fetch_add(localStats.claim_empty, std::memory_order_relaxed);
+    stats.dynamic_claim_tasks.fetch_add(localStats.claimed_tasks, std::memory_order_relaxed);
+    stats.total_chunks.fetch_add(localStats.claim_success, std::memory_order_relaxed);
+    stats.tasks_per_thread[thread_id].fetch_add(localStats.tasks_executed, std::memory_order_relaxed);
 }
 
 PhaseScheduleStatsSnapshot AutoTuner::getScheduleStats(InferencePhase phase) const {
@@ -435,51 +422,35 @@ PhaseScheduleStatsSnapshot AutoTuner::getScheduleStats(InferencePhase phase) con
 
 std::string AutoTuner::formatScheduleStats(InferencePhase phase) const {
     const auto snapshot = getScheduleStats(phase);
-    const double avg_step = snapshot.step_samples > 0
-        ? static_cast<double>(snapshot.total_step_size) / static_cast<double>(snapshot.step_samples)
-        : 0.0;
-    const double avg_target_chunks = snapshot.target_chunk_samples > 0
-        ? static_cast<double>(snapshot.total_target_chunks) / static_cast<double>(snapshot.target_chunk_samples)
-        : 0.0;
-    const double avg_claim_ns = snapshot.dynamic_claim_calls > 0
-        ? static_cast<double>(snapshot.dynamic_claim_time_ns) / static_cast<double>(snapshot.dynamic_claim_calls)
-        : 0.0;
-    const double avg_claim_chunk_ns = snapshot.dynamic_claim_success > 0
-        ? static_cast<double>(snapshot.dynamic_claim_time_ns) / static_cast<double>(snapshot.dynamic_claim_success)
-        : 0.0;
-    const double avg_claim_retries = snapshot.dynamic_claim_success > 0
-        ? static_cast<double>(snapshot.dynamic_claim_cas_retries) / static_cast<double>(snapshot.dynamic_claim_success)
-        : 0.0;
     std::ostringstream stream;
     stream << "policy=" << schedulerPolicyName(snapshot.last_policy)
            << " ops=" << snapshot.op_count
            << " total=" << snapshot.total_tasks
-           << " static=" << snapshot.total_static_tasks
-           << " dynamic=" << snapshot.total_dynamic_tasks
-           << " avg_step=" << avg_step
-           << " avg_target_chunks=" << avg_target_chunks
-           << " theo_chunks=" << snapshot.theoretical_dynamic_chunks
-           << " actual_chunks=" << snapshot.actual_dynamic_chunks
-           << " last={total=" << snapshot.last_total_size
-           << ",static=" << snapshot.last_total_static
-           << ",dynamic=" << snapshot.last_dynamic_size
-           << ",step=" << snapshot.last_step_size
-           << ",target=" << snapshot.last_target_chunks
-           << ",threads=" << snapshot.last_active_threads
-           << ",min=" << snapshot.last_min_chunk_size
-           << "} static_loads=";
-    appendThreadLoads(stream, snapshot.static_tasks_per_thread);
-    stream << " dynamic_loads=";
-    appendThreadLoads(stream, snapshot.dynamic_tasks_per_thread);
-    if (hybridInstrumentEnabled()) {
-        stream << " claim={calls=" << snapshot.dynamic_claim_calls
-               << ",ok=" << snapshot.dynamic_claim_success
-               << ",empty=" << snapshot.dynamic_claim_empty
-               << ",retry=" << snapshot.dynamic_claim_cas_retries
-               << ",avg_ns=" << static_cast<long long>(avg_claim_ns)
-               << ",chunk_ns=" << static_cast<long long>(avg_claim_chunk_ns)
-               << ",retry_ok=" << avg_claim_retries
-               << "}";
+           << " step=" << snapshot.last_step_size
+           << " threads=" << snapshot.last_active_threads;
+    if (phase == InferencePhase::PREFILL) {
+        stream << " ws_total_tasks=" << snapshot.total_tasks
+               << " ws_local_pop_calls=" << snapshot.local_pop_calls
+               << " ws_local_pop_success=" << snapshot.local_pop_success
+               << " ws_steal_attempts=" << snapshot.steal_attempts
+               << " ws_steal_success=" << snapshot.steal_success
+               << " ws_steal_empty=" << snapshot.steal_empty
+               << " ws_steal_cas_retries=" << snapshot.steal_cas_retries
+               << " ws_stolen_tasks=" << snapshot.stolen_tasks
+               << " ws_total_chunks=" << snapshot.total_chunks;
+    } else {
+        stream << " dyn_total_tasks=" << snapshot.total_tasks
+               << " dyn_target_chunks=" << snapshot.last_target_chunks
+               << " dyn_claim_calls=" << snapshot.dynamic_claim_calls
+               << " dyn_claim_success=" << snapshot.dynamic_claim_success
+               << " dyn_claim_empty=" << snapshot.dynamic_claim_empty
+               << " dyn_claim_tasks=" << snapshot.dynamic_claim_tasks
+               << " dyn_total_chunks=" << snapshot.total_chunks;
+    }
+    stream << " tasks_per_thread=";
+    appendThreadLoads(stream, snapshot.tasks_per_thread);
+    if (scheduleInstrumentEnabled()) {
+        stream << " instr=1";
     }
     return stream.str();
 }
@@ -500,8 +471,8 @@ bool AutoTuner::isPanicMode() const {
 }
 
 void AutoTuner::reset() {
-    mPrefillParams = TuningParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1);
-    mDecodeParams = TuningParams(0.0f, 0, 0, SchedulerPolicy::DYNAMIC, 1);
+    mPrefillParams = TuningParams(SchedulerPolicy::WORK_STEAL);
+    mDecodeParams = TuningParams(SchedulerPolicy::DYNAMIC);
     mDefaultExecution = ExecutionParams(1, 0);
     mPrefillExecution = ExecutionParams(1, 0);
     mDecodeExecution = ExecutionParams(1, 0);

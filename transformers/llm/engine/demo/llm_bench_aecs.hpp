@@ -14,20 +14,17 @@ namespace Transformer {
 
 struct LlmBenchPhaseScheduleConfig {
     SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
-    float static_ratio = 0.0f;
     int dynamic_target_chunks = 0;
-    int min_chunk_size = 1;
-    bool policy_explicit = false;
-    bool static_ratio_explicit = false;
     bool dynamic_target_chunks_explicit = false;
-    bool min_chunk_size_explicit = false;
+
+    explicit LlmBenchPhaseScheduleConfig(SchedulerPolicy value = SchedulerPolicy::DYNAMIC)
+        : policy(value) {
+    }
 };
 
 struct LlmBenchScheduleConfig {
-    SchedulerPolicy policy = SchedulerPolicy::DYNAMIC;
-    bool policy_explicit = false;
-    LlmBenchPhaseScheduleConfig prefill;
-    LlmBenchPhaseScheduleConfig decode;
+    LlmBenchPhaseScheduleConfig prefill{SchedulerPolicy::WORK_STEAL};
+    LlmBenchPhaseScheduleConfig decode{SchedulerPolicy::DYNAMIC};
 };
 
 struct LlmBenchAecsSetupParams {

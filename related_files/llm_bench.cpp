@@ -50,29 +50,13 @@ struct RuntimeParameters
     std::vector<int> cpuIds;
     std::vector<int> prefillCpuIds;
     std::vector<int> decodeCpuIds;
+    std::vector<int> decodeDynamicBlocks;
     AecsTuningConfig tuningConfig;
     AecsHeuristicParams heuristicParams;
     bool hasLegacyCpuIds;
     bool hasPrefillCpuIds;
     bool hasDecodeCpuIds;
-    std::vector<MNN::SchedulerPolicy> schedulerPolicies;
-    std::vector<float> prefillStaticRatios;
-    std::vector<float> decodeStaticRatios;
-    std::vector<int> prefillDynamicBlocks;
-    std::vector<int> decodeDynamicBlocks;
-    MNN::SchedulerPolicy prefillSchedPolicy;
-    MNN::SchedulerPolicy decodeSchedPolicy;
-    int prefillMinChunk;
-    int decodeMinChunk;
-    bool hasSchedPolicy;
-    bool hasPrefillSchedPolicy;
-    bool hasDecodeSchedPolicy;
-    bool hasPrefillStaticRatio;
-    bool hasDecodeStaticRatio;
-    bool hasPrefillDynamicBlocks;
     bool hasDecodeDynamicBlocks;
-    bool hasPrefillMinChunk;
-    bool hasDecodeMinChunk;
     bool splitPhaseBench;
 };
 
@@ -131,29 +115,13 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* cpuIds               */ {},
     /* prefillCpuIds        */ {},
     /* decodeCpuIds         */ {},
+    /* decodeDynamicBlocks  */ {0},
     /* tuningConfig         */ AecsTuningConfig(),
     /* heuristicParams      */ AecsHeuristicParams(),
     /* hasLegacyCpuIds      */ false,
     /* hasPrefillCpuIds     */ false,
     /* hasDecodeCpuIds      */ false,
-    /* schedulerPolicies    */ {MNN::SchedulerPolicy::DYNAMIC},
-    /* prefillStaticRatios  */ {0.0f},
-    /* decodeStaticRatios   */ {0.0f},
-    /* prefillDynamicBlocks */ {0},
-    /* decodeDynamicBlocks  */ {0},
-    /* prefillSchedPolicy   */ MNN::SchedulerPolicy::DYNAMIC,
-    /* decodeSchedPolicy    */ MNN::SchedulerPolicy::DYNAMIC,
-    /* prefillMinChunk      */ 1,
-    /* decodeMinChunk       */ 1,
-    /* hasSchedPolicy       */ false,
-    /* hasPrefillSchedPolicy */ false,
-    /* hasDecodeSchedPolicy */ false,
-    /* hasPrefillStaticRatio */ false,
-    /* hasDecodeStaticRatio */ false,
-    /* hasPrefillDynamicBlocks */ false,
     /* hasDecodeDynamicBlocks */ false,
-    /* hasPrefillMinChunk   */ false,
-    /* hasDecodeMinChunk    */ false,
     /* splitPhaseBench      */ false
 };
 
@@ -223,15 +191,9 @@ struct commandParametersInstance
                mCmdParam.tuningConfig.prefill_auto_bind == other.mCmdParam.tuningConfig.prefill_auto_bind &&
                mCmdParam.tuningConfig.decode_aecs == other.mCmdParam.tuningConfig.decode_aecs &&
                mCmdParam.tuningConfig.force_retune == other.mCmdParam.tuningConfig.force_retune &&
-               mCmdParam.scheduleConfig.policy == other.mCmdParam.scheduleConfig.policy &&
                mCmdParam.scheduleConfig.prefill.policy == other.mCmdParam.scheduleConfig.prefill.policy &&
                mCmdParam.scheduleConfig.decode.policy == other.mCmdParam.scheduleConfig.decode.policy &&
-               mCmdParam.scheduleConfig.prefill.static_ratio == other.mCmdParam.scheduleConfig.prefill.static_ratio &&
-               mCmdParam.scheduleConfig.decode.static_ratio == other.mCmdParam.scheduleConfig.decode.static_ratio &&
-               mCmdParam.scheduleConfig.prefill.dynamic_target_chunks == other.mCmdParam.scheduleConfig.prefill.dynamic_target_chunks &&
                mCmdParam.scheduleConfig.decode.dynamic_target_chunks == other.mCmdParam.scheduleConfig.decode.dynamic_target_chunks &&
-               mCmdParam.scheduleConfig.prefill.min_chunk_size == other.mCmdParam.scheduleConfig.prefill.min_chunk_size &&
-               mCmdParam.scheduleConfig.decode.min_chunk_size == other.mCmdParam.scheduleConfig.decode.min_chunk_size &&
                mCmdParam.splitPhaseBench == other.mCmdParam.splitPhaseBench;
     }
 };
@@ -388,63 +350,11 @@ static std::vector<T> splitString(const std::string &str, char delim)
     return values;
 }
 
-static bool parseSchedulerPolicyToken(const std::string& token, MNN::SchedulerPolicy* policy) {
-    if (token == "dynamic") {
-        *policy = MNN::SchedulerPolicy::DYNAMIC;
-        return true;
-    }
-    if (token == "hybrid") {
-        *policy = MNN::SchedulerPolicy::HYBRID;
-        return true;
-    }
-    if (token == "guided") {
-        *policy = MNN::SchedulerPolicy::GUIDED;
-        return true;
-    }
-    return false;
-}
-
-static bool parseScheduleSweepSpec(const std::string& spec,
-                                   std::vector<float>* prefill_values,
-                                   std::vector<float>* decode_values) {
-    std::stringstream stream(spec);
-    std::string segment;
-    bool saw_prefill = false;
-    bool saw_decode = false;
-    while (std::getline(stream, segment, ';')) {
-        if (segment.empty()) {
-            continue;
-        }
-        const auto pos = segment.find('=');
-        if (pos == std::string::npos) {
-            return false;
-        }
-        const std::string key = segment.substr(0, pos);
-        const std::string values = segment.substr(pos + 1);
-        if (key == "prefill") {
-            *prefill_values = splitString<float>(values, ',');
-            saw_prefill = !prefill_values->empty();
-        } else if (key == "decode") {
-            *decode_values = splitString<float>(values, ',');
-            saw_decode = !decode_values->empty();
-        } else {
-            return false;
-        }
-    }
-    return saw_prefill || saw_decode;
-}
-
 static std::string scheduleConfigString(const LlmBenchScheduleConfig& config) {
     std::ostringstream stream;
-    stream << "g=" << MNN::schedulerPolicyName(config.policy)
-           << ",p=" << MNN::schedulerPolicyName(config.prefill.policy)
+    stream << "p=" << MNN::schedulerPolicyName(config.prefill.policy)
            << ",d=" << MNN::schedulerPolicyName(config.decode.policy)
-           << ",ps=" << config.prefill.static_ratio
-           << ",ds=" << config.decode.static_ratio
-           << ",pc=" << config.prefill.dynamic_target_chunks
-           << ",dc=" << config.decode.dynamic_target_chunks
-           << ",pm=" << config.prefill.min_chunk_size
-           << ",dm=" << config.decode.min_chunk_size;
+           << ",dc=" << config.decode.dynamic_target_chunks;
     return stream.str();
 }
 
@@ -541,16 +451,7 @@ struct markdownPrinter : public Printer
         {
             fields.emplace_back("dynamicOption");
         }
-        if (rp.hasSchedPolicy || rp.hasPrefillSchedPolicy || rp.hasDecodeSchedPolicy ||
-            rp.hasPrefillStaticRatio || rp.hasDecodeStaticRatio ||
-            rp.hasPrefillDynamicBlocks || rp.hasDecodeDynamicBlocks ||
-            rp.hasPrefillMinChunk || rp.hasDecodeMinChunk ||
-            rp.schedulerPolicies.size() > 1 || rp.prefillStaticRatios.size() > 1 ||
-            rp.decodeStaticRatios.size() > 1 || rp.prefillDynamicBlocks.size() > 1 ||
-            rp.decodeDynamicBlocks.size() > 1)
-        {
-            fields.emplace_back("scheduler");
-        }
+        fields.emplace_back("scheduler");
 
         if (rp.useMmap)
         {
@@ -781,32 +682,14 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
     for (const auto & nt : rp.threads)
     for (const auto & prefillNt : rp.prefillThreads)
     for (const auto & decodeNt : rp.decodeThreads)
-    for (const auto & dyop : rp.dynamicOption)
-    for (const auto & schedPolicy : rp.schedulerPolicies)
-    for (const auto & prefillStaticRatio : rp.prefillStaticRatios)
-    for (const auto & decodeStaticRatio : rp.decodeStaticRatios)
-    for (const auto & prefillDynamicBlocks : rp.prefillDynamicBlocks)
     for (const auto & decodeDynamicBlocks : rp.decodeDynamicBlocks)
+    for (const auto & dyop : rp.dynamicOption)
     {
         LlmBenchScheduleConfig scheduleConfig;
-        scheduleConfig.policy = schedPolicy;
-        scheduleConfig.policy_explicit = rp.hasSchedPolicy;
-        scheduleConfig.prefill.policy = rp.hasPrefillSchedPolicy ? rp.prefillSchedPolicy : schedPolicy;
-        scheduleConfig.prefill.policy_explicit = rp.hasPrefillSchedPolicy;
-        scheduleConfig.prefill.static_ratio = prefillStaticRatio;
-        scheduleConfig.prefill.static_ratio_explicit = rp.hasPrefillStaticRatio;
-        scheduleConfig.prefill.dynamic_target_chunks = prefillDynamicBlocks;
-        scheduleConfig.prefill.dynamic_target_chunks_explicit = rp.hasPrefillDynamicBlocks;
-        scheduleConfig.prefill.min_chunk_size = rp.prefillMinChunk;
-        scheduleConfig.prefill.min_chunk_size_explicit = rp.hasPrefillMinChunk;
-        scheduleConfig.decode.policy = rp.hasDecodeSchedPolicy ? rp.decodeSchedPolicy : schedPolicy;
-        scheduleConfig.decode.policy_explicit = rp.hasDecodeSchedPolicy;
-        scheduleConfig.decode.static_ratio = decodeStaticRatio;
-        scheduleConfig.decode.static_ratio_explicit = rp.hasDecodeStaticRatio;
-        scheduleConfig.decode.dynamic_target_chunks = decodeDynamicBlocks;
+        scheduleConfig.prefill.policy = MNN::SchedulerPolicy::WORK_STEAL;
+        scheduleConfig.decode.policy = MNN::SchedulerPolicy::DYNAMIC;
+        scheduleConfig.decode.dynamic_target_chunks = std::max(0, decodeDynamicBlocks);
         scheduleConfig.decode.dynamic_target_chunks_explicit = rp.hasDecodeDynamicBlocks;
-        scheduleConfig.decode.min_chunk_size = rp.decodeMinChunk;
-        scheduleConfig.decode.min_chunk_size_explicit = rp.hasDecodeMinChunk;
         if (tp.kvCache == "true") { // MNN llm_demo test standard
             for (const auto & nPrompt : tp.nPrompt) {
                 if (nPrompt == 0) {
@@ -998,16 +881,8 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
     printf("      --instrumention <0|1>                (default: 0) | process-wide trace_marker switch\n");
     printf("      --instrumentation <0|1>              (alias of --instrumention)\n");
-    printf("      --sched-policy <dynamic|hybrid|guided> (default: dynamic)\n");
-    printf("      --prefill-sched-policy <dynamic|hybrid|guided> (default: inherit --sched-policy)\n");
-    printf("      --decode-sched-policy <dynamic|hybrid|guided> (default: inherit --sched-policy)\n");
-    printf("      --prefill-static-ratio <f[,f...]>     (default: 0)\n");
-    printf("      --decode-static-ratio <f[,f...]>      (default: 0)\n");
-    printf("      --prefill-dynamic-blocks <n[,n...]>   (default: auto=4T)\n");
+    printf("      scheduler policy is fixed: prefill=work_steal, decode=dynamic\n");
     printf("      --decode-dynamic-blocks <n[,n...]>    (default: auto=2T)\n");
-    printf("      --prefill-min-chunk <n>               (default: guided=5, else 1)\n");
-    printf("      --decode-min-chunk <n>                (default: guided=8, else 1)\n");
-    printf("      --sched-sweep <spec>                  (format: prefill=0,0.02;decode=0,0.02)\n");
     printf("      --split-phase-bench                   (default: false) | force separate prefill/decode benchmark passes\n");
     printf("      --prefill-auto-bind                   (default: false) | search prefill cpu ids from highest-performance core\n");
     printf("      --decode-aecs                         (default: false) | run AECS decode search and persist result\n");
@@ -1044,24 +919,8 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.hasLegacyCpuIds = false;
     runtimeParams.hasPrefillCpuIds = false;
     runtimeParams.hasDecodeCpuIds = false;
-    runtimeParams.schedulerPolicies = runtimeParamsDefaults.schedulerPolicies;
-    runtimeParams.prefillStaticRatios = runtimeParamsDefaults.prefillStaticRatios;
-    runtimeParams.decodeStaticRatios = runtimeParamsDefaults.decodeStaticRatios;
-    runtimeParams.prefillDynamicBlocks = runtimeParamsDefaults.prefillDynamicBlocks;
     runtimeParams.decodeDynamicBlocks = runtimeParamsDefaults.decodeDynamicBlocks;
-    runtimeParams.prefillSchedPolicy = runtimeParamsDefaults.prefillSchedPolicy;
-    runtimeParams.decodeSchedPolicy = runtimeParamsDefaults.decodeSchedPolicy;
-    runtimeParams.prefillMinChunk = runtimeParamsDefaults.prefillMinChunk;
-    runtimeParams.decodeMinChunk = runtimeParamsDefaults.decodeMinChunk;
-    runtimeParams.hasSchedPolicy = false;
-    runtimeParams.hasPrefillSchedPolicy = false;
-    runtimeParams.hasDecodeSchedPolicy = false;
-    runtimeParams.hasPrefillStaticRatio = false;
-    runtimeParams.hasDecodeStaticRatio = false;
-    runtimeParams.hasPrefillDynamicBlocks = false;
     runtimeParams.hasDecodeDynamicBlocks = false;
-    runtimeParams.hasPrefillMinChunk = false;
-    runtimeParams.hasDecodeMinChunk = false;
     runtimeParams.splitPhaseBench = false;
 
     for (int i = 1; i < argc; i++) {
@@ -1194,108 +1053,6 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             }
             hasInstrumentationFlag = true;
             instrumentationEnabled = p[0];
-        } else if (arg == "--sched-policy") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.schedulerPolicies.clear();
-            auto p = splitString<std::string>(argv[i], splitDelim);
-            for (const auto& token : p) {
-                MNN::SchedulerPolicy policy = MNN::SchedulerPolicy::DYNAMIC;
-                if (!parseSchedulerPolicyToken(token, &policy)) {
-                    invalidParam = true;
-                    break;
-                }
-                runtimeParams.schedulerPolicies.push_back(policy);
-            }
-            runtimeParams.hasSchedPolicy = !runtimeParams.schedulerPolicies.empty();
-            if (invalidParam) {
-                break;
-            }
-        } else if (arg == "--prefill-sched-policy") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            if (!parseSchedulerPolicyToken(argv[i], &runtimeParams.prefillSchedPolicy)) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.hasPrefillSchedPolicy = true;
-        } else if (arg == "--decode-sched-policy") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            if (!parseSchedulerPolicyToken(argv[i], &runtimeParams.decodeSchedPolicy)) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.hasDecodeSchedPolicy = true;
-        } else if (arg == "--prefill-static-ratio") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.prefillStaticRatios = splitString<float>(argv[i], splitDelim);
-            runtimeParams.hasPrefillStaticRatio = !runtimeParams.prefillStaticRatios.empty();
-        } else if (arg == "--decode-static-ratio") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.decodeStaticRatios = splitString<float>(argv[i], splitDelim);
-            runtimeParams.hasDecodeStaticRatio = !runtimeParams.decodeStaticRatios.empty();
-        } else if (arg == "--prefill-dynamic-blocks") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.prefillDynamicBlocks = splitString<int>(argv[i], splitDelim);
-            runtimeParams.hasPrefillDynamicBlocks = !runtimeParams.prefillDynamicBlocks.empty();
-        } else if (arg == "--decode-dynamic-blocks") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            runtimeParams.decodeDynamicBlocks = splitString<int>(argv[i], splitDelim);
-            runtimeParams.hasDecodeDynamicBlocks = !runtimeParams.decodeDynamicBlocks.empty();
-        } else if (arg == "--prefill-min-chunk") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            auto p = splitString<int>(argv[i], splitDelim);
-            runtimeParams.prefillMinChunk = p.empty() ? runtimeParams.prefillMinChunk : p[0];
-            runtimeParams.hasPrefillMinChunk = true;
-        } else if (arg == "--decode-min-chunk") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            auto p = splitString<int>(argv[i], splitDelim);
-            runtimeParams.decodeMinChunk = p.empty() ? runtimeParams.decodeMinChunk : p[0];
-            runtimeParams.hasDecodeMinChunk = true;
-        } else if (arg == "--sched-sweep") {
-            if (++i >= argc) {
-                invalidParam = true;
-                break;
-            }
-            std::vector<float> prefillSweep = runtimeParams.prefillStaticRatios;
-            std::vector<float> decodeSweep = runtimeParams.decodeStaticRatios;
-            if (!parseScheduleSweepSpec(argv[i], &prefillSweep, &decodeSweep)) {
-                invalidParam = true;
-                break;
-            }
-            if (!prefillSweep.empty()) {
-                runtimeParams.prefillStaticRatios = prefillSweep;
-                runtimeParams.hasPrefillStaticRatio = true;
-            }
-            if (!decodeSweep.empty()) {
-                runtimeParams.decodeStaticRatios = decodeSweep;
-                runtimeParams.hasDecodeStaticRatio = true;
-            }
         } else if (arg == "-rep" || arg == "--n-repeat") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -1352,6 +1109,13 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.decodeCpuIds.insert(runtimeParams.decodeCpuIds.end(), p.begin(), p.end());
             runtimeParams.hasDecodeCpuIds = true;
+        } else if (arg == "--decode-dynamic-blocks") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            runtimeParams.decodeDynamicBlocks = splitString<int>(argv[i], splitDelim);
+            runtimeParams.hasDecodeDynamicBlocks = !runtimeParams.decodeDynamicBlocks.empty();
         } else if (arg == "--split-phase-bench") {
             runtimeParams.splitPhaseBench = true;
         } else if (arg == "--prefill-auto-bind") {
@@ -1466,7 +1230,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (hasInstrumentationFlag) {
         // Keep the trace gate process-wide so every trace_marker helper observes the same switch.
         const char* value = instrumentationEnabled ? "1" : "0";
-        setenv("MNN_ENABLE_HYBRID_INSTRUMENT", value, 1);
+        setenv("MNN_ENABLE_SCHEDULE_INSTRUMENT", value, 1);
         setenv("MNN_ENABLE_TRACE_MARKER", value, 1);
     }
 
@@ -1516,21 +1280,6 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     if (runtimeParams.dynamicOption.empty()) {
         runtimeParams.dynamicOption = runtimeParamsDefaults.dynamicOption;
     }
-    if (runtimeParams.schedulerPolicies.empty()) {
-        runtimeParams.schedulerPolicies = runtimeParamsDefaults.schedulerPolicies;
-    }
-    if (runtimeParams.prefillStaticRatios.empty()) {
-        runtimeParams.prefillStaticRatios = runtimeParamsDefaults.prefillStaticRatios;
-    }
-    if (runtimeParams.decodeStaticRatios.empty()) {
-        runtimeParams.decodeStaticRatios = runtimeParamsDefaults.decodeStaticRatios;
-    }
-    if (runtimeParams.prefillDynamicBlocks.empty()) {
-        runtimeParams.prefillDynamicBlocks = runtimeParamsDefaults.prefillDynamicBlocks;
-    }
-    if (runtimeParams.decodeDynamicBlocks.empty()) {
-        runtimeParams.decodeDynamicBlocks = runtimeParamsDefaults.decodeDynamicBlocks;
-    }
     if (runtimeParams.cpuIds.empty()) {
         runtimeParams.cpuIds = runtimeParamsDefaults.cpuIds;
     }
@@ -1575,20 +1324,6 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.heuristicParams.alpha = std::min(1.0, std::max(0.0, runtimeParams.heuristicParams.alpha));
     runtimeParams.heuristicParams.idle_factor = std::max(0.0, runtimeParams.heuristicParams.idle_factor);
     runtimeParams.heuristicParams.static_power = std::max(0.0, runtimeParams.heuristicParams.static_power);
-    for (auto& value : runtimeParams.prefillStaticRatios) {
-        value = std::min(1.0f, std::max(0.0f, value));
-    }
-    for (auto& value : runtimeParams.decodeStaticRatios) {
-        value = std::min(1.0f, std::max(0.0f, value));
-    }
-    for (auto& value : runtimeParams.prefillDynamicBlocks) {
-        value = std::max(0, value);
-    }
-    for (auto& value : runtimeParams.decodeDynamicBlocks) {
-        value = std::max(0, value);
-    }
-    runtimeParams.prefillMinChunk = std::max(1, runtimeParams.prefillMinChunk);
-    runtimeParams.decodeMinChunk = std::max(1, runtimeParams.decodeMinChunk);
 
     return true;
 }

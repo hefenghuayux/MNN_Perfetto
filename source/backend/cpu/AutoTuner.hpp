@@ -28,29 +28,42 @@ enum class InferencePhase {
 
 enum class SchedulerPolicy {
     DYNAMIC = 0,
-    HYBRID = 1,
-    GUIDED = 2
+    WORK_STEAL = 1
 };
 
 MNN_PUBLIC const char* schedulerPolicyName(SchedulerPolicy policy);
 
 struct TuningParams {
-    float static_ratio;
+    SchedulerPolicy policy;
     int dynamic_blocks;
     int dynamic_target_chunks;
-    SchedulerPolicy policy;
-    int min_chunk_size;
 
-    TuningParams(float ratio = 0.0f,
-                 int blocks = 0,
-                 int target_chunks = 0,
-                 SchedulerPolicy scheduler_policy = SchedulerPolicy::DYNAMIC,
-                 int min_chunk = 1)
-        : static_ratio(ratio),
+    explicit TuningParams(SchedulerPolicy scheduler_policy = SchedulerPolicy::DYNAMIC,
+                          int blocks = 0,
+                          int target_chunks = 0)
+        : policy(scheduler_policy),
           dynamic_blocks(blocks),
-          dynamic_target_chunks(target_chunks > 0 ? target_chunks : blocks),
-          policy(scheduler_policy),
-          min_chunk_size(min_chunk > 0 ? min_chunk : 1) {}
+          dynamic_target_chunks(target_chunks > 0 ? target_chunks : blocks) {}
+};
+
+struct alignas(MNN_CACHE_LINE_SIZE) PrefillWorkStealThreadStats {
+    long long local_pop_calls = 0;
+    long long local_pop_success = 0;
+    long long steal_attempts = 0;
+    long long steal_success = 0;
+    long long steal_empty = 0;
+    long long steal_cas_retries = 0;
+    long long stolen_tasks = 0;
+    long long tasks_executed = 0;
+};
+
+struct alignas(MNN_CACHE_LINE_SIZE) DecodeDynamicThreadStats {
+    long long claim_calls = 0;
+    long long claim_success = 0;
+    long long claim_empty = 0;
+    long long claimed_tasks = 0;
+    long long tasks_executed = 0;
+    long long padding[3] = {0, 0, 0};
 };
 
 struct ExecutionParams {
@@ -65,66 +78,73 @@ struct alignas(MNN_CACHE_LINE_SIZE) DynamicTaskState {
     std::atomic<int> cursor{0};
     int end{0};
     int step_size{1};
-    int min_step_size{1};
     int active_threads{1};
-    int target_chunks{1};
+    int target_chunks{0};
     SchedulerPolicy policy{SchedulerPolicy::DYNAMIC};
+    std::array<DecodeDynamicThreadStats, MNN_MAX_SCHEDULER_THREADS> thread_stats{};
+};
+
+struct alignas(MNN_CACHE_LINE_SIZE) WorkStealQueueSlot {
+    std::atomic<uint64_t> bounds{0};
+    uint8_t padding[MNN_CACHE_LINE_SIZE - sizeof(std::atomic<uint64_t>)]{};
+};
+
+struct alignas(MNN_CACHE_LINE_SIZE) PrefillWorkStealState {
+    std::atomic<uint64_t> non_empty_mask{0};
+    uint8_t mask_padding[MNN_CACHE_LINE_SIZE - sizeof(std::atomic<uint64_t>)]{};
+    int total_size{0};
+    int step_size{1};
+    int active_threads{1};
+    std::array<uint32_t, MNN_MAX_SCHEDULER_THREADS> local_steps{};
+    std::array<WorkStealQueueSlot, MNN_MAX_SCHEDULER_THREADS> queues{};
+    std::array<PrefillWorkStealThreadStats, MNN_MAX_SCHEDULER_THREADS> thread_stats{};
+    std::array<std::array<uint8_t, MNN_MAX_SCHEDULER_THREADS>, MNN_MAX_SCHEDULER_THREADS> victim_order{};
 };
 
 struct PhaseScheduleStatsSnapshot {
     long long op_count = 0;
     long long total_tasks = 0;
-    long long total_static_tasks = 0;
-    long long total_dynamic_tasks = 0;
-    long long total_step_size = 0;
-    long long step_samples = 0;
-    long long total_target_chunks = 0;
-    long long target_chunk_samples = 0;
-    long long theoretical_dynamic_chunks = 0;
-    long long actual_dynamic_chunks = 0;
+    long long total_chunks = 0;
+    long long local_pop_calls = 0;
+    long long local_pop_success = 0;
+    long long steal_attempts = 0;
+    long long steal_success = 0;
+    long long steal_empty = 0;
+    long long steal_cas_retries = 0;
+    long long stolen_tasks = 0;
     long long dynamic_claim_calls = 0;
     long long dynamic_claim_success = 0;
     long long dynamic_claim_empty = 0;
-    long long dynamic_claim_cas_retries = 0;
-    long long dynamic_claim_time_ns = 0;
+    long long dynamic_claim_tasks = 0;
     int last_total_size = 0;
-    int last_total_static = 0;
-    int last_dynamic_size = 0;
     int last_step_size = 1;
-    int last_target_chunks = 0;
     int last_active_threads = 1;
-    int last_min_chunk_size = 1;
+    int last_target_chunks = 0;
     SchedulerPolicy last_policy = SchedulerPolicy::DYNAMIC;
-    std::array<long long, MNN_MAX_SCHEDULER_THREADS> static_tasks_per_thread{};
-    std::array<long long, MNN_MAX_SCHEDULER_THREADS> dynamic_tasks_per_thread{};
+    std::array<long long, MNN_MAX_SCHEDULER_THREADS> tasks_per_thread{};
 };
 
 struct PhaseScheduleStats {
     std::atomic<long long> op_count{0};
     std::atomic<long long> total_tasks{0};
-    std::atomic<long long> total_static_tasks{0};
-    std::atomic<long long> total_dynamic_tasks{0};
-    std::atomic<long long> total_step_size{0};
-    std::atomic<long long> step_samples{0};
-    std::atomic<long long> total_target_chunks{0};
-    std::atomic<long long> target_chunk_samples{0};
-    std::atomic<long long> theoretical_dynamic_chunks{0};
-    std::atomic<long long> actual_dynamic_chunks{0};
+    std::atomic<long long> total_chunks{0};
+    std::atomic<long long> local_pop_calls{0};
+    std::atomic<long long> local_pop_success{0};
+    std::atomic<long long> steal_attempts{0};
+    std::atomic<long long> steal_success{0};
+    std::atomic<long long> steal_empty{0};
+    std::atomic<long long> steal_cas_retries{0};
+    std::atomic<long long> stolen_tasks{0};
     std::atomic<long long> dynamic_claim_calls{0};
     std::atomic<long long> dynamic_claim_success{0};
     std::atomic<long long> dynamic_claim_empty{0};
-    std::atomic<long long> dynamic_claim_cas_retries{0};
-    std::atomic<long long> dynamic_claim_time_ns{0};
+    std::atomic<long long> dynamic_claim_tasks{0};
     std::atomic<int> last_total_size{0};
-    std::atomic<int> last_total_static{0};
-    std::atomic<int> last_dynamic_size{0};
     std::atomic<int> last_step_size{1};
-    std::atomic<int> last_target_chunks{0};
     std::atomic<int> last_active_threads{1};
-    std::atomic<int> last_min_chunk_size{1};
+    std::atomic<int> last_target_chunks{0};
     std::atomic<int> last_policy{static_cast<int>(SchedulerPolicy::DYNAMIC)};
-    std::array<std::atomic<long long>, MNN_MAX_SCHEDULER_THREADS> static_tasks_per_thread;
-    std::array<std::atomic<long long>, MNN_MAX_SCHEDULER_THREADS> dynamic_tasks_per_thread;
+    std::array<std::atomic<long long>, MNN_MAX_SCHEDULER_THREADS> tasks_per_thread;
 
     PhaseScheduleStats();
     void reset();
@@ -150,8 +170,6 @@ public:
     InferencePhase getPhase() const;
     TuningParams getTuningParams() const;
 
-    void setPrefillParams(float static_ratio, int dynamic_blocks);
-    void setDecodeParams(float static_ratio, int dynamic_blocks);
     void setPrefillParams(const TuningParams& params);
     void setDecodeParams(const TuningParams& params);
 
@@ -169,15 +187,15 @@ public:
                           SchedulerPolicy policy,
                           int active_threads,
                           int total_size,
-                          int total_static,
-                          int dynamic_size,
                           int step_size,
-                          int target_chunks,
-                          int theoretical_dynamic_chunks,
-                          int min_chunk_size);
-    void noteStaticRange(InferencePhase phase, int thread_id, int start, int end);
-    void noteDynamicRange(InferencePhase phase, int thread_id, int start, int end);
-    void noteDynamicClaim(InferencePhase phase, bool success, int cas_retries, long long claim_time_ns);
+                          int target_chunks = 0);
+    void noteThreadTasks(InferencePhase phase, int thread_id, int task_count);
+    void notePrefillLocalPop(bool success);
+    void notePrefillStealAttempt();
+    void notePrefillStealResult(bool success, int task_count, int cas_retries);
+    void noteDecodeDynamicClaim(bool success, int task_count);
+    void notePrefillThreadStats(int thread_id, const PrefillWorkStealThreadStats& stats);
+    void noteDecodeDynamicThreadStats(int thread_id, const DecodeDynamicThreadStats& stats);
     PhaseScheduleStatsSnapshot getScheduleStats(InferencePhase phase) const;
     std::string formatScheduleStats(InferencePhase phase) const;
 

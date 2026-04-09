@@ -1,0 +1,42 @@
+===== CASE: t4_bind_4567 =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -t 4 -ids 4,5,6,7
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | prompt=512<br>decode=128 | 475.10 ± 0.68<br>87.93 ± 0.20 |
+
+
+===== CASE: t4_default =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -t 4
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     4 | Low        | prompt=512<br>decode=128 | 417.21 ± 1.59<br>81.45 ± 2.06 |
+
+
+===== CASE: t5_bind_34567 =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -t 5 -ids 3,4,5,6,7
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | prompt=512<br>decode=128 | 483.71 ± 0.58<br>89.85 ± 0.36 |
+
+
+===== CASE: t5_default =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -t 5
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     5 | Low        | prompt=512<br>decode=128 | 481.49 ± 1.63<br>89.76 ± 0.48 |
+
+
+===== CASE: t6_bind_234567 =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -t 6 -ids 2,3,4,5,6,7
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | prompt=512<br>decode=128 | 524.75 ± 0.73<br>88.87 ± 0.19 |
+
+
+===== CASE: t6_default =====
+cd /data/local/tmp/baseline && export LD_LIBRARY_PATH=./ && ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -t 6
+| model                          |  modelSize | backend    | threads | precision  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | prompt=512<br>decode=128 | 512.54 ± 23.89<br>87.67 ± 1.15 |
+
+
