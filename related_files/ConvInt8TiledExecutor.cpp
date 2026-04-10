@@ -1567,6 +1567,16 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                 });
             }
             MNN_CONCURRENCY_PREFILL_WORKSTEAL_END();
+        } else if (mSchedulePolicy == SchedulerPolicy::STATIC) {
+            MNN_CONCURRENCY_BEGIN(tId, threads) {
+                const int start = mDivides[tId];
+                const int end = mDivides[tId + 1];
+                if (start < end) {
+                    processOcRange((int)tId, start, end);
+                    AutoTuner::getInstance()->noteThreadTasks(InferencePhase::PREFILL, (int)tId, end - start);
+                }
+            }
+            MNN_CONCURRENCY_END();
         } else {
             MNN_CONCURRENCY_DECODE_DYNAMIC_BEGIN(tId,
                                                  threads,
@@ -1593,6 +1603,16 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                 });
             }
             MNN_CONCURRENCY_PREFILL_WORKSTEAL_END();
+        } else if (mSchedulePolicy == SchedulerPolicy::STATIC) {
+            MNN_CONCURRENCY_BEGIN(tId, threads) {
+                const int start = mDivides[tId];
+                const int end = mDivides[tId + 1];
+                if (start < end) {
+                    tileSplitFunction((int)tId, start, end, 1);
+                    AutoTuner::getInstance()->noteThreadTasks(InferencePhase::PREFILL, (int)tId, end - start);
+                }
+            }
+            MNN_CONCURRENCY_END();
         } else {
             MNN_CONCURRENCY_DECODE_DYNAMIC_BEGIN(tId,
                                                  threads,

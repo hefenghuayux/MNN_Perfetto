@@ -6,20 +6,27 @@
 # DECODE_CPU_IDS=2,3,6,7 \
 # bash ./run_perfetto_batch.sh
 
-# LOCAL_PKG=final_version2 \
+# LOCAL_PKG=final_version \
 # PREFILL_SCHED_POLICY=dynamic \
-# PREFILL_DYNAMIC_BLOCKS=240 \
+# PREFILL_DYNAMIC_BLOCKS=60 \
 # DECODE_SCHED_POLICY=dynamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
 # bash ./run_perfetto_batch.sh 
 
-# LOCAL_PKG=final_version7 \
-# PREFILL_SCHED_POLICY=guided \
-# PREFILL_STATIC_RATIO=0.5 \
-# PREFILL_DYNAMIC_BLOCKS=10 \
+# LOCAL_PKG=modified \
+# PREFILL_SCHED_POLICY=dynamic \
+# PREFILL_DYNAMIC_BLOCKS=120 \
 # DECODE_SCHED_POLICY=dynamic \
 # DECODE_DYNAMIC_BLOCKS=4 \
 # bash ./run_perfetto_batch.sh 
+
+# LOCAL_PKG=hybrid_stepwise_decode_compare \
+# PREFILL_SCHED_POLICY=guided \
+# PREFILL_STATIC_RATIO=1.0 \
+# PREFILL_DYNAMIC_BLOCKS=10 \
+# DECODE_SCHED_POLICY=dynamic \
+# DECODE_DYNAMIC_BLOCKS=4 \
+# bash ./run_perfetto_batch.sh --trace
 
 # LOCAL_PKG=final_version7 \
 # DECODE_SCHED_POLICY=dynamic \
@@ -45,14 +52,35 @@
 # SPLIT_PHASE_BENCH=true \
 # bash ./run_perfetto_batch.sh
 
-# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_decode_chunks_eq_threads_stats  \
-# REMOTE_DIR=/data/local/tmp/work_steal_decode_chunks_eq_threads_stats \
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_static1  \
+# REMOTE_DIR=/data/local/tmp/work_steal_static1 \
+# KV_CACHE=true \
+# PREFILL_POLICY=static \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_max_victim    \
+# REMOTE_DIR=/data/local/tmp/work_steal_max_victim   \
 # KV_CACHE=true \
 # PROMPT_TOKENS=512 \
 # GENERATE_TOKENS=128 \
 # REPEAT_COUNT=5 \
 # SPLIT_PHASE_BENCH=true \
 # bash ./run_perfetto_batch.sh
+
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_AECS  \
+# REMOTE_DIR=/data/local/tmp/work_steal_AECS \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh 
+
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================
@@ -80,6 +108,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --instrument)
             ENABLE_INSTRUMENT=true
+            shift
+            ;;
+        --force-retune)
+            ENABLE_AECS_RETUNE=true
             shift
             ;;
         --aecs-retune)
@@ -113,7 +145,7 @@ else
 fi
 
 if [ "$ENABLE_AECS_RETUNE" = true ]; then
-    echo ">>> [模式] AECS 离线搜索已开启 (--aecs-retune)"
+    echo ">>> [模式] AECS 离线搜索已开启 (--force-retune/--aecs-retune)"
 else
     echo ">>> [模式] AECS 离线搜索已关闭 (默认)"
 fi
@@ -130,6 +162,7 @@ DECODE_THREADS="${DECODE_THREADS:-6}"
 PREFILL_CPU_IDS="${PREFILL_CPU_IDS:-}"
 DECODE_CPU_IDS="${DECODE_CPU_IDS:-}"
 SPLIT_PHASE_BENCH="${SPLIT_PHASE_BENCH:-true}"
+PREFILL_POLICY="${PREFILL_POLICY:-}"
 DECODE_DYNAMIC_BLOCKS="${DECODE_DYNAMIC_BLOCKS:-}"
 
 # 基线 workload 默认与手工最优回归保持一致。
@@ -166,8 +199,7 @@ count_csv_items() {
 }
 
 if [ "$ENABLE_AECS_RETUNE" != true ]; then
-    append_sched_arg "--prefill-cpu-ids" "$PREFILL_CPU_IDS"
-    append_sched_arg "--decode-cpu-ids" "$DECODE_CPU_IDS"
+    append_sched_arg "--prefill-policy" "$PREFILL_POLICY"
     append_sched_arg "--decode-dynamic-blocks" "$DECODE_DYNAMIC_BLOCKS"
 fi
 
@@ -182,7 +214,10 @@ if [ "$SPLIT_PHASE_BENCH" = true ]; then
 fi
 
 if [ "$ENABLE_AECS_RETUNE" = true ]; then
-    # 只有显式开启时才运行 AECS，并强制重新搜索，默认完全不走 AECS 路径。
+    # 显式传入 --force-retune 或 --aecs-retune 时，统一开启：
+    # 1. static calibration，搜索大小/中/小核性能比
+    # 2. prefill 自动绑核搜索
+    # 3. decode AECS 绑核搜索
     SCRIPT_FEATURE_ARGS+=("--prefill-auto-bind" "--decode-aecs" "--force-retune")
 fi
 
@@ -245,6 +280,11 @@ TEST_CASES=(
     # 1:7
 )
 
+if [ ${#TEST_CASES[@]} -eq 0 ]; then
+    echo ">>> [参数] TEST_CASES 为空，本次不传 -t/-ids(线程数:核心列表)参数。"
+    TEST_CASES=("")
+fi
+
 for case in "${TEST_CASES[@]}"; do
     # 解析参数:
     # threads:ids[:decode_ids]
@@ -292,31 +332,44 @@ for case in "${TEST_CASES[@]}"; do
         decode_threads="$threads"
     fi
 
+    CASE_GLOBAL_ARGS=()
+    if [[ -n "$threads" ]]; then
+        CASE_GLOBAL_ARGS+=("-t" "$threads")
+    fi
+    if [[ -n "$ids" ]]; then
+        CASE_GLOBAL_ARGS+=("-ids" "$ids")
+    fi
+
+    CASE_GLOBAL_ARGS_STR=""
+    if [ ${#CASE_GLOBAL_ARGS[@]} -gt 0 ]; then
+        CASE_GLOBAL_ARGS_STR=$(join_quoted_args "${CASE_GLOBAL_ARGS[@]}")
+    fi
+
     PHASE_THREAD_ARGS_STR=$(join_quoted_args "-pt" "$prefill_threads" "-dt" "$decode_threads")
     CASE_PHASE_CPU_ARGS_STR=""
-    if [ "$ENABLE_AECS_RETUNE" != true ]; then
-        if [[ -n "$case_prefill_ids" ]]; then
-            CASE_PHASE_CPU_ARGS_STR+=" $(printf '%q' "--prefill-cpu-ids") $(printf '%q' "$case_prefill_ids")"
-        fi
-        if [[ -n "$case_decode_ids" ]]; then
-            CASE_PHASE_CPU_ARGS_STR+=" $(printf '%q' "--decode-cpu-ids") $(printf '%q' "$case_decode_ids")"
-        fi
-    fi
     
     TIMESTAMP=$(date +"%H%M%S")
     # 生成文件名：包含全局绑核信息
-    IDS_NAME=${ids//,/_}
-    LOCAL_TRACE_NAME="${TIMESTAMP}_${threads}T_IDS_${IDS_NAME}.perfetto-trace"
+    if [[ -n "$threads" || -n "$ids" ]]; then
+        IDS_NAME=${ids//,/_}
+        LOCAL_TRACE_NAME="${TIMESTAMP}_${threads}T_IDS_${IDS_NAME}.perfetto-trace"
+    else
+        LOCAL_TRACE_NAME="${TIMESTAMP}_DEFAULT_ARGS.perfetto-trace"
+    fi
     
     echo "============================================================"
-    echo "正在运行: 线程=$threads"
+    if [[ -n "$threads" || -n "$ids" ]]; then
+        echo "正在运行: 线程=$threads"
+        echo "全局绑核 Ids: $ids"
+    else
+        echo "正在运行: TEST_CASES 为空（不传 -t/-ids）"
+    fi
     echo "Prefill线程: $prefill_threads | Decode线程: $decode_threads"
-    echo "全局绑核 Ids: $ids"
     echo "测试包目录: $REMOTE_DIR"
     if [ "$ENABLE_AECS_RETUNE" = true ]; then
         echo "Prefill绑核 Ids: <AECS 搜索开启，已跳过传参> | Decode绑核 Ids: <AECS 搜索开启，已跳过传参>"
-    elif [[ -n "$case_prefill_ids" || -n "$case_decode_ids" ]]; then
-        echo "Prefill绑核 Ids: ${case_prefill_ids:-<默认>} | Decode绑核 Ids: ${case_decode_ids:-<默认>}"
+    else
+        echo "Prefill绑核 Ids: <使用缓存/程序默认，不传 phase 绑核参数> | Decode绑核 Ids: <使用缓存/程序默认，不传 phase 绑核参数>"
     fi
     echo "============================================================"
 
@@ -329,7 +382,7 @@ for case in "${TEST_CASES[@]}"; do
     fi
 
     # 步骤 2: 运行 llm_bench
-    # 使用基线参数 -t 和 -ids
+    # -t/-ids 仅在 case 中提供时传入
     echo ">>> [Step 2] 运行 llm_bench..."
     adb shell "cd $REMOTE_DIR && ${REMOTE_BENCH_PREFIX}LD_LIBRARY_PATH=./ ./llm_bench \
         -m ./model_dir/config.json \
@@ -338,9 +391,7 @@ for case in "${TEST_CASES[@]}"; do
         -p $PROMPT_TOKENS \
         -n $GENERATE_TOKENS \
         -rep $REPEAT_COUNT \
-        -dyo $DYNAMIC_OPTION \
-        -t $threads \
-        -ids $ids${PHASE_THREAD_ARGS_STR}${SCRIPT_SCHED_ARGS_STR}${CASE_PHASE_CPU_ARGS_STR}${SCRIPT_FEATURE_ARGS_STR}${EXTRA_BENCH_ARGS}"
+        -dyo $DYNAMIC_OPTION${CASE_GLOBAL_ARGS_STR}${PHASE_THREAD_ARGS_STR}${SCRIPT_SCHED_ARGS_STR}${CASE_PHASE_CPU_ARGS_STR}${SCRIPT_FEATURE_ARGS_STR}${EXTRA_BENCH_ARGS}"
 
         
         

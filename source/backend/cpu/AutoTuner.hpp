@@ -28,7 +28,8 @@ enum class InferencePhase {
 
 enum class SchedulerPolicy {
     DYNAMIC = 0,
-    WORK_STEAL = 1
+    WORK_STEAL = 1,
+    STATIC = 2
 };
 
 MNN_PUBLIC const char* schedulerPolicyName(SchedulerPolicy policy);

@@ -1,0 +1,76 @@
+{
+    "entries": [
+        {
+            "key": {
+                "device_fingerprint": "OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys",
+                "model_path": "./model_dir/config.json",
+                "mnn_version": "3.2.5",
+                "backend": 0,
+                "precision": 2,
+                "memory": 2,
+                "power": 0,
+                "dynamic_option": 0,
+                "use_mmap": false,
+                "n_prompt": 512
+            },
+            "config": {
+                "prefill_start_cpu": -1,
+                "prefill_stop_gain": 0.01,
+                "decode_search_tokens": 128,
+                "speed_relaxation": 0.08
+            },
+            "heuristic": {
+                "alpha": 0.5,
+                "idle_factor": 0.35,
+                "static_power": 0.15,
+                "scale_strategy": 0
+            },
+            "result": {
+                "prefill_cpu_ids": [
+                    7,
+                    6,
+                    5
+                ],
+                "prefill_threads": 3,
+                "decode_cpu_ids": [
+                    7
+                ],
+                "decode_threads": 1,
+                "static_cluster_count": 4,
+                "static_core_capacities": [
+                    100,
+                    100,
+                    150,
+                    150,
+                    150,
+                    225,
+                    225,
+                    257
+                ],
+                "static_cluster_ratios": [
+                    1.1422222222222225,
+                    1.5,
+                    1.5
+                ],
+                "static_cluster_cpu_ids": [
+                    [
+                        7
+                    ],
+                    [
+                        6,
+                        5
+                    ],
+                    [
+                        4,
+                        3,
+                        2
+                    ],
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            }
+        }
+    ]
+}

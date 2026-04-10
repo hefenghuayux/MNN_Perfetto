@@ -12,6 +12,7 @@
 #include <thread>
 #include <cmath>
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <numeric>
 #include <chrono>
@@ -51,6 +52,7 @@ struct RuntimeParameters
     std::vector<int> prefillCpuIds;
     std::vector<int> decodeCpuIds;
     std::vector<int> decodeDynamicBlocks;
+    SchedulerPolicy prefillPolicy;
     AecsTuningConfig tuningConfig;
     AecsHeuristicParams heuristicParams;
     bool hasLegacyCpuIds;
@@ -116,6 +118,7 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* prefillCpuIds        */ {},
     /* decodeCpuIds         */ {},
     /* decodeDynamicBlocks  */ {0},
+    /* prefillPolicy        */ MNN::SchedulerPolicy::WORK_STEAL,
     /* tuningConfig         */ AecsTuningConfig(),
     /* heuristicParams      */ AecsHeuristicParams(),
     /* hasLegacyCpuIds      */ false,
@@ -235,6 +238,26 @@ static std::string join(const std::vector<T> &values, const std::string &delim)
         }
     }
     return str.str();
+}
+
+static bool parsePrefillSchedulerPolicyToken(const std::string& token, MNN::SchedulerPolicy* policy) {
+    if (policy == nullptr) {
+        return false;
+    }
+    std::string normalized = token;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    std::replace(normalized.begin(), normalized.end(), '-', '_');
+    if (normalized == "work_steal") {
+        *policy = MNN::SchedulerPolicy::WORK_STEAL;
+        return true;
+    }
+    if (normalized == "static") {
+        *policy = MNN::SchedulerPolicy::STATIC;
+        return true;
+    }
+    return false;
 }
 
 static std::string scheduleConfigString(const LlmBenchScheduleConfig& config);
@@ -686,7 +709,7 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
     for (const auto & dyop : rp.dynamicOption)
     {
         LlmBenchScheduleConfig scheduleConfig;
-        scheduleConfig.prefill.policy = MNN::SchedulerPolicy::WORK_STEAL;
+        scheduleConfig.prefill.policy = rp.prefillPolicy;
         scheduleConfig.decode.policy = MNN::SchedulerPolicy::DYNAMIC;
         scheduleConfig.decode.dynamic_target_chunks = std::max(0, decodeDynamicBlocks);
         scheduleConfig.decode.dynamic_target_chunks_explicit = rp.hasDecodeDynamicBlocks;
@@ -881,7 +904,9 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("  -dyo, --dynamicOption <n>                 (default: 0) | Note: if set 8, trades higher memory usage for better decoding performance\n");
     printf("      --instrumention <0|1>                (default: 0) | process-wide trace_marker switch\n");
     printf("      --instrumentation <0|1>              (alias of --instrumention)\n");
-    printf("      scheduler policy is fixed: prefill=work_steal, decode=dynamic\n");
+    printf("      prefill scheduler policy: work_steal or static (default: work_steal)\n");
+    printf("      decode scheduler policy is fixed: dynamic\n");
+    printf("      --prefill-policy <work_steal|static>  (default: work_steal)\n");
     printf("      --decode-dynamic-blocks <n[,n...]>    (default: auto=2T)\n");
     printf("      --split-phase-bench                   (default: false) | force separate prefill/decode benchmark passes\n");
     printf("      --prefill-auto-bind                   (default: false) | search prefill cpu ids from highest-performance core\n");
@@ -920,6 +945,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.hasPrefillCpuIds = false;
     runtimeParams.hasDecodeCpuIds = false;
     runtimeParams.decodeDynamicBlocks = runtimeParamsDefaults.decodeDynamicBlocks;
+    runtimeParams.prefillPolicy = runtimeParamsDefaults.prefillPolicy;
     runtimeParams.hasDecodeDynamicBlocks = false;
     runtimeParams.splitPhaseBench = false;
 
@@ -1109,6 +1135,15 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             auto p = splitString<int>(argv[i], splitDelim);
             runtimeParams.decodeCpuIds.insert(runtimeParams.decodeCpuIds.end(), p.begin(), p.end());
             runtimeParams.hasDecodeCpuIds = true;
+        } else if (arg == "--prefill-policy") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            if (!parsePrefillSchedulerPolicyToken(argv[i], &runtimeParams.prefillPolicy)) {
+                invalidParam = true;
+                break;
+            }
         } else if (arg == "--decode-dynamic-blocks") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -1582,6 +1617,7 @@ int main(int argc, char ** argv) {
         aecsSetup.decode_cpu_ids = instance.mCmdParam.decodeCpuIds;
         aecsSetup.prefill_manual = prefill_manual;
         aecsSetup.decode_manual = decode_manual;
+        aecsSetup.benchmark_repeat = instance.mCmdParam.nRepeat;
         aecsSetup.tuning_config = instance.mCmdParam.tuningConfig;
         aecsSetup.heuristic_params = instance.mCmdParam.heuristicParams;
         aecsSetup.schedule_config = instance.mCmdParam.scheduleConfig;
@@ -1619,7 +1655,6 @@ int main(int argc, char ** argv) {
             end_trace_marker(); // <--- ATrace 结束
         }
         
-        tuning_prepare(llm.get());
         auto context = llm->getContext();
         if (instance.mCmdParam.nGenerate > 0) {
             llm->set_config("{\"max_new_tokens\":1}");

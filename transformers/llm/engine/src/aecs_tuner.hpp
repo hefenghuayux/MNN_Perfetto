@@ -35,7 +35,7 @@ struct AecsTuningConfig {
     std::string cache_file = "tmp/aecs_cache.json";
     int prefill_start_cpu = -1;
     double prefill_stop_gain = 0.01;
-    int decode_search_tokens = 50;
+    int decode_search_tokens = 128;
     double speed_relaxation = 0.08;
     int thermal_sample_ms = 500;
     int power_sample_ms = 50;
@@ -44,7 +44,7 @@ struct AecsTuningConfig {
     double battery_high_c = 43.0;
     double battery_resume_c = 41.0;
     int warmup_runs = 1;
-    int measure_runs = 3;
+    int measure_runs = 5;
 };
 
 struct AecsClusterInfo {

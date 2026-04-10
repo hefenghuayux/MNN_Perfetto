@@ -1,0 +1,376 @@
+--------- beginning of main
+04-09 23:49:10.606  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-09 23:49:10.628 20905 20905 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-09 23:49:10.632 20905 20905 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-09 23:49:10.633 20905 20905 E llm_bench: Opened libinputextensionsimpl.so
+04-09 23:49:10.633 20905 20905 E llm_bench: Opened libinputextensionsimpl.so
+04-09 23:49:10.633 20905 20905 E libEGL  : No entry found in platform lookup table for eglSurfaceAttribMTK
+04-09 23:49:10.633 20905 20905 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
+04-09 23:49:10.634 20905 20905 D ExtensionsLoader: Opened libguiextimpl.so
+04-09 23:49:10.654 20905 20905 D OplusUtils: OplusUtils [89]: 
+04-09 23:49:10.660 20905 20905 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+04-09 23:49:10.662 20905 20905 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+04-09 23:49:10.662 20905 20905 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+04-09 23:49:10.662 20905 20905 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+04-09 23:49:10.662 20905 20905 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+04-09 23:49:10.662 20905 20905 W libc    : Access denied finding property "ro.hardware.chipname"
+04-09 23:49:10.662 20905 20905 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+04-09 23:49:10.662 20905 20905 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+04-09 23:49:10.662 20905 20905 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:10.662 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=work_steal, target_chunks=0, threads=1, affinity=0x0) Decode(policy=dynamic, target_chunks=0, threads=1, affinity=0x0)
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 379:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 379:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 923:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 923:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 923:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 867:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 867:
+04-09 23:49:10.663 20905 20905 I MNNJNI  : 1024
+04-09 23:49:10.663 20905 20905 I MNNJNI  : ]
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=8
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:49:10.663 20905 20905 I MNNJNI  : [AutoTuner] Decode execution updated: threads=4, affinity=0xD8
+04-09 23:49:10.668 20905 20905 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7]
+04-09 23:49:10.668 20905 20905 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=6, merged_cpu_ids=6, cpuMask=0xfc
+04-09 23:49:10.668 20905 20905 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xfc
+04-09 23:49:10.668 20905 20905 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:10.770  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:10.850  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-09 23:49:10.851  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:10.852  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:10.852  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:10.852  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:10.852  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:10.852  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:10.853  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:10.854  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:10.854  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:10.854  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:10.895 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:10.902 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:10.902 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:11.449  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 2.6, cct -1.0, r/g/b/c: 110.0/90.2/45.7/241.3, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.009339, conf 0.0, ts 8795796461748786
+04-09 23:49:11.599 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:11.599 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:11.599 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:11.599 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:11.771  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:12.094 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:12.094 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:12.096 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:12.096 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:12.096 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:49:12.096 20905 20905 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 379:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 379:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 923:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 923:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 923:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 867:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 867:
+04-09 23:49:12.096 20905 20905 I MNNJNI  : 1024
+04-09 23:49:12.096 20905 20905 I MNNJNI  : ]
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=8
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Decode execution updated: threads=4, affinity=0xD8
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=6, decode=4
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Pool    cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Prefill cpu ids: 7,6,5,4,3,2 | affinity mask: 0xFC
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Decode  cpu ids: 7,6,4,3 | affinity mask: 0xD8
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AECS] Final execution plan prefill=7,6,5,4,3,2/6 decode=7,6,4,3/4 split_phase_bench=1
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AECS] Final static core capacities=379,379,923,923,923,867,867,1024
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench] Active bindings pool=6/[2,3,4,5,6,7] prefill=6/[7,6,5,4,3,2] decode=4/[7,6,4,3]
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[7,6,5,4,3,2]
+04-09 23:49:12.096 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:49:12.772  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:12.790  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 3.9,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 120.952148/90.188499/39.964958/241.312225,ts 8795797803130505,cnt 48832,flag 131072
+04-09 23:49:13.183  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,313,313,4448,4448,-60,98,100,1,1,1048704,453,5043,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-09 23:49:13.183  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-09-23-49-13
+04-09 23:49:13.183  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-09 23:49:13.384  1741  1741 D healthd : system healthd: battery l=100 v=4420 t=31.3 h=2 st=5 c=529 fc=6415000 cc=28 chg=u
+04-09 23:49:13.400  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-09 23:49:13.402  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+--------- beginning of system
+04-09 23:49:13.405  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 50
+04-09 23:49:13.405  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-09 23:49:13.488  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-09 23:49:13.759 20905 20905 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=338 total=84736 step=317 threads=6 ws_total_tasks=84736 ws_local_pop_calls=18701 ws_local_pop_success=15338 ws_steal_attempts=1448 ws_steal_success=1335 ws_steal_empty=113 ws_steal_cas_retries=181 ws_stolen_tasks=3910 ws_total_chunks=16673 tasks_per_thread=[0:17407,1:12833,2:14023,3:13660,4:13907,5:12906] latency_us=1617221 tok_s=316.592
+04-09 23:49:13.759 20905 20905 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=1.617221 s speed=316.592 tok/s
+04-09 23:49:13.759 20905 20905 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=4 bind=[7,6,4,3]
+04-09 23:49:13.759 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xD8)
+04-09 23:49:13.773  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:14.132  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 2.6, cct -1.0, r/g/b/c: 126.4/84.6/45.7/241.3, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.031834, conf 0.0, ts 8795799144516911
+04-09 23:49:14.774  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:15.473  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 5.2,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 159.436935/112.735619/62.802074/316.004089,ts 8795800485904046,cnt 48842,flag 131072
+04-09 23:49:15.607  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-09 23:49:15.774  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:15.854  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-09 23:49:15.854  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:15.855  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:15.856  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:15.857  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:15.857  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:15.857  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:15.857  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:15.857  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:15.857  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:15.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:16.162 20905 20905 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=14 threads=4 dyn_total_tasks=38016 dyn_target_chunks=8 dyn_claim_calls=2016 dyn_claim_success=1344 dyn_claim_empty=672 dyn_claim_tasks=38016 dyn_total_chunks=1344 tasks_per_thread=[0:9528,1:9478,2:9508,3:9502] latency_us=2267741 tok_s=56.444
+04-09 23:49:16.162 20905 20905 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=2.267741 s speed=56.444 tok/s
+04-09 23:49:16.162 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-09 23:49:16.162 20905 20905 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=1.617221 s decode=2.267741 s prefill_bind=[7,6,5,4,3,2] decode_bind=[7,6,4,3]
+04-09 23:49:16.162 20905 20905 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=6 bind=[7,6,5,4,3,2]
+04-09 23:49:16.162 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:49:16.776  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:16.815  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.6, cct -1.0, r/g/b/c: 164.9/124.0/57.1/339.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.010399, conf 0.0, ts 8795801827277796
+04-09 23:49:17.688 30153 21893 I TeaLog  : s worked:true 60000
+04-09 23:49:17.777  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:17.813 20905 20905 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=338 total=84736 step=317 threads=6 ws_total_tasks=84736 ws_local_pop_calls=18698 ws_local_pop_success=15353 ws_steal_attempts=1409 ws_steal_success=1317 ws_steal_empty=92 ws_steal_cas_retries=146 ws_stolen_tasks=5215 ws_total_chunks=16670 tasks_per_thread=[0:14499,1:13589,2:14933,3:14006,4:14364,5:13345] latency_us=1622207 tok_s=315.619
+04-09 23:49:17.813 20905 20905 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=1.622207 s speed=315.619 tok/s
+04-09 23:49:17.813 20905 20905 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=4 bind=[7,6,4,3]
+04-09 23:49:17.813 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xD8)
+04-09 23:49:17.842  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-09 23:49:17.846  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-09 23:49:18.155  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.5,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 164.934753/118.372406/62.802074/333.240692,ts 8795803168643474,cnt 48852,flag 131072
+04-09 23:49:18.184  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,313,313,4420,4420,529,98,100,1,1,1048704,453,5041,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-09 23:49:18.185  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-09-23-49-18
+04-09 23:49:18.185  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-09 23:49:18.492  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-09 23:49:18.501  1741  1741 D healthd : system healthd: battery l=100 v=4415 t=31.4 h=2 st=5 c=560 fc=6415000 cc=28 chg=u
+04-09 23:49:18.517  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-09 23:49:18.520  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-09 23:49:18.522  3192  3542 D BatteryStatsImplExtImpl: updateStandbyStatistics time interval is too short, ingore.
+04-09 23:49:18.522  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-09 23:49:18.557  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_IDLE_RECOVER, bundle: Bundle[{scene=SCENE_IDLE_RECOVER}]
+04-09 23:49:18.559  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: respreload
+04-09 23:49:18.560  3192  4847 D Osense-BaseDecisionMaker: invoke process preload policy
+04-09 23:49:18.560  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: clear
+04-09 23:49:18.560  3192  4847 D Osense-BaseDecisionMaker: invoke clear policy,type: unforbid
+04-09 23:49:18.560  3192  4847 I OsenseKillAction: KillAction: unhandled request: id=58924, enable=true, scene=SCENE_IDLE_RECOVER, type=unforbid, cchOnly=false, appcare=0
+04-09 23:49:18.744  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-09 23:49:18.777  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:19.403 26437 26437 I env_DeviceStrategy: after 10 min, check wifi state
+04-09 23:49:19.411  3192  5755 W WifiService: Permission violation - getConfiguredNetworks not allowed for uid=10185, packageName=com.heytap.htms, reason=java.lang.SecurityException: Location mode is disabled for the device
+04-09 23:49:19.416  3192  5755 W WifiService: Permission violation - getConfiguredNetworks not allowed for uid=10185, packageName=com.heytap.htms, reason=java.lang.SecurityException: Location mode is disabled for the device
+04-09 23:49:19.417 26437 26437 I env_DeviceStrategy: wifi connect
+04-09 23:49:19.417 26437 26437 I env_DeviceStrategy: after 10 min, check ble state
+04-09 23:49:19.421  5271  9146 I AdapterProperties: getBondedDevices: length=1
+04-09 23:49:19.425  5271  9146 I bt_btif_dm: [btif_dm.cc:1233] btif_dm_get_connection_state: Acl is not connected to peer:xx:xx:xx:xx:cc:96
+04-09 23:49:19.425  5271  9146 I bt_btif_dm: [btif_dm.cc:1233] btif_dm_get_connection_state: Acl is not connected to peer:xx:xx:xx:xx:cc:96
+04-09 23:49:19.429 26437 26437 I env_DeviceStrategy: requestBleOnce, name: 小满的REDMI K80, isConnected: false
+04-09 23:49:19.448  1212  1212 E KeymasterUtils: IKMHal_sendCmd failed with rsp_header->status: -28
+04-09 23:49:19.448  1212  1212 E KeyMasterHalDevice: abort_operation
+04-09 23:49:19.448  1212  1212 E KeyMasterHalDevice: ret: -28
+04-09 23:49:19.497  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.5, cct -1.0, r/g/b/c: 159.4/118.4/62.8/327.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.020025, conf 0.0, ts 8795804509846338
+04-09 23:49:19.779  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:20.273 20905 20905 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=14 threads=4 dyn_total_tasks=38016 dyn_target_chunks=8 dyn_claim_calls=2016 dyn_claim_success=1344 dyn_claim_empty=672 dyn_claim_tasks=38016 dyn_total_chunks=1344 tasks_per_thread=[0:9492,1:9548,2:9484,3:9492] latency_us=2306420 tok_s=55.497
+04-09 23:49:20.273 20905 20905 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=2.306420 s speed=55.497 tok/s
+04-09 23:49:20.273 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-09 23:49:20.273 20905 20905 I MNNJNI  : [llm_bench][measure 1/5] result prefill=1.622207 s decode=2.306420 s prefill_bind=[7,6,5,4,3,2] decode_bind=[7,6,4,3]
+04-09 23:49:20.273 20905 20905 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[7,6,5,4,3,2]
+04-09 23:49:20.273 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:49:20.607  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-09 23:49:20.780  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:20.838  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 5.2,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 153.939102/112.735619/62.802074/316.004089,ts 8795805851454724,cnt 48862,flag 131072
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:20.858  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:20.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:21.780  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:21.918 20905 20905 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=338 total=84736 step=317 threads=6 ws_total_tasks=84736 ws_local_pop_calls=18690 ws_local_pop_success=15363 ws_steal_attempts=1392 ws_steal_success=1299 ws_steal_empty=93 ws_steal_cas_retries=148 ws_stolen_tasks=4008 ws_total_chunks=16662 tasks_per_thread=[0:17063,1:13132,2:14086,3:13530,4:14006,5:12919] latency_us=1610875 tok_s=317.840
+04-09 23:49:21.918 20905 20905 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=1.610875 s speed=317.840 tok/s
+04-09 23:49:21.918 20905 20905 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=4 bind=[7,6,4,3]
+04-09 23:49:21.918 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xD8)
+04-09 23:49:22.180  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.5, cct -1.0, r/g/b/c: 153.9/112.7/62.8/327.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.003025, conf 0.0, ts 8795807192848890
+04-09 23:49:22.781  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:23.186  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,314,314,4415,4415,560,98,100,1,1,1048704,450,5027,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-09 23:49:23.186  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-09-23-49-23
+04-09 23:49:23.188  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-09 23:49:23.500  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-09 23:49:23.521  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.9,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 148.441284/90.188499/51.383518/293.022003,ts 8795808534190192,cnt 48872,flag 131072
+04-09 23:49:23.620  1741  1741 D healthd : system healthd: battery l=100 v=4411 t=31.4 h=2 st=5 c=621 fc=6415000 cc=28 chg=u
+04-09 23:49:23.639  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-09 23:49:23.641  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-09 23:49:23.645  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 50
+04-09 23:49:23.647  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-09 23:49:23.745  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-09 23:49:23.782  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:24.344 20905 20905 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=14 threads=4 dyn_total_tasks=38016 dyn_target_chunks=8 dyn_claim_calls=2016 dyn_claim_success=1344 dyn_claim_empty=672 dyn_claim_tasks=38016 dyn_total_chunks=1344 tasks_per_thread=[0:9526,1:9500,2:9490,3:9500] latency_us=2287925 tok_s=55.946
+04-09 23:49:24.344 20905 20905 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=2.287925 s speed=55.946 tok/s
+04-09 23:49:24.344 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-09 23:49:24.344 20905 20905 I MNNJNI  : [llm_bench][measure 2/5] result prefill=1.610875 s decode=2.287925 s prefill_bind=[7,6,5,4,3,2] decode_bind=[7,6,4,3]
+04-09 23:49:24.344 20905 20905 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[7,6,5,4,3,2]
+04-09 23:49:24.344 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:49:24.783  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:24.863  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.0, cct -1.0, r/g/b/c: 137.4/101.5/45.7/281.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.005419, conf 0.0, ts 8795809875589203
+04-09 23:49:25.608  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-09 23:49:25.784  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:25.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-09 23:49:25.859  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:25.861  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:25.861  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:25.861  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:25.861  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:25.861  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:25.862  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:25.862  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:25.862  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:25.862  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:25.862  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:25.862  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:25.863  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:25.863  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:25.863  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:25.863  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:25.994 20905 20905 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=338 total=84736 step=317 threads=6 ws_total_tasks=84736 ws_local_pop_calls=18684 ws_local_pop_success=15370 ws_steal_attempts=1386 ws_steal_success=1286 ws_steal_empty=100 ws_steal_cas_retries=144 ws_stolen_tasks=3950 ws_total_chunks=16656 tasks_per_thread=[0:17302,1:13029,2:14076,3:13552,4:13978,5:12799] latency_us=1621634 tok_s=315.731
+04-09 23:49:25.994 20905 20905 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=1.621634 s speed=315.731 tok/s
+04-09 23:49:25.994 20905 20905 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=4 bind=[7,6,4,3]
+04-09 23:49:25.994 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xD8)
+04-09 23:49:26.204  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.7,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 137.445633/101.462059/51.383518/293.022003,ts 8795811216715453,cnt 48882,flag 131072
+04-09 23:49:26.785  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:27.546  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.6, cct -1.0, r/g/b/c: 159.4/124.0/62.8/339.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.010711, conf 0.0, ts 8795812558179463
+04-09 23:49:27.786  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:27.842  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-09 23:49:27.846  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-09 23:49:28.189  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,314,314,4411,4411,621,98,100,1,1,1048704,437,5048,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-09 23:49:28.190  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-09-23-49-28
+04-09 23:49:28.190  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-09 23:49:28.414 20905 20905 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=14 threads=4 dyn_total_tasks=38016 dyn_target_chunks=8 dyn_claim_calls=2016 dyn_claim_success=1344 dyn_claim_empty=672 dyn_claim_tasks=38016 dyn_total_chunks=1344 tasks_per_thread=[0:9310,1:9684,2:9528,3:9494] latency_us=2281290 tok_s=56.109
+04-09 23:49:28.414 20905 20905 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=2.281290 s speed=56.109 tok/s
+04-09 23:49:28.414 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-09 23:49:28.414 20905 20905 I MNNJNI  : [llm_bench][measure 3/5] result prefill=1.621634 s decode=2.281290 s prefill_bind=[7,6,5,4,3,2] decode_bind=[7,6,4,3]
+04-09 23:49:28.414 20905 20905 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[7,6,5,4,3,2]
+04-09 23:49:28.414 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:49:28.507  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-09 23:49:28.742  1741  1741 D healthd : system healthd: battery l=100 v=4411 t=31.4 h=2 st=5 c=623 fc=6415000 cc=28 chg=u
+04-09 23:49:28.766  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-09 23:49:28.767  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-09 23:49:28.769  3192  3542 D BatteryStatsImplExtImpl: updateStandbyStatistics time interval is too short, ingore.
+04-09 23:49:28.769  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-09 23:49:28.787  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:28.886  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.6,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 164.934753/118.372406/62.802074/344.731750,ts 8795813899490921,cnt 48892,flag 131072
+04-09 23:49:29.788  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:29.947  1379 20952 I keystore2: system/security/keystore2/watchdog/src/lib.rs:319 - Watchdog thread idle -> terminating. Have a great day.
+04-09 23:49:30.039 20905 20905 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=338 total=84736 step=317 threads=6 ws_total_tasks=84736 ws_local_pop_calls=18750 ws_local_pop_success=15367 ws_steal_attempts=1458 ws_steal_success=1355 ws_steal_empty=103 ws_steal_cas_retries=138 ws_stolen_tasks=4328 ws_total_chunks=16722 tasks_per_thread=[0:17145,1:13184,2:14300,3:13712,4:13690,5:12705] latency_us=1601537 tok_s=319.693
+04-09 23:49:30.039 20905 20905 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=1.601537 s speed=319.693 tok/s
+04-09 23:49:30.039 20905 20905 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=4 bind=[7,6,4,3]
+04-09 23:49:30.039 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xD8)
+04-09 23:49:30.229  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.6, cct -1.0, r/g/b/c: 159.4/112.7/62.8/339.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.000000, conf 0.0, ts 8795815240965765
+04-09 23:49:30.608  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-09 23:49:30.788  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:30.864  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-09 23:49:30.864  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:30.865  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:30.865  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:30.866  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:30.866  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:30.866  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:30.866  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:30.866  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:30.867  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:30.868  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:31.569  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.4,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 164.934753/118.372406/62.802074/327.495148,ts 8795816582430765,cnt 48902,flag 131072
+04-09 23:49:31.789  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:32.464 20905 20905 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=14 threads=4 dyn_total_tasks=38016 dyn_target_chunks=8 dyn_claim_calls=2016 dyn_claim_success=1344 dyn_claim_empty=672 dyn_claim_tasks=38016 dyn_total_chunks=1344 tasks_per_thread=[0:9524,1:9502,2:9494,3:9496] latency_us=2272520 tok_s=56.325
+04-09 23:49:32.464 20905 20905 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=2.272520 s speed=56.325 tok/s
+04-09 23:49:32.464 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-09 23:49:32.464 20905 20905 I MNNJNI  : [llm_bench][measure 4/5] result prefill=1.601537 s decode=2.272520 s prefill_bind=[7,6,5,4,3,2] decode_bind=[7,6,4,3]
+04-09 23:49:32.464 20905 20905 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[7,6,5,4,3,2]
+04-09 23:49:32.464 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:49:32.790  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:32.911  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.5, cct -1.0, r/g/b/c: 164.9/118.4/68.5/333.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.027874, conf 0.0, ts 8795817923860349
+04-09 23:49:33.191  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,314,314,4411,4411,623,98,100,1,1,1048704,453,5041,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-09 23:49:33.191  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-09-23-49-33
+04-09 23:49:33.192  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-09 23:49:33.513  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-09 23:49:33.746  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-09 23:49:33.750  5091  5876 D Acc-OplusLinkBoostCommon: notifyThermalBroadCast level = 4 temp = 35,lastTemp: 34 ,th: 44
+04-09 23:49:33.753  5235  5235 D RFPowerBoostManager: my thermal listener proxy invoke method:notifyThermalBroadCast args len:2
+04-09 23:49:33.754  5235  5235 D RFPowerBoostManager: current temp is 35, mInCalling is false, current threshold is 41
+04-09 23:49:33.791  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:33.859  1741  1741 D healthd : system healthd: battery l=100 v=4409 t=31.5 h=2 st=5 c=601 fc=6415000 cc=28 chg=u
+04-09 23:49:33.877  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-09 23:49:33.880  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-09 23:49:33.882  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 50
+04-09 23:49:33.882  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-09 23:49:34.094 20905 20905 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=338 total=84736 step=317 threads=6 ws_total_tasks=84736 ws_local_pop_calls=18738 ws_local_pop_success=15400 ws_steal_attempts=1419 ws_steal_success=1310 ws_steal_empty=109 ws_steal_cas_retries=139 ws_stolen_tasks=3907 ws_total_chunks=16710 tasks_per_thread=[0:17272,1:13252,2:14037,3:13517,4:13709,5:12949] latency_us=1606043 tok_s=318.796
+04-09 23:49:34.094 20905 20905 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=1.606043 s speed=318.796 tok/s
+04-09 23:49:34.095 20905 20905 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=4 bind=[7,6,4,3]
+04-09 23:49:34.095 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xD8)
+04-09 23:49:34.210  4792  5532 D TileStateController: setListening listening: true component: ComponentInfo{com.oplus.eyeprotect/com.oplus.eyeprotect.services.EyeProtectTileService} userContext: com.android.systemui.SystemUIApplication@2ea57f4
+04-09 23:49:34.211  4792  5532 D Tile.CustomTile.EyeProtectTileService: refreshState: tile not listening, ignore
+04-09 23:49:34.211  4792  5532 D TileStateController: bindAppWhenListening: false ComponentInfo{com.oplus.eyeprotect/com.oplus.eyeprotect.services.EyeProtectTileService}
+04-09 23:49:34.212  4792  5532 I SystemUi--QuickSettings: Tile.CustomTile.EyeProtectTileService-->bindServiceWhenListening: false when isOplusQsTile
+04-09 23:49:34.212  4792  5532 D Tile.CustomTile.EyeProtectTileService: refreshState: tile not listening, ignore
+04-09 23:49:34.212  4792  7113 D OplusTileControllerPlugin: onSettingsStateChange: 1, componentName: ComponentInfo{com.oplus.eyeprotect/com.oplus.eyeprotect.services.EyeProtectTileService}
+04-09 23:49:34.215  4792  5532 D TileStateController: updateCurrentStateIsNotDirty component:ComponentInfo{com.oplus.eyeprotect/com.oplus.eyeprotect.services.EyeProtectTileService}
+04-09 23:49:34.217  4792  5532 D TileServiceManager: setBindRequested return with same value :false
+04-09 23:49:34.253  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 5.3,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 164.934753/118.372406/62.802074/338.986206,ts 8795819265270609,cnt 48912,flag 131072
+04-09 23:49:34.792  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:35.594  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.6, cct -1.0, r/g/b/c: 170.4/112.7/57.1/339.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.001880, conf 0.0, ts 8795820606772484
+04-09 23:49:35.609  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-09 23:49:35.793  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-09 23:49:35.868  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-09 23:49:35.868  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:35.869  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:35.869  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:35.869  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:35.869  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:35.869  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:35.869  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:35.870  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:35.870  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-09 23:49:35.870  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-09 23:49:35.870  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-09 23:49:35.870  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-09 23:49:35.870  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-09 23:49:35.871  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-09 23:49:35.871  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-09 23:49:35.871  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-09 23:49:36.524 20905 20905 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=14 threads=4 dyn_total_tasks=38016 dyn_target_chunks=8 dyn_claim_calls=2016 dyn_claim_success=1344 dyn_claim_empty=672 dyn_claim_tasks=38016 dyn_total_chunks=1344 tasks_per_thread=[0:9538,1:9488,2:9498,3:9492] latency_us=2289442 tok_s=55.909
+04-09 23:49:36.524 20905 20905 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=2.289442 s speed=55.909 tok/s
+04-09 23:49:36.524 20905 20905 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-09 23:49:36.524 20905 20905 I MNNJNI  : [llm_bench][measure 5/5] result prefill=1.606043 s decode=2.289442 s prefill_bind=[7,6,5,4,3,2] decode_bind=[7,6,4,3]
+04-09 23:49:36.524 20905 20905 I MNNJNI  : [llm_bench] Final result prefill=317.536 +- 1.821 tok/s decode=55.957 +- 0.305 tok/s prefill=6/[7,6,5,4,3,2] decode=4/[7,6,4,3]

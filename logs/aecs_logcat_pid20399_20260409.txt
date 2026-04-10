@@ -1,0 +1,397 @@
+04-09 23:47:13.849 20399 20399 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-09 23:47:13.852 20399 20399 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-09 23:47:13.852 20399 20399 E llm_bench: Opened libinputextensionsimpl.so
+04-09 23:47:13.852 20399 20399 E llm_bench: Opened libinputextensionsimpl.so
+04-09 23:47:13.867 20399 20399 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+04-09 23:47:13.867 20399 20399 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+04-09 23:47:13.867 20399 20399 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+04-09 23:47:13.867 20399 20399 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+04-09 23:47:13.867 20399 20399 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+04-09 23:47:13.867 20399 20399 W libc    : Access denied finding property "ro.hardware.chipname"
+04-09 23:47:13.867 20399 20399 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+04-09 23:47:13.867 20399 20399 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+04-09 23:47:13.868 20399 20399 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:13.868 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=work_steal, target_chunks=0, threads=1, affinity=0x0) Decode(policy=dynamic, target_chunks=0, threads=1, affinity=0x0)
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 379:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 379:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 923:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 923:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 923:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 867:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 867:
+04-09 23:47:13.868 20399 20399 I MNNJNI  : 1024
+04-09 23:47:13.868 20399 20399 I MNNJNI  : ]
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:13.868 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:13.871 20399 20399 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7]
+04-09 23:47:13.871 20399 20399 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=6, merged_cpu_ids=6, cpuMask=0xfc
+04-09 23:47:13.871 20399 20399 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xfc
+04-09 23:47:13.871 20399 20399 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.003 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.007 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.008 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:14.288 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.288 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:14.289 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.289 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:14.556 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.556 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:14.557 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.557 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:14.557 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-09 23:47:14.557 20399 20399 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-09 23:47:14.557 20399 20399 I MNNJNI  : [AECS] Start tuning model=./model_dir/config.json prompt=512 decode=128 prefill_auto=1 decode_aecs=1
+04-09 23:47:14.557 20399 20399 I MNNJNI  : [AECS] Initial execution plan pool=6 pool_cpu_ids=2,3,4,5,6,7 build_prefill=6/2,3,4,5,6,7 build_decode=6/2,3,4,5,6,7
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AECS][Power] Using dumpsys battery fallback: voltage=4.441 V, charge_counter=on, battery_current=on
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AECS][Power] External power is attached; dumpsys battery energy is net battery-side only and may be inaccurate
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AECS] Start static calibration with build pool=6/2,3,4,5,6,7 and inspected capacities=379,379,923,923,923,867,867,1024, force prefill policy=static
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AECS][Static] representative warmup cpu_ids=7,6,5,4,3,2 threads=6 capacities=379,379,923,923,923,867,867,1024 before pair measurements
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 379:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 379:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 923:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 923:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 923:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 867:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 867:
+04-09 23:47:14.625 20399 20399 I MNNJNI  : 1024
+04-09 23:47:14.625 20399 20399 I MNNJNI  : ]
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:14.625 20399 20399 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AECS][Prefill][warmup 1/1] candidate=7,6,5,4,3,2 threads=6 prompt=512 time=0.997124 s speed=513.477 tok/s
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 379:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 379:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 923:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 923:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 923:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 867:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 867:
+04-09 23:47:15.643 20399 20399 I MNNJNI  : 1024
+04-09 23:47:15.643 20399 20399 I MNNJNI  : ]
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:15.643 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:16.650 20399 20399 I MNNJNI  : [AECS][Prefill][measure 1/5] candidate=7,6,5,4,3,2 threads=6 prompt=512 time=0.992159 s speed=516.046 tok/s
+04-09 23:47:16.650 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 379:
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 379:
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 923:
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 923:
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 923:
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 867:
+04-09 23:47:16.650 20399 20399 I MNNJNI  : 867:
+04-09 23:47:16.651 20399 20399 I MNNJNI  : 1024
+04-09 23:47:16.651 20399 20399 I MNNJNI  : ]
+04-09 23:47:16.651 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:16.651 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:16.651 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:16.651 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:16.651 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AECS][Prefill][measure 2/5] candidate=7,6,5,4,3,2 threads=6 prompt=512 time=0.995946 s speed=514.084 tok/s
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 379:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 379:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 923:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 923:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 923:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 867:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 867:
+04-09 23:47:17.662 20399 20399 I MNNJNI  : 1024
+04-09 23:47:17.662 20399 20399 I MNNJNI  : ]
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:17.662 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AECS][Prefill][measure 3/5] candidate=7,6,5,4,3,2 threads=6 prompt=512 time=0.984362 s speed=520.134 tok/s
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 379:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 379:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 923:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 923:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 923:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 867:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 867:
+04-09 23:47:18.663 20399 20399 I MNNJNI  : 1024
+04-09 23:47:18.663 20399 20399 I MNNJNI  : ]
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:18.663 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AECS][Prefill][measure 4/5] candidate=7,6,5,4,3,2 threads=6 prompt=512 time=0.994347 s speed=514.911 tok/s
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 379:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 379:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 923:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 923:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 923:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 867:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 867:
+04-09 23:47:19.673 20399 20399 I MNNJNI  : 1024
+04-09 23:47:19.673 20399 20399 I MNNJNI  : ]
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-09 23:47:19.673 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AECS][Prefill][measure 5/5] candidate=7,6,5,4,3,2 threads=6 prompt=512 time=0.995080 s speed=514.531 tok/s
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AECS][Static] representative warmup speed=514.911 tok/s time=0.994347 s
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AECS][Static] 正在搜索 cluster ratios across 4 clusters, inspected_weights=1024,867,923,379
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AECS][Static] warmup pair=7/6,5 with inspected capacities before ratio sweep, pair_threads=3 candidate_cpu_ids=7,6,5 capacities=379,379,923,923,923,867,867,1024
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 379:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 379:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 923:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 923:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 923:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 867:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 867:
+04-09 23:47:20.684 20399 20399 I MNNJNI  : 1024
+04-09 23:47:20.684 20399 20399 I MNNJNI  : ]
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:20.684 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:21.658 20399 20399 I MNNJNI  : [AECS][Prefill][warmup 1/1] candidate=7,6,5 threads=3 prompt=512 time=0.961433 s speed=532.538 tok/s
+04-09 23:47:21.659 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 379:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 379:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 923:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 923:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 923:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 867:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 867:
+04-09 23:47:21.659 20399 20399 I MNNJNI  : 1024
+04-09 23:47:21.659 20399 20399 I MNNJNI  : ]
+04-09 23:47:21.659 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:21.659 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:21.659 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:21.659 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:21.659 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AECS][Prefill][measure 1/5] candidate=7,6,5 threads=3 prompt=512 time=0.968289 s speed=528.768 tok/s
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 379:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 379:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 923:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 923:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 923:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 867:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 867:
+04-09 23:47:22.640 20399 20399 I MNNJNI  : 1024
+04-09 23:47:22.640 20399 20399 I MNNJNI  : ]
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:22.640 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:23.625 20399 20399 I MNNJNI  : [AECS][Prefill][measure 2/5] candidate=7,6,5 threads=3 prompt=512 time=0.973352 s speed=526.017 tok/s
+04-09 23:47:23.625 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 379:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 379:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 923:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 923:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 923:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 867:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 867:
+04-09 23:47:23.625 20399 20399 I MNNJNI  : 1024
+04-09 23:47:23.626 20399 20399 I MNNJNI  : ]
+04-09 23:47:23.626 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:23.626 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:23.626 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:23.626 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:23.626 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AECS][Prefill][measure 3/5] candidate=7,6,5 threads=3 prompt=512 time=0.961546 s speed=532.476 tok/s
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 379:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 379:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 923:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 923:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 923:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 867:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 867:
+04-09 23:47:24.600 20399 20399 I MNNJNI  : 1024
+04-09 23:47:24.600 20399 20399 I MNNJNI  : ]
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:24.600 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AECS][Prefill][measure 4/5] candidate=7,6,5 threads=3 prompt=512 time=0.955987 s speed=535.572 tok/s
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 379:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 379:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 923:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 923:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 923:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 867:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 867:
+04-09 23:47:25.568 20399 20399 I MNNJNI  : 1024
+04-09 23:47:25.568 20399 20399 I MNNJNI  : ]
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:25.568 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AECS][Prefill][measure 5/5] candidate=7,6,5 threads=3 prompt=512 time=0.958580 s speed=534.123 tok/s
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AECS][Static] warmup pair=7/6,5 speed=532.476 tok/s time=0.961546 s
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AECS][Static][coarse-anchor] begin pair=7/6,5 ratio=1.0000 pair_threads=3 candidate_cpu_ids=7,6,5 capacities=379,379,923,923,923,867,867,867
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 379:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 379:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 923:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 923:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 923:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 867:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 867:
+04-09 23:47:26.538 20399 20399 I MNNJNI  : 867
+04-09 23:47:26.538 20399 20399 I MNNJNI  : ]
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:26.538 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AECS][Prefill][warmup 1/1] candidate=7,6,5 threads=3 prompt=512 time=0.947413 s speed=540.419 tok/s
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 379:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 379:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 923:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 923:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 923:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 867:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 867:
+04-09 23:47:27.498 20399 20399 I MNNJNI  : 867
+04-09 23:47:27.498 20399 20399 I MNNJNI  : ]
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:27.498 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AECS][Prefill][measure 1/5] candidate=7,6,5 threads=3 prompt=512 time=0.964249 s speed=530.983 tok/s
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 379:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 379:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 923:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 923:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 923:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 867:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 867:
+04-09 23:47:28.474 20399 20399 I MNNJNI  : 867
+04-09 23:47:28.474 20399 20399 I MNNJNI  : ]
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:28.474 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AECS][Prefill][measure 2/5] candidate=7,6,5 threads=3 prompt=512 time=0.969059 s speed=528.348 tok/s
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 379:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 379:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 923:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 923:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 923:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 867:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 867:
+04-09 23:47:29.456 20399 20399 I MNNJNI  : 867
+04-09 23:47:29.456 20399 20399 I MNNJNI  : ]
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:29.456 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AECS][Prefill][measure 3/5] candidate=7,6,5 threads=3 prompt=512 time=0.959219 s speed=533.768 tok/s
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 379:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 379:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 923:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 923:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 923:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 867:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 867:
+04-09 23:47:30.427 20399 20399 I MNNJNI  : 867
+04-09 23:47:30.427 20399 20399 I MNNJNI  : ]
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:30.427 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AECS][Prefill][measure 4/5] candidate=7,6,5 threads=3 prompt=512 time=0.963095 s speed=531.619 tok/s
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 379:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 379:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 923:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 923:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 923:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 867:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 867:
+04-09 23:47:31.402 20399 20399 I MNNJNI  : 867
+04-09 23:47:31.402 20399 20399 I MNNJNI  : ]
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:31.402 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AECS][Prefill][measure 5/5] candidate=7,6,5 threads=3 prompt=512 time=0.969056 s speed=528.349 tok/s
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AECS][Static][coarse-anchor] pair=7/6,5 ratio=1.0000 weights=867:867 speed=530.983 tok/s time=0.964249 s
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AECS][Static][coarse] begin pair=7/6,5 ratio=1.0630 pair_threads=3 candidate_cpu_ids=7,6,5 capacities=379,379,923,923,923,867,867,922
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 379:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 379:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 923:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 923:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 923:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 867:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 867:
+04-09 23:47:32.382 20399 20399 I MNNJNI  : 922
+04-09 23:47:32.382 20399 20399 I MNNJNI  : ]
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:32.382 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AECS][Prefill][warmup 1/1] candidate=7,6,5 threads=3 prompt=512 time=0.957322 s speed=534.825 tok/s
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 379:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 379:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 923:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 923:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 923:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 867:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 867:
+04-09 23:47:33.353 20399 20399 I MNNJNI  : 922
+04-09 23:47:33.353 20399 20399 I MNNJNI  : ]
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:33.353 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AECS][Prefill][measure 1/5] candidate=7,6,5 threads=3 prompt=512 time=0.966069 s speed=529.983 tok/s
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 379:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 379:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 923:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 923:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 923:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 867:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 867:
+04-09 23:47:34.330 20399 20399 I MNNJNI  : 922
+04-09 23:47:34.330 20399 20399 I MNNJNI  : ]
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=static, target_chunks=0
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=12
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-09 23:47:34.330 20399 20399 I MNNJNI  : [AutoTuner] Decode execution updated: threads=6, affinity=0xFC

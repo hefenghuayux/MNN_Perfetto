@@ -1,0 +1,550 @@
+--------- beginning of main
+04-10 16:50:24.742  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_IDLE_RECOVER, bundle: Bundle[{scene=SCENE_IDLE_RECOVER}]
+04-10 16:50:24.751  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: respreload
+04-10 16:50:24.752  3192  4847 D Osense-BaseDecisionMaker: invoke process preload policy
+04-10 16:50:24.752  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: clear
+04-10 16:50:24.753  3192  4847 D Osense-BaseDecisionMaker: invoke clear policy,type: unforbid
+04-10 16:50:24.753  3192  4847 I OsenseKillAction: KillAction: unhandled request: id=59366, enable=true, scene=SCENE_IDLE_RECOVER, type=unforbid, cchOnly=false, appcare=0
+04-10 16:50:24.757  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 16:50:24.758  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:24.758  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:24.758  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:24.759  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:24.759  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:24.759  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:24.760  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:24.760  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:24.760  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:24.760  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:24.760  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:24.760  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:24.761  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:24.761  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:24.761  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:24.761  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:24.890 31100 31100 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-10 16:50:24.901 31100 31100 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-10 16:50:24.901 31100 31100 E llm_bench: Opened libinputextensionsimpl.so
+04-10 16:50:24.901 31100 31100 E llm_bench: Opened libinputextensionsimpl.so
+04-10 16:50:24.901 31100 31100 E libEGL  : No entry found in platform lookup table for eglSurfaceAttribMTK
+04-10 16:50:24.902 31100 31100 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
+04-10 16:50:24.902 31100 31100 D ExtensionsLoader: Opened libguiextimpl.so
+04-10 16:50:24.914 31100 31100 D OplusUtils: OplusUtils [89]: 
+04-10 16:50:24.918 31100 31100 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+04-10 16:50:24.919 31100 31100 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+04-10 16:50:24.919 31100 31100 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+04-10 16:50:24.919 31100 31100 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+04-10 16:50:24.919 31100 31100 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+04-10 16:50:24.919 31100 31100 W libc    : Access denied finding property "ro.hardware.chipname"
+04-10 16:50:24.919 31100 31100 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+04-10 16:50:24.919 31100 31100 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+04-10 16:50:24.919 31100 31100 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:24.919 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AECS] Cache hit for model=./model_dir/config.json, prefill=7,6,5, decode=7, static=1
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AECS][Cache] execution plan prefill=7,6,5/3 decode=7/1
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AECS][Cache] static core capacities=100,100,150,150,150,225,225,257 (valid=1, cluster_count=4)
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=work_steal, target_chunks=0, threads=1, affinity=0x0) Decode(policy=dynamic, target_chunks=0, threads=1, affinity=0x0)
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 100:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 100:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 150:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 150:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 150:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 225:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 225:
+04-10 16:50:24.920 31100 31100 I MNNJNI  : 257
+04-10 16:50:24.920 31100 31100 I MNNJNI  : ]
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=2
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-10 16:50:24.920 31100 31100 I MNNJNI  : [AutoTuner] Decode execution updated: threads=1, affinity=0x80
+04-10 16:50:24.923 31100 31100 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7]
+04-10 16:50:24.923 31100 31100 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=6, merged_cpu_ids=6, cpuMask=0xfc
+04-10 16:50:24.923 31100 31100 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xfc
+04-10 16:50:24.923 31100 31100 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.006  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 52.9,cct 3935.2,brl/algo/ir 0.0/2.0/11.2,pwm/dc 0.0/0.0,rgbc 2336.575684/1386.648193/633.730042/4194.236328,ts 8857070019424834,cnt 15131,flag 131072
+04-10 16:50:25.066 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.069 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.069 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:25.275  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 53.0, cct -1.0, r/g/b/c: 2331.1/1392.3/639.4/4188.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.020808, conf 0.0, ts 8857070287775563
+04-10 16:50:25.336 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.336 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:25.336 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.336 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:25.467  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:25.559  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-10 16:50:25.561  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-10 16:50:25.594 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.594 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:25.595 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.595 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:25.595 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 16:50:25.595 31100 31100 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AECS] Reuse cached static calibration capacities=100,100,150,150,150,225,225,257
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AECS] Reuse cached execution plan prefill=7,6,5/3 decode=7/1 without retune
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 100:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 100:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 150:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 150:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 150:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 225:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 225:
+04-10 16:50:25.595 31100 31100 I MNNJNI  : 257
+04-10 16:50:25.595 31100 31100 I MNNJNI  : ]
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=2
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=3, affinity=0xE0
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Decode execution updated: threads=1, affinity=0x80
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=3, decode=1
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Pool    cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Prefill cpu ids: 7,6,5 | affinity mask: 0xE0
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Decode  cpu ids: 7 | affinity mask: 0x80
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AECS] Final execution plan prefill=7,6,5/3 decode=7/1 split_phase_bench=1
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AECS] Final static core capacities=100,100,150,150,150,225,225,257
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench] Active bindings pool=6/[2,3,4,5,6,7] prefill=3/[7,6,5] decode=1/[7]
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=3 bind=[7,6,5]
+04-10 16:50:25.595 31100 31100 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=3, affinity=0xE0)
+--------- beginning of crash
+04-10 16:50:25.601 31100 31100 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x340000003c in tid 31100 (llm_bench), pid 31100 (llm_bench)
+04-10 16:50:25.624  1908  1992 E PerformanceService: storage_feature: open /sys/devices/platform/soc/112b0000.ufshci//virtualtlcbuff fail
+04-10 16:50:25.637 31110 31110 E crash_dump64: failed to get the guest state header for thread 31100: Bad address
+04-10 16:50:25.637 31110 31110 E crash_dump64: failed to get the guest state header for thread 31101: Bad address
+04-10 16:50:25.637 31110 31110 E crash_dump64: failed to get the guest state header for thread 31102: Bad address
+04-10 16:50:25.638 31110 31110 E crash_dump64: failed to get the guest state header for thread 31103: Bad address
+04-10 16:50:25.638 31110 31110 E crash_dump64: failed to get the guest state header for thread 31104: Bad address
+04-10 16:50:25.638 31110 31110 E crash_dump64: failed to get the guest state header for thread 31107: Bad address
+04-10 16:50:25.639  1185  1185 E lowmemorykiller: device memory 2437831 free 166254 file 2246570
+04-10 16:50:25.640  3192  4856 I Osense-PsiDetector: 9522,649,6104,8704,30,610,310,1341,8912,5516,3258,0,16,8605
+04-10 16:50:25.640  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=4}]
+04-10 16:50:25.641  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_LEAK, bundle: Bundle[{memLevel=4}]
+04-10 16:50:25.642  3192  4209 I OplusCpuLimitManager: OplusCpuHighLoad: request instant cpu load
+04-10 16:50:25.653 31110 31110 I crash_dump64: obtaining output fd from tombstoned, type: kDebuggerdTombstoneProto
+04-10 16:50:25.654  1419  1419 I tombstoned: received crash request for pid 31100
+04-10 16:50:25.667 31110 31110 I crash_dump64: performing dump of process 31100 (target tid = 31100)
+04-10 16:50:25.690  3192  4209 I OplusCpuLimitManager: OplusCpuHighLoad: release instant cpu load
+04-10 16:50:25.696  1914  1914 D vendor.oplus.hardware.charger-V6-service: getChargerControl:
+04-10 16:50:25.717 31110 31110 F DEBUG   : Process name is ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2,3,4,5,6,7 -pt 6 -dt 4 --split-phase-bench, uid is 2000, not key_process
+04-10 16:50:25.717 31110 31110 F DEBUG   : keyProcess: 0
+04-10 16:50:25.717 31110 31110 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+04-10 16:50:25.717 31110 31110 F DEBUG   : Build fingerprint: 'OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys'
+04-10 16:50:25.717 31110 31110 F DEBUG   : Revision: '0'
+04-10 16:50:25.717 31110 31110 F DEBUG   : ABI: 'arm64'
+04-10 16:50:25.717 31110 31110 F DEBUG   : Timestamp: 2026-04-10 16:50:25.670191044+0800
+04-10 16:50:25.717 31110 31110 F DEBUG   : Process uptime: 2s
+04-10 16:50:25.717 31110 31110 F DEBUG   : Cmdline: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2,3,4,5,6,7 -pt 6 -dt 4 --split-phase-bench
+04-10 16:50:25.717 31110 31110 F DEBUG   : pid: 31100, tid: 31100, name: llm_bench  >>> ./llm_bench <<<
+04-10 16:50:25.717 31110 31110 F DEBUG   : uid: 2000
+04-10 16:50:25.717 31110 31110 F DEBUG   : tagged_addr_ctrl: 0000000000000001 (PR_TAGGED_ADDR_ENABLE)
+04-10 16:50:25.717 31110 31110 F DEBUG   : pac_enabled_keys: 000000000000000f (PR_PAC_APIAKEY, PR_PAC_APIBKEY, PR_PAC_APDAKEY, PR_PAC_APDBKEY)
+04-10 16:50:25.717 31110 31110 F DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x000000340000003c
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x0  b400007382eed6e0  x1  0000003400000034  x2  000000738960d000  x3  0000000000000004
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x4  00000000000001ac  x5  0000000000000101  x6  0000000000000000  x7  0000000000200000
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x8  00000000001c0000  x9  00000000001c0000  x10 0000000000000200  x11 0000000000000001
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x12 000000738960d610  x13 0000000000000200  x14 0000000000000000  x15 0000000000000001
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x16 0000007432931e70  x17 00000074326e6014  x18 000000743fa48000  x19 b4000073671fbaa0
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x20 b400007382eed6e0  x21 b4000073671f9138  x22 b4000073671f9140  x23 b4000073695d0700
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x24 b4000073695d0700  x25 b4000073671f5f80  x26 b40000737b76be80  x27 b4000073695ccc00
+04-10 16:50:25.717 31110 31110 F DEBUG   :     x28 0000000000000000  x29 0000000000000002
+04-10 16:50:25.717 31110 31110 F DEBUG   :     lr  00000074326e6054  sp  0000007fde5a7530  pc  00000074326e6044  pst 0000000080001000
+04-10 16:50:25.717 31110 31110 F DEBUG   : 17 total frames
+04-10 16:50:25.717 31110 31110 F DEBUG   : backtrace:
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE: Function names and BuildId information is missing for some frames due
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE: to unreadable libraries. For unwinds of apps, only shared libraries
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE: found under the lib/ directory are readable.
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE: On this device, run setenforce 0 to make the libraries readable.
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE: Unreadable libraries:
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE:   /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE:   /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE:   /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :   NOTE:   /data/local/tmp/work_steal_max_victim/llm_bench
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #00 pc 00000000000b2044  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #01 pc 00000000000b2050  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #02 pc 00000000000b1fe0  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #03 pc 00000000000e1cb8  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #04 pc 00000000000e363c  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #05 pc 00000000000ec228  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #06 pc 00000000000ac24c  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #07 pc 00000000000ac4ec  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #08 pc 00000000000a054c  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #09 pc 00000000000995d4  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #10 pc 000000000006182c  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #11 pc 0000000000062714  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #12 pc 00000000000642c8  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #13 pc 00000000000640a0  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #14 pc 0000000000064840  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #15 pc 000000000000dbc8  /data/local/tmp/work_steal_max_victim/llm_bench
+04-10 16:50:25.717 31110 31110 F DEBUG   :       #16 pc 000000000008c8e4  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+120) (BuildId: 7c0e50df90e96ccb96f72b8661b3677b)
+--------- beginning of system
+04-10 16:50:25.721  3192  4815 W NativeCrashListener: Couldn't find ProcessRecord for pid 31100
+04-10 16:50:25.722 31110 31110 E crash_dump64: AM data write failed: Broken pipe
+04-10 16:50:25.724  1419  1419 E tombstoned: Tombstone written to: tombstone_27
+04-10 16:50:25.740  1185  1185 E lowmemorykiller: device memory 2453037 free 215963 file 2212109
+04-10 16:50:25.741  3192  4247 E NativeTombstoneManager: Tombstone's UID (2000) not an app, ignoring
+04-10 16:50:25.746  3192  4247 I DropBoxManagerService: add tag=SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS isTagEnabled=true flags=0x4
+04-10 16:50:25.772  3192  4247 D DropBoxManagerService: file :: /data/system/dropbox/SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS@1775811025771.dat.gz
+04-10 16:50:25.779  3192  4247 E NativeTombstoneManager: Tombstone's UID (2000) not an app, ignoring
+04-10 16:50:25.786  3192  4247 I BootReceiver: Copying /data/tombstones/tombstone_27 to DropBox (SYSTEM_TOMBSTONE)
+04-10 16:50:25.790  3192  4247 I DropBoxManagerService: add tag=SYSTEM_TOMBSTONE isTagEnabled=true flags=0x6
+04-10 16:50:25.805  3192  4247 D DropBoxManagerService: file :: /data/system/dropbox/SYSTEM_TOMBSTONE@1775811025805.txt.gz
+04-10 16:50:25.810  3192  4247 D OplusAnrCrashMonitor: handleAnrCrashData: bundle data done
+04-10 16:50:25.818  3192  9739 D ActivityManager: sync unfroze 26976 com.oplus.crashbox for 6
+04-10 16:50:25.821  3192  9739 D OplusAnrCrashMonitor: bind to service from AnrCrashParams{ Tag=native_crash, id=44c7b16}
+04-10 16:50:25.842  1185  1185 E lowmemorykiller: device memory 2543652 free 302372 file 2212539
+04-10 16:50:25.843  3192  4888 W OplusSelfProtectManager: pkg[com.oplus.crashbox] not in policy list
+04-10 16:50:25.847  3192  3192 W OplusSelfProtectManager: pkg[com.oplus.crashbox] not in policy list
+04-10 16:50:25.856 26976 11000 W CrashBox_FileUtils: failed to get Info: exists=false, canRead=false
+04-10 16:50:25.857  3192  3192 W OplusSelfProtectManager: pkg[com.oplus.crashbox] not in policy list
+04-10 16:50:25.858  3192  9739 D OplusAnrCrashMonitor: handleServiceCall: bundle data
+04-10 16:50:25.861  3192  4888 W OplusSelfProtectManager: pkg[com.oplus.crashbox] not in policy list
+04-10 16:50:25.879 26976  8302 W CrashBox_PackageUtils: getAppName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.879 26976  8302 W CrashBox_PackageUtils: getAppVersionName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: versionCode parseLong failed!
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: java.lang.NumberFormatException: For input string: "unknown"
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at java.lang.Long.parseLong(Long.java:782)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at java.lang.Long.parseLong(Long.java:907)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at g3.i.a(Unknown Source:104)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at g3.i.c(Unknown Source:90)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at g3.i.b(Unknown Source:32)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at c3.b.l(Unknown Source:113)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at c3.e.g(Unknown Source:18)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at com.oplus.crashbox.h.y(Unknown Source:2)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at com.oplus.crashbox.ExceptionMonitorService$ExceptionMonitorBinder.onAppExceptionBundle(Unknown Source:13)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at com.oplus.eap.IExceptionMonitorService$Stub.transOnAppExceptionBundle(IExceptionMonitorService.java:208)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at com.oplus.eap.IExceptionMonitorService$Stub.onTransact(IExceptionMonitorService.java:183)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at android.os.Binder.execTransactInternal(Binder.java:1523)
+04-10 16:50:25.882 26976  8302 W CrashBox_ExceptionInfoEntity: 	at android.os.Binder.execTransact(Binder.java:1457)
+04-10 16:50:25.887 26976  8302 W CrashBox_TestModeManager: PackageName not found:com.oplus.autotest.qetest
+04-10 16:50:25.920  6841 27725 D LogKit.CrashBoxTaskManager: collectLog called, businessName = anr_crash
+04-10 16:50:25.920  6841 27725 D LogKit.OLC_CrashBox_DataCollector: CrashBox accepted the exception Bundledata!
+04-10 16:50:25.923  6841 27725 D LogKit.OLC_CrashBox_ThreadPoolUtil: java.util.concurrent.ThreadPoolExecutor@4f8e054[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 279]
+04-10 16:50:25.927 26976  8302 W CrashBox_ExceptionInfoManager: open db report no limit ....
+04-10 16:50:25.927 26976  8302 W CrashBox_PackageUtils: getInstallerPackageName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_AnrCrashCollector: Begin collect Bundle! evType = 1001;logCollectType = 383
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil: Log upload status is Exception caught successfully.
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil: FileUploadCycleEntity{
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  fileId = ab048303-5708-4274-8784-30009978355a;
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  status = 10000;
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  businessId = 23;
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  taskId = ;
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  timeStamp =1775811025928;
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  createTime =-1;
+04-10 16:50:25.928  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil: }
+04-10 16:50:25.939  6841 31114 I LogKit.OLC_CrashBox_ExceptionInfoEntity: exceptionInfoCollector get type:native_crash
+04-10 16:50:25.940  6841 31114 I LogKit.OLC_CrashBox_ExceptionInfoEntity: exceptionInfoCollector get componentName:Native crash
+04-10 16:50:25.940  6841 31114 D LogKit.OLC_CrashBox_PackageUtils: PackageName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2
+04-10 16:50:25.941  6841 31114 W LogKit.OLC_CrashBox_PackageUtils: getAppName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.941  6841 31114 D LogKit.OLC_CrashBox_PackageUtils: PackageName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2
+04-10 16:50:25.941  6841 31114 W LogKit.OLC_CrashBox_PackageUtils: getAppVersionName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: versionCode parseLong failed!
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: java.lang.NumberFormatException: For input string: "unknown"
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at java.lang.Long.parseLong(Long.java:782)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at java.lang.Long.parseLong(Long.java:907)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at com.oplus.olc.crashbox.db.entity.a.a(ExceptionInfoEntity.java:105)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at com.oplus.olc.crashbox.db.entity.a.c(ExceptionInfoEntity.java:91)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at com.oplus.olc.crashbox.db.entity.a.b(ExceptionInfoEntity.java:33)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at y1.c.g(AnrCrashCollector.java:161)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at y1.j.e(DataCollector.java:7)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at y1.j.b(DataCollector.java:1)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at y1.h.run(R8$$SyntheticClass:11)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+04-10 16:50:25.942  6841 31114 W LogKit.OLC_CrashBox_ExceptionInfoEntity: 	at java.lang.Thread.run(Thread.java:1012)
+04-10 16:50:25.942  1185  1185 E lowmemorykiller: device memory 2543152 free 301389 file 2213812
+04-10 16:50:25.945  6841 31114 D LogKit.OLC_CrashBox_CrashBoxLogHelper: start to get extrasInfo Log
+04-10 16:50:25.946  6841 31114 D LogKit.OLC_CrashBox_ThreadPoolUtil: java.util.concurrent.ThreadPoolExecutor@4f8e054[Running, pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 279]
+04-10 16:50:25.946  6841 31114 D LogKit.OLC_CrashBox_CrashBoxLogHelper: start to get anr crash dump info
+04-10 16:50:25.946  6841 31115 D LogKit.ExtraRunnable: start collect extra info log to /data/persist_log/olc/com.oplus.crashbox/apk_logs/extras@2026-04-10_16-50-25.txt
+04-10 16:50:25.946  6841 31114 D LogKit.OLC_CrashBox_ThreadPoolUtil: java.util.concurrent.ThreadPoolExecutor@4f8e054[Running, pool size = 2, active threads = 2, queued tasks = 0, completed tasks = 279]
+04-10 16:50:25.947  6841 31114 D LogKit.OLC_CrashBox_AnrCrashFileCollector: send collectLog command
+04-10 16:50:25.947  6841 31116 D LogKit.OLC_CrashBox_ThreadPoolUtil: java.util.concurrent.ThreadPoolExecutor@4f8e054[Running, pool size = 3, active threads = 3, queued tasks = 0, completed tasks = 279]
+04-10 16:50:25.947  6841 31114 D gaia-GaiaSendManager: send: 269500417, eventTag = crashbox_collect_log
+04-10 16:50:25.948  6841 31117 D LogKit.OLC_CrashBox_TombstoneRunnable: start collect tombstone log to /data/persist_log/olc/com.oplus.crashbox/apk_logs
+04-10 16:50:25.948  6841 31114 D gaia-GaiaPacketWriter: putPacket , packetId = 1084
+04-10 16:50:25.953  6841 28816 D gaia-GaiaPacketWriter: sendPacket success, data = com.oplus.olc.gaia.Packet@4b40706
+04-10 16:50:25.969  2670  2770 D gaia:event_server: [handleEvent:34]parse event from rawMsg: {"data":"{\"app_list\":[\"./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2\"],\"error_time\":1775811025810,\"error_type\":\"native_crash\",\"file_id\":\"ab048303-5708-4274-8784-30009978355a\",\"log_option\":383,\"log_list\":[\"extras@2026-04-10_16-50-25.txt\",\"native_crash@2026-04-10_16-50-25.txt\"]}","eventId":269500417,"packetId":"1084","type":2}
+04-10 16:50:25.969  6841 31115 D LogKit.OLC_CrashBox_PackageUtils: PackageName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2
+04-10 16:50:25.969  6841 31115 W LogKit.OLC_CrashBox_PackageUtils: getPackageUid: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.970  2670  2770 D gaia:event_source: [publishEvent:38]EventSource PublishpipelineEvent 0x10104001
+04-10 16:50:25.971  6841 31115 D LogKit.OLC_CrashBox_PackageUtils: PackageName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2
+04-10 16:50:25.971  6841 31115 W LogKit.OLC_CrashBox_PackageUtils: getInstallerPackageName: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2 is invalid package name.
+04-10 16:50:25.971  2670  2696 D gaia:thread_pool: [operator():62]threadPool(FaultLogEventSource) worker do one work
+04-10 16:50:25.971  2670  2696 D gaia:logcollect: [canProcessEvent:77]plugin(LogCollect) canProcessEvent call, eventId is 0x10104001
+04-10 16:50:25.971  6841 31115 D LogKit.OLC_CrashBox_FileUtils: success to chmod path /data/persist_log/olc/com.oplus.crashbox/apk_logs/extras@2026-04-10_16-50-25.txt, success code: 0
+04-10 16:50:25.971  2670  2696 D gaia:plugin: [processEvent:37]plugin(LogCollect) schedule event on it's event looper
+04-10 16:50:25.971  6841 31115 D LogKit.ExtraRunnable: end collect kernel extra info log!
+04-10 16:50:25.971  2670  2696 D gaia:plugin: [processEvent:45]work on plugin thread pool
+04-10 16:50:25.972  2670  2703 D gaia:thread_pool: [operator():62]threadPool(log_collect_pool) worker do one work
+04-10 16:50:25.972  2670  2703 D gaia:logcollect: [onEvent:62]plugin(LogCollect) onEvent, eventId=0x10104001
+04-10 16:50:25.972  2670  2703 D gaia:logcollect: [startCatchLog:132]LogCollect startCatchLog with exception Info: {"app_list":["./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2"],"error_time":1775811025810,"error_type":"native_crash","file_id":"ab048303-5708-4274-8784-30009978355a","log_option":383,"log_list":["extras@2026-04-10_16-50-25.txt","native_crash@2026-04-10_16-50-25.txt"]}
+04-10 16:50:25.973  2670  2703 D gaia:logcollect: [startCatchLog:175]collect for temp dir of: /data/persist_log/olc/com.oplus.crashbox/temp_7
+04-10 16:50:25.974  2670 31120 D gaia:logcollect: [collectLog:109]collect log with log_option: 383
+04-10 16:50:25.975  2670 31121 D gaia:mainlogtask: [collect:33]MainLogTask collect
+04-10 16:50:25.975  2670 31124 D gaia:radiologtask: [collect:31]RadioLogTask collect
+04-10 16:50:25.975  2670 31122 D gaia:eventslogtask: [collect:31]EventsLogTask collect
+04-10 16:50:25.975  2670 31121 D gaia:mainlogtask: [addApLog:45]add Ap Log
+04-10 16:50:25.975  2670 31121 D gaia:mainlogtask: [addApLog:47]it's not lao enable, there is no extra ap log
+04-10 16:50:25.975  2670 31128 D gaia:anrcrashdumptask: [collect:31]AnrCrashDumpTask collect
+04-10 16:50:25.975  2670 31128 D gaia:anrcrashdumptask: [collect:49]target anr crash dump file name is: native_crash@2026-04-10_16-50-25.txt
+04-10 16:50:25.978  2670 31123 D gaia:dmesglogtask: [collect:30]DmesgLogTask collect
+04-10 16:50:25.980  2670 31126 D gaia:systemlogtask: [collect:31]SystemLogTask collect
+04-10 16:50:25.980  2670 31125 D gaia:extraslogtask: [collect:30]ExtrasLogTask collect
+04-10 16:50:25.981  2670 31125 D gaia:extraslogtask: [collect:46]target extra file name is: extras@2026-04-10_16-50-25.txt
+04-10 16:50:25.983  2670 31127 D gaia:crashlogtask: [collect:31]CrashLogTask collect
+04-10 16:50:26.044  1185  1185 E lowmemorykiller: device memory 2542498 free 300001 file 2215708
+04-10 16:50:26.146  1185  1185 E lowmemorykiller: device memory 2542381 free 299944 file 2215719
+04-10 16:50:26.470  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:26.685 14604 14626 D TrafficMonitor3: checkWifiApEnabled ap state:11 0/false
+04-10 16:50:26.682  3192  4856 I Osense-PsiDetector: 9931,1178,6109,8704,30,610,310,922,8791,5428,3227,0,16,8601
+04-10 16:50:26.687  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=4}]
+04-10 16:50:26.690  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_LEAK, bundle: Bundle[{memLevel=4}]
+04-10 16:50:27.471  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:27.487  1890 26706 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_321]QueueRead[0] empty, waiting buffer.
+04-10 16:50:27.690  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 53.3,cct 3848.7,brl/algo/ir 0.0/2.0/16.2,pwm/dc 0.0/0.0,rgbc 2265.104004/1341.553955/616.602234/4085.071045,ts 8857072702828092,cnt 15141,flag 131072
+04-10 16:50:27.718  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:118, read content:,348,347,4463,4463,0,100,100,1,1,1048704,19,5153,100,0,4475,500,500,0,0,7500,0,0,1,0,2,1,0,0,4,6430,100,0,0,0,0,0,0,0
+04-10 16:50:27.718  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-16-50-27
+04-10 16:50:27.720  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 16:50:27.909  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-10 16:50:27.965  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 52.5, cct -1.0, r/g/b/c: 2309.1/1375.4/633.7/4148.3, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.020481, conf 0.0, ts 8857072971140904
+04-10 16:50:27.978  6841 31117 D LogKit.OLC_CrashBox_TombstoneRunnable: end collect tombstone log!
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: The log switch is turned on, but the conditions are not met. exceptionInfo = ExceptionInfo{appInfoList=[AppInfo{packageName='./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2', processName='./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2,3,4,5,6,7 -pt 6 -dt 4 --split-phase-bench', appName='./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2', versionName='1', versionCode=0, componentName='Native crash', isForeground=false}], crashInfo=CrashInfo{exceptionClassName='signal 11 (SIGSEGV)', message='Segmentation fault', stackTrace='Process name is ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2,3,4,5,6,7 -pt 6 -dt 4 --split-phase-bench, uid is 2000, not key_process
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: keyProcess: 0
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: Build fingerprint: 'OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys'
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: Revision: '0'
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: ABI: 'arm64'
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: Timestamp: 2026-04-10 16:50:25.670191044+0800
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: Process uptime: 2s
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: Cmdline: ./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2,3,4,5,6,7 -pt 6 -dt 4 --split-phase-bench
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: pid: 31100, tid: 31100, name: llm_bench  >>> ./llm_bench <<<
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: uid: 2000
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: tagged_addr_ctrl: 0000000000000001 (PR_TAGGED_ADDR_ENABLE)
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: pac_enabled_keys: 000000000000000f (PR_PAC_APIAKEY, PR_PAC_APIBKEY, PR_PAC_APDAKEY, PR_PAC_APDBKEY)
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x000000340000003c
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x0  b400007382eed6e0  x1  0000003400000034  x2  000000738960d000  x3  0000000000000004
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x4  00000000000001ac  x5  0000000000000101  x6  0000000000000000  x7  0000000000200000
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x8  00000000001c0000  x9  00000000001c0000  x10 0000000000000200  x11 0000000000000001
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x12 000000738960d610  x13 0000000000000200  x14 0000000000000000  x15 0000000000000001
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x16 0000007432931e70  x17 00000074326e6014  x18 000000743fa48000  x19 b4000073671fbaa0
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x20 b400007382eed6e0  x21 b4000073671f9138  x22 b4000073671f9140  x23 b4000073695d0700
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x24 b4000073695d0700  x25 b4000073671f5f80  x26 b40000737b76be80  x27 b4000073695ccc00
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     x28 0000000000000000  x29 0000000000000002
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:     lr  00000074326e6054  sp  0000007fde5a7530  pc  00000074326e6044  pst 0000000080001000
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: 17 total frames
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: backtrace:
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE: Function names and BuildId information is missing for some frames due
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE: to unreadable libraries. For unwinds of apps, only shared libraries
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE: found under the lib/ directory are readable.
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE: On this device, run setenforce 0 to make the libraries readable.
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE: Unreadable libraries:
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE:   /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE:   /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE:   /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:   NOTE:   /data/local/tmp/work_steal_max_victim/llm_bench
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #00 pc 00000000000b2044  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #01 pc 00000000000b2050  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #02 pc 00000000000b1fe0  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #03 pc 00000000000e1cb8  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #04 pc 00000000000e363c  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #05 pc 00000000000ec228  /data/local/tmp/work_steal_max_victim/libMNN.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #06 pc 00000000000ac24c  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #07 pc 00000000000ac4ec  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #08 pc 00000000000a054c  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #09 pc 00000000000995d4  /data/local/tmp/work_steal_max_victim/libMNN_Express.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #10 pc 000000000006182c  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #11 pc 0000000000062714  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #12 pc 00000000000642c8  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #13 pc 00000000000640a0  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #14 pc 0000000000064840  /data/local/tmp/work_steal_max_victim/libllm.so
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #15 pc 000000000000dbc8  /data/local/tmp/work_steal_max_victim/llm_bench
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable:       #16 pc 000000000008c8e4  /apex/com.android.runtime/lib64/bionic/libc.so (__libc_init+120) (BuildId: 7c0e50df90e96ccb96f72b8661b3677b)
+04-10 16:50:27.980  6841 31116 D LogKit.AnrCrashDumpRunnable: '}, anrInfo=null, eventType='native_crash', time=1775811025810, timeZone='GMT+08:00', count=1, fileId='ab048303-5708-4274-8784-30009978355a', filePath='null', fileDir='null'}
+04-10 16:50:28.005  2670  2703 D gaia:logcollect: [startCatchLog:188]collect done
+04-10 16:50:28.006  2670  2703 D gaia:logcollect: [onEvent:71]plugin(LogCollect) onEvent call end
+04-10 16:50:28.007  2670  2696 D gaia:plugin: [processEvent:37]plugin(LogCompress) schedule event on it's event looper
+04-10 16:50:28.007  2670  2763 D gaia:logcompress: [onEvent:44]plugin(LogCompress) onEvent, eventId=0x10104001
+04-10 16:50:28.008  2670  2763 D gaia:logcompress: [compressExceptionLog:131]LogCompress start compress with exception Info: {"app_list":["./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2"],"collect_path":"/data/persist_log/olc/com.oplus.crashbox/temp_7","error_time":1775811025810,"error_type":"native_crash","file_id":"ab048303-5708-4274-8784-30009978355a","log_list":["extras@2026-04-10_16-50-25.txt","native_crash@2026-04-10_16-50-25.txt"],"log_option":383,"log_path":""}
+04-10 16:50:28.009  2670  2763 D gaia:logcompress: [getDefaultPathByType:78]accquire path with type: native_crash
+04-10 16:50:28.009  2670  2763 D gaia:logcompress: [compressExceptionLog:158]compress start
+04-10 16:50:28.386  2670  2763 D gaia:logcompress: [compressExceptionLog:171]compress end
+04-10 16:50:28.436  2670  2763 D gaia:logcompress: [onEvent:56]plugin(LogCompress) onEvent call end
+04-10 16:50:28.437  2670  2696 D gaia:pipeline: [onContinue:27]pipeline is empty, has to finish
+04-10 16:50:28.437  2670  2696 D gaia:LogActionItem: [callback:29]callback eventId , 10104001
+04-10 16:50:28.437  2670  2696 D gaia:event: [packJson:129]pack json string(content:{"data":"{\"app_list\":[\"./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2\"],\"collect_path\":\"\",\"error_time\":1775811025810,\"error_type\":\"native_crash\",\"file_id\":\"ab048303-5708-4274-8784-30009978355a\",\"log_list\":[\"extras@2026-04-10_16-50-25.txt\",\"native_crash@2026-04-10_16-50-25.txt\"],\"log_option\":383,\"log_path\":\"/data/persist_log/olc/com.oplus.crashbox/anr_crash/native_crash@ab048303-5708-4274-8784-30009978355a@PKG110_11.A.63_0630_202509012252@2026-04-10_16-50-28.zip\"}","eventId":269500417,"isAck":1,"packetId":"1084","resultCode":1,"type":2}) (len:619)
+04-10 16:50:28.439  6841 28815 D gaia-GaiaPacketReader: onReceive data length = 624
+04-10 16:50:28.439  6841 28815 D gaia-GaiaPacketReader: onReceivePacket , split packet size = 1
+04-10 16:50:28.448  6841 28815 D gaia-GaiaPacketReader: onReceivePacket , packet data = {"eventId":269500417,"eventTag":"crashbox_collect_log","isAck":1,"packetId":"1084","packetType":2,"rcvMsgInfo":{"data":"{\"app_list\":[\"./llm_bench -m ./model_dir/config.json -a cpu -kv true -p 512 -n 128 -rep 5 -dyo 0 -t 6 -ids 2\"],\"collect_path\":\"\",\"error_time\":1775811025810,\"error_type\":\"native_crash\",\"file_id\":\"ab048303-5708-4274-8784-30009978355a\",\"log_list\":[\"extras@2026-04-10_16-50-25.txt\",\"native_crash@2026-04-10_16-50-25.txt\"],\"log_option\":383,\"log_path\":\"/data/persist_log/olc/com.oplus.crashbox/anr_crash/native_crash@ab048303-5708-4274-8784-30009978355a@PKG110_11.A.63_0630_202509012252@2026-04-10_16-50-28.zip\"}","eventId":269500417,"isAck":1,"packetId":"1084","resultCode":1,"type":"2"},"sourceData":[71,65,73,65,123,34,100,97,116,97,34,58,34,123,92,34,97,112,112,95,108,105,115,116,92,34,58,91,92,34,46,47,108,108,109,95,98,101,110,99,104,32,45,109,32,46,47,109,111,100,101,108,95,100,105,114,47,99,111,110,102,105,103,46,106,115,111,110,32,45,97,32,99,112,117,32,45,107,118,32,116,114,117,101,32,45,112,32,53,49,50,32,45,110,32,49,50,56,32,45,114,101,112,32,53,32,45,100,121,111,32,48,32,45,116,32,54,32,45,105,100,115,32,50,92,34,93,44,92,34,99,111,108,108,101,99,116,95,112,97,116,104,92,34,58,92,34,92,34,44,92,34,101,114,114,111,114,95,116,105,109,101,92,34,58,49,55,55,53,56,49,49,48,50,53,56,49,48,44,92,34,101,114,114,111,114,95,116,121,112,101,92,34,58,92,34,110,97,116,105,118,101,95,99,114,97,115,104,92,34,44,92,34,102,105,108,101,95,105,100,92,34,58,92,34,97,98,48,52,56,51,48,51,45,53,55,48,56,45,52,50,55,52,45,56,55,56,52,45,51,48,48,48,57,57,55,56,51,53,53,97,92,34,44,92,34,108,111,103,95,108,105,115,116,92,34,58,91,92,34,101,120,116,114,97,115,64,50,48,50,54,45,48,52,45,49,48,95,49,54,45,53,48,45,50,53,46,116,120,116,92,34,44,92,34,110,97,116,105,118,101,95,99,114,97,115,104,64,50,48,50,54,45,48,52,45,49,48,95,49,54,45,53,48,45,50,53,46,116,120,116,92,34,93,44,92,34,108,111,103,95,111,112,116,105,111,110,92,34,58,51,56,51,44,92,34,108,111,103,95,112,97,116,104,92,34,58,92,34,47,100,97,116,97,47,112,101,114,115,105,115,116,95,108,111,103,47,111,108,99,47,99,111,109,46,111,112,108,117,115,46,99,114,97,115,104,98,111,120,47,97,110,114,95,99,114,97,115,104,47,110,97,116,105,118,101,95,99,114,97,115,104,64,97,98,48,52,56,51,48,51,45,53,55,48,56,45,52,50,55,52,45,56,55,56,52,45,51,48,48,48,57,57,55,56,51,53,53,97,64,80,75,71,49,49,48,95,49,49,46,65,46,54,51,95,48,54,51,48,95,50,48,50,53,48,57,48,49,50,50,53,50,64,50,48,50,54,45,48,52,45,49,48,95,49,54,45,53,48,45,50,56,46,122,105,112,92,34,125,34,44,34,101,118,101,110,116,73,100,34,58,50,54,57,53,48,48,52,49,55,44,34,105,115,65,99,107,34,58,49,44,34,112,97,99,107,101,116,73,100,34,58,34,49,48,56,52,34,44,34,114,101,115,117,108,116,67,111,100,101,34,58,49,44,34,116,121,112,101,34,58,50,125]}
+04-10 16:50:28.448  6841 28815 D gaia-FutureGenerator: dispatchPacketResult packetId = 1084
+04-10 16:50:28.448  6841 28815 D gaia-FutureGenerator: dispatchPacketResultByListener
+04-10 16:50:28.449  6841 28815 D gaia-FutureGenerator: dispatchPacketResultByListener isComplete =true
+04-10 16:50:28.449  6841 28815 D gaia-FutureGenerator: dispatchPacketResultByListener isComplete == true , remove task listener
+04-10 16:50:28.449  6841 28815 D gaia-FutureGenerator: clearRequestPacket packetId = 1084
+04-10 16:50:28.451  6841 31114 D LogKit.OLC_CrashBox_LogFileManager: onLogFileAdd, bid : 23
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil: Log upload status is The log is packaged successfully.
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil: FileUploadCycleEntity{
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  fileId = ab048303-5708-4274-8784-30009978355a;
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  status = 20000;
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  businessId = 23;
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  taskId = ;
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  timeStamp =1775811028457;
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil:  createTime =1775811028457;
+04-10 16:50:28.457  6841 31114 D LogKit.OLC_CrashBox_DcsStatsUtil: }
+04-10 16:50:28.458  6841 31114 D LogKit.OLC_CrashBox_CommonUtils: It take 2514 millis to collect exception data
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_LogFileManager: LogFileDao Insert index is : 70
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil: Log upload status is The log information is successfully written to the database.
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil: FileUploadCycleEntity{
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil:  fileId = ab048303-5708-4274-8784-30009978355a;
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil:  status = 20007;
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil:  businessId = 23;
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil:  taskId = ;
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil:  timeStamp =1775811028459;
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil:  createTime =-1;
+04-10 16:50:28.459  6841  7420 D LogKit.OLC_CrashBox_DcsStatsUtil: }
+04-10 16:50:28.462  6841  7420 D LogKit.OLC_CrashBox_ThreadPoolUtil: java.util.concurrent.ThreadPoolExecutor@4f8e054[Running, pool size = 4, active threads = 0, queued tasks = 0, completed tasks = 283]
+04-10 16:50:28.465  6841 31114 D LogKit.OLC_CrashBox_LogFileManager: exitInfo|anrCrash size is 0|56
+04-10 16:50:28.472  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:29.249  1741  1741 D healthd : system healthd: battery l=100 v=4463 t=34.8 h=2 st=5 c=0 fc=6415000 cc=28 chg=u
+04-10 16:50:29.267  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 16:50:29.268  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 16:50:29.478  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:29.762  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 16:50:29.762  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:29.764  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:29.764  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:29.764  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:29.764  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:29.764  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:29.765  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:29.766  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:29.766  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:29.766  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:30.374  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 52.0,cct 3879.4,brl/algo/ir 0.0/2.0/15.1,pwm/dc 0.0/0.0,rgbc 2265.104004/1341.553955/616.602234/4102.308105,ts 8857075385993144,cnt 15151,flag 131072
+04-10 16:50:30.481  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:30.624  1908  1992 E PerformanceService: storage_feature: open /sys/devices/platform/soc/112b0000.ufshci//virtualtlcbuff fail
+04-10 16:50:30.642  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 51.9, cct -1.0, r/g/b/c: 2237.6/1341.6/605.2/4050.6, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.016510, conf 0.0, ts 8857075654114602
+04-10 16:50:30.698  4792  6880 I PluginSeedling--Origin: OSenseManager-->isMEMHighPressure oldState:false newState: false isMEMHighPressure:false
+04-10 16:50:30.700  1914  1914 D vendor.oplus.hardware.charger-V6-service: getChargerControl:
+04-10 16:50:31.483  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:32.484  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:32.489  1890 26706 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_321]QueueRead[0] empty, waiting buffer.
+04-10 16:50:32.721  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:118, read content:,348,347,4463,4463,0,100,100,1,1,1048704,22,5166,100,0,4475,500,500,0,0,7500,0,0,1,0,2,1,0,0,4,6430,100,0,0,0,0,0,0,0
+04-10 16:50:32.722  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-16-50-32
+04-10 16:50:32.722  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 16:50:32.913  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-10 16:50:33.057  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 51.5,cct 3887.0,brl/algo/ir 0.0/2.0/13.9,pwm/dc 0.0/0.0,rgbc 2331.077881/1397.921753/639.439331/4199.981934,ts 8857078069127675,cnt 15161,flag 131072
+04-10 16:50:33.328  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 52.2, cct -1.0, r/g/b/c: 2303.6/1364.1/628.0/4131.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.019931, conf 0.0, ts 8857078337646894
+04-10 16:50:33.486  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:34.368  1741  1741 D healthd : system healthd: battery l=100 v=4463 t=34.8 h=2 st=5 c=0 fc=6415000 cc=28 chg=u
+04-10 16:50:34.387  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 16:50:34.388  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 16:50:34.487  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:34.770  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 16:50:34.771  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:34.772  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:34.773  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:34.774  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:34.774  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:34.774  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:34.774  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:34.774  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:34.774  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:34.775  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:35.489  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:35.559  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-10 16:50:35.561  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-10 16:50:35.624  1908  1992 E PerformanceService: storage_feature: open /sys/devices/platform/soc/112b0000.ufshci//virtualtlcbuff fail
+04-10 16:50:35.703  1914  1914 D vendor.oplus.hardware.charger-V6-service: getChargerControl:
+04-10 16:50:35.740  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 53.4,cct 3844.7,brl/algo/ir 0.0/2.0/13.6,pwm/dc 0.0/0.0,rgbc 2276.099609/1358.464233/616.602234/4090.816406,ts 8857080752673925,cnt 15171,flag 131072
+04-10 16:50:36.009  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 52.8, cct -1.0, r/g/b/c: 2303.6/1375.4/628.0/4154.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.018412, conf 0.0, ts 8857081020992467
+04-10 16:50:36.491  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:37.489  1890 26706 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_321]QueueRead[0] empty, waiting buffer.
+04-10 16:50:37.492  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:37.724  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:118, read content:,348,346,4463,4463,0,100,100,1,1,1048704,53,5162,100,0,4475,500,500,0,0,7500,0,0,1,0,2,1,0,0,4,6430,100,0,0,0,0,0,0,0
+04-10 16:50:37.724  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-16-50-37
+04-10 16:50:37.724  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 16:50:37.921  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-10 16:50:38.423  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 52.0,cct 3923.4,brl/algo/ir 0.0/2.0/13.6,pwm/dc 0.0/0.0,rgbc 2237.614746/1341.553955/610.892944/4033.361328,ts 8857083436063144,cnt 15181,flag 131072
+04-10 16:50:38.496  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:38.696  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 51.2, cct -1.0, r/g/b/c: 2254.1/1341.6/616.6/4044.9, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.020694, conf 0.0, ts 8857083704403144
+04-10 16:50:39.492  1741  1741 D healthd : system healthd: battery l=100 v=4463 t=34.8 h=2 st=5 c=0 fc=6415000 cc=28 chg=u
+04-10 16:50:39.497  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:39.513  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 16:50:39.514  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 16:50:39.775  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 16:50:39.775  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:39.776  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:39.776  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:39.777  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:39.778  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:39.778  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:39.778  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:39.778  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:39.778  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:39.778  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:40.500  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:40.624  1908  1992 E PerformanceService: storage_feature: open /sys/devices/platform/soc/112b0000.ufshci//virtualtlcbuff fail
+04-10 16:50:40.705  1914  1914 D vendor.oplus.hardware.charger-V6-service: getChargerControl:
+04-10 16:50:41.107  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 51.3,cct 3936.2,brl/algo/ir 0.0/2.0/16.7,pwm/dc 0.0/0.0,rgbc 2320.082275/1386.648193/633.730042/4182.745117,ts 8857086119535279,cnt 15191,flag 131072
+04-10 16:50:41.377  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 52.0, cct -1.0, r/g/b/c: 2281.6/1352.8/622.3/4102.3, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.018822, conf 0.0, ts 8857086387881321
+04-10 16:50:41.501  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:42.490  1890 26706 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_321]QueueRead[0] empty, waiting buffer.
+04-10 16:50:42.503  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:42.726  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:118, read content:,348,346,4463,4463,0,100,100,1,1,1048704,22,5161,100,0,4475,500,500,0,0,7500,0,0,1,0,2,1,0,0,4,6430,100,0,0,0,0,0,0,0
+04-10 16:50:42.726  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-16-50-42
+04-10 16:50:42.727  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 16:50:42.926  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager cannot transition from R to M, importance=exemptionFromFreezer-{10302}
+04-10 16:50:43.325  8034 12557 E MIDASApplication: MIDASPullAtomManager: onPullAtom 150122
+04-10 16:50:43.505  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:43.794  1761 26321 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 52.8,cct 3913.8,brl/algo/ir 0.0/2.0/13.2,pwm/dc 0.0/0.0,rgbc 2336.575684/1403.558472/633.730042/4194.236328,ts 8857088802794759,cnt 15201,flag 131072
+04-10 16:50:44.061  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 53.4, cct -1.0, r/g/b/c: 2342.1/1397.9/639.4/4211.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.019941, conf 0.0, ts 8857089071111998
+04-10 16:50:44.506  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 16:50:44.611  1741  1741 D healthd : system healthd: battery l=100 v=4463 t=34.8 h=2 st=5 c=0 fc=6415000 cc=28 chg=u
+04-10 16:50:44.630  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 16:50:44.631  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 16:50:44.748  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_IDLE_RECOVER, bundle: Bundle[{scene=SCENE_IDLE_RECOVER}]
+04-10 16:50:44.750  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: respreload
+04-10 16:50:44.750  3192  4847 D Osense-BaseDecisionMaker: invoke process preload policy
+04-10 16:50:44.750  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: clear
+04-10 16:50:44.750  3192  4847 D Osense-BaseDecisionMaker: invoke clear policy,type: unforbid
+04-10 16:50:44.750  3192  4847 I OsenseKillAction: KillAction: unhandled request: id=59367, enable=true, scene=SCENE_IDLE_RECOVER, type=unforbid, cchOnly=false, appcare=0
+04-10 16:50:44.779  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 16:50:44.779  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:44.781  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 16:50:44.782  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 16:50:44.783  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 16:50:44.783  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 16:50:44.783  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 16:50:44.783  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 16:50:44.783  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 16:50:44.784  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 16:50:44.785  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]

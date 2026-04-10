@@ -328,6 +328,21 @@ DivideSchedulePlan CPUBackend::computeDivideSizesByPhase(int size, int* dst, flo
         return plan;
     }
 
+    const auto params = tuner->getPrefillParams();
+    if (params.policy == SchedulerPolicy::STATIC) {
+        plan.policy = SchedulerPolicy::STATIC;
+        plan.step_size = 1;
+        // 纯 static prefill 直接复用原版 weighted/uniform divide 逻辑。
+        computeDivideSizes(plan.total_size, dst, avgDiv);
+        tuner->noteSchedulePlan(InferencePhase::PREFILL,
+                                SchedulerPolicy::STATIC,
+                                plan.active_threads,
+                                plan.total_size,
+                                plan.step_size);
+        end_trace_marker();
+        return plan;
+    }
+
     plan.policy = SchedulerPolicy::WORK_STEAL;
     plan.step_size = std::max(1, UP_DIV(plan.total_size, std::max(1, plan.active_threads * 10)));
     const auto* cpuInfo = MNNGetCPUInfo();
@@ -416,17 +431,36 @@ std::pair<int, int> CPUBackend::fetchPrefillWorkStealChunk(int thread_id) const 
         }
     }
 
-    const uint64_t mask = state.non_empty_mask.load(std::memory_order_relaxed);
-    for (int index = 0; index + 1 < state.active_threads; ++index) {
-        const int victimTid = state.victim_order[thread_id][index];
-        if (victimTid == thread_id) {
-            continue;
+    while (true) {
+        const uint64_t mask = state.non_empty_mask.load(std::memory_order_relaxed);
+        int victimTid = -1;
+        uint32_t victimRemaining = 0;
+        for (int candidate = 0; candidate < state.active_threads; ++candidate) {
+            if (candidate == thread_id) {
+                continue;
+            }
+            const uint64_t victimBit = (1ULL << candidate);
+            if ((mask & victimBit) == 0) {
+                continue;
+            }
+            const uint64_t bounds = mPrefillWorkStealState.queues[candidate].bounds.load(std::memory_order_acquire);
+            const uint32_t begin = _unpackBegin(bounds);
+            const uint32_t end = _unpackEnd(bounds);
+            if (begin >= end) {
+                mPrefillWorkStealState.non_empty_mask.fetch_and(~victimBit, std::memory_order_relaxed);
+                continue;
+            }
+            const uint32_t remaining = end - begin;
+            if (remaining > victimRemaining) {
+                victimRemaining = remaining;
+                victimTid = candidate;
+            }
         }
-        const uint64_t victimBit = (1ULL << victimTid);
-        if ((mask & victimBit) == 0) {
-            continue;
+        if (victimTid < 0) {
+            break;
         }
 
+        const uint64_t victimBit = (1ULL << victimTid);
         ++localStats.steal_attempts;
         int casRetries = 0;
         auto& victimQueue = mPrefillWorkStealState.queues[victimTid].bounds;

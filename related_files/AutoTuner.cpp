@@ -63,6 +63,8 @@ std::mutex AutoTuner::sInstanceMutex;
 
 const char* schedulerPolicyName(SchedulerPolicy policy) {
     switch (policy) {
+        case SchedulerPolicy::STATIC:
+            return "static";
         case SchedulerPolicy::WORK_STEAL:
             return "work_steal";
         case SchedulerPolicy::DYNAMIC:
@@ -429,15 +431,19 @@ std::string AutoTuner::formatScheduleStats(InferencePhase phase) const {
            << " step=" << snapshot.last_step_size
            << " threads=" << snapshot.last_active_threads;
     if (phase == InferencePhase::PREFILL) {
-        stream << " ws_total_tasks=" << snapshot.total_tasks
-               << " ws_local_pop_calls=" << snapshot.local_pop_calls
-               << " ws_local_pop_success=" << snapshot.local_pop_success
-               << " ws_steal_attempts=" << snapshot.steal_attempts
-               << " ws_steal_success=" << snapshot.steal_success
-               << " ws_steal_empty=" << snapshot.steal_empty
-               << " ws_steal_cas_retries=" << snapshot.steal_cas_retries
-               << " ws_stolen_tasks=" << snapshot.stolen_tasks
-               << " ws_total_chunks=" << snapshot.total_chunks;
+        if (snapshot.last_policy == SchedulerPolicy::STATIC) {
+            stream << " static_total_tasks=" << snapshot.total_tasks;
+        } else {
+            stream << " ws_total_tasks=" << snapshot.total_tasks
+                   << " ws_local_pop_calls=" << snapshot.local_pop_calls
+                   << " ws_local_pop_success=" << snapshot.local_pop_success
+                   << " ws_steal_attempts=" << snapshot.steal_attempts
+                   << " ws_steal_success=" << snapshot.steal_success
+                   << " ws_steal_empty=" << snapshot.steal_empty
+                   << " ws_steal_cas_retries=" << snapshot.steal_cas_retries
+                   << " ws_stolen_tasks=" << snapshot.stolen_tasks
+                   << " ws_total_chunks=" << snapshot.total_chunks;
+        }
     } else {
         stream << " dyn_total_tasks=" << snapshot.total_tasks
                << " dyn_target_chunks=" << snapshot.last_target_chunks

@@ -1,0 +1,961 @@
+--------- beginning of main
+04-10 00:09:33.742  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:09:33.862  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,278,278,4410,4410,623,98,100,1,1,1048704,453,5044,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:09:33.864  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-09-33
+04-10 00:09:33.864  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:09:33.871 22231 22231 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-10 00:09:33.876 22231 22231 E llm_bench: createInstance(64bit) : createExtendedFactory
+04-10 00:09:33.876 22231 22231 E llm_bench: Opened libinputextensionsimpl.so
+04-10 00:09:33.876 22231 22231 E llm_bench: Opened libinputextensionsimpl.so
+04-10 00:09:33.877 22231 22231 E libEGL  : No entry found in platform lookup table for eglSurfaceAttribMTK
+04-10 00:09:33.877 22231 22231 D ExtensionsLoader: createInstance(64bit) : createExtendedFactory
+04-10 00:09:33.878 22231 22231 D ExtensionsLoader: Opened libguiextimpl.so
+04-10 00:09:33.900 22231 22231 D OplusUtils: OplusUtils [89]: 
+04-10 00:09:33.906 22231 22231 E MNNJNI  : Can't open file:/sys/devices/system/cpu/cpufreq/boost/affected_cpus
+04-10 00:09:33.908 22231 22231 I MNNJNI  : CPU Group: [ 0  1 ], 364800 - 2265600
+04-10 00:09:33.908 22231 22231 I MNNJNI  : CPU Group: [ 5  6 ], 499200 - 2956800
+04-10 00:09:33.908 22231 22231 I MNNJNI  : CPU Group: [ 2  3  4 ], 499200 - 3148800
+04-10 00:09:33.908 22231 22231 I MNNJNI  : CPU Group: [ 7 ], 480000 - 3302400
+04-10 00:09:33.908 22231 22231 W libc    : Access denied finding property "ro.hardware.chipname"
+04-10 00:09:33.908 22231 22231 I MNNJNI  : (last_midr & (CPUINFO_ARM_MIDR_IMPLEMENTER_MASK | CPUINFO_ARM_MIDR_PART_MASK))=0x 4100d820 in _getInfoArm, 1234 
+04-10 00:09:33.908 22231 22231 I MNNJNI  : The device supports: i8sdot:1, fp16:1, i8mm: 1, sve2: 0, sme2: 0
+04-10 00:09:33.908 22231 22231 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:33.908 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:33.909 22231 22231 I MNNJNI  : [AECS] Device=OnePlus/PKG110/OP5D2BL1:15/UKQ1.231108.001/V.46ea308-2771c91-2776590:user/release-keys, prefill order=7,6,5,4,3,2,1,0, decode stage1 order=7,6,5,4,3,2
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AECS][Cache] miss for current key (no cached execution plan/static capacities)
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Initialized. Default(threads=1, affinity=0x0) Prefill(policy=work_steal, target_chunks=0, threads=1, affinity=0x0) Decode(policy=dynamic, target_chunks=0, threads=1, affinity=0x0)
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 379:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 379:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 923:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 923:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 923:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 867:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 867:
+04-10 00:09:33.910 22231 22231 I MNNJNI  : 1024
+04-10 00:09:33.910 22231 22231 I MNNJNI  : ]
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=8
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-10 00:09:33.910 22231 22231 I MNNJNI  : [AutoTuner] Decode execution updated: threads=4, affinity=0xFC
+04-10 00:09:33.915 22231 22231 I MNNJNI  : Binding to CPU Core IDs: [2,3,4,5,6,7]
+04-10 00:09:33.915 22231 22231 I MNNJNI  : Llm::initRuntime (Path B): pool_threads=6, merged_cpu_ids=6, cpuMask=0xfc
+04-10 00:09:33.915 22231 22231 I MNNJNI  : DEBUG: Force Creating Runtime via Executor. cpuMask = 0xfc
+04-10 00:09:33.915 22231 22231 I MNNJNI  : DEBUG: CPURuntime::CPURuntime called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:34.230  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:34.263 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:34.267 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:34.267 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:34.831  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.5, cct -1.0, r/g/b/c: 175.9/118.4/62.8/333.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.035806, conf 0.0, ts 8797019843784005
+04-10 00:09:34.839 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:34.839 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:34.839 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:34.839 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:35.233  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:35.240  3192  4856 I Osense-PsiDetector: 8994,157,6360,8704,27,492,279,2168,8896,7504,1257,0,16,8532
+04-10 00:09:35.243  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=3}]
+04-10 00:09:35.246  3192  4209 I OplusCpuLimitManager: OplusCpuHighLoad: request instant cpu load
+04-10 00:09:35.344  1185  1185 E lowmemorykiller: device memory 2276953 free 92698 file 2165105
+04-10 00:09:35.343  3192  4856 I Osense-PsiDetector: 8893,361,6359,8704,27,492,279,2272,8592,7205,1252,0,16,8532
+04-10 00:09:35.347  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=4}]
+04-10 00:09:35.348  3192  4209 I OplusCpuLimitManager: OplusCpuHighLoad: release instant cpu load
+04-10 00:09:35.349  3192  4852 I OsenseKillAction: KillAction: [atomic clean] start name=nirvana, requestId=-1, startAvail=8902, startFreeMB=386, purposeAvailMB=-1, purposeFreeMB=781, anonRssTarget=395, minBgCount=30, swapTarget=0, scene=NirvanaLowFree, type=cached, qb=false, cchOnly=true, urgency=false, hoggingCpuPids={}, invalid-cnt=0
+04-10 00:09:35.351  3192  4852 I OsenseKillAction: KillAction: group process done, total=1ms, firstLoop=1ms, updateProcessInfo=0ms, idleList=0ms, curBg=0
+04-10 00:09:35.351  3192  4852 D OplusAppStartupManager: prevent restart service, pkgName = com.coloros.regservice, scenePriority = -1
+04-10 00:09:35.351  3192  4852 D OplusAppStartupManager: prevent restart service, pkgName = com.coloros.gallery3d, scenePriority = -1
+04-10 00:09:35.351  3192  4852 D OplusAppStartupManager: prevent restart service, pkgName = com.oplus.aiunit, scenePriority = -1
+04-10 00:09:35.352  3192  4852 I OsenseKillAction: scanCchEmptyProc: +++++++ start double check +++++++
+04-10 00:09:35.352  3192  4852 I OsenseKillAction: scanCchEmptyProc: cch check done: killablePss=0kb, killableAnonRss=753mb, time=1ms, candidate cnt: 15
+04-10 00:09:35.352  3192  4852 I OsenseKillAction: scanNonUiProc: skip scan non ui process for nirvana
+04-10 00:09:35.352  3192  4852 I OsenseKillAction: scanOomAdj: skip scan oom adj for nirvana
+04-10 00:09:35.352  3192  4852 I OsenseKillAction: scanAllProc: skip scan all proc for nirvana
+04-10 00:09:35.352  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_LEAK, bundle: Bundle[{memLevel=4}]
+04-10 00:09:35.362  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{24294:com.oplus.notificationmanager/1000 oom:CEM/30/985/cch-empty mem:0/49/17 extra:47218s/true/false/0/16/false}: Cached(nirvana) 6ms
+04-10 00:09:35.365  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{6434:com.android.permissioncontroller/u0a279 oom:CEM/31/975/cch-empty mem:0/48/14 extra:31860s/true/false/0/8/false}: Cached(nirvana) 2ms
+04-10 00:09:35.368  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{13937:com.coloros.regservice/u0a197 oom:SVC/32/975/cch-started-services mem:0/47/13 extra:30979s/true/false/1/2/false}: Cached(nirvana) 4ms
+04-10 00:09:35.369  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{15694:com.android.settings.intelligence/u0a223 oom:CEM/33/965/cch-empty mem:0/49/14 extra:28342s/true/false/0/2/false}: Cached(nirvana) 0ms
+04-10 00:09:35.370  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{15724:com.coloros.gallery3d/u0a136 oom:CEM/35/965/cch-empty mem:0/56/46 extra:28316s/true/false/1/34/false}: Cached(nirvana) 1ms
+04-10 00:09:35.370  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{15570:com.oplus.dmp:main/u0a145 oom:CEM/36/965/cch-empty mem:0/74/98 extra:28316s/true/false/0/16/false}: Cached(nirvana) 0ms
+04-10 00:09:35.371  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{15693:com.coloros.filemanager/u0a302 oom:CEM/37/955/cch-empty mem:0/49/19 extra:28315s/false/false/0/33/false}: Cached(nirvana) 1ms
+04-10 00:09:35.371  3192  4852 I OsenseKillAction: KillAction: Kill ProcessInfo{30030:com.android.rkpdapp/u0a277 oom:CEM/38/945/cch-empty mem:0/48/13 extra:27090s/true/false/0/1/false}: Cached(nirvana) 0ms
+04-10 00:09:35.371  3192  4852 I OsenseKillAction: KillAction: release enough memory or killing too much, pss=0mb, anonRss=420mb, swap=234mb
+04-10 00:09:35.371  3192  4852 I OsenseKillAction: KillAction: done execute kill, pi2app=0ms, monitor=0ms, kill=20ms, total=20ms, kill cnt=8, local cnt=8
+04-10 00:09:35.371  3192  4852 I OsenseKillAction: KillAction: [atomic clean] end requestId=-1, endAvail=8987mb, reclaimed: [pss=0mb, anonRss=420mb, swap=234mb, mem=420mb, Rss=1251mb], timing: [total=23ms, update=0ms, readMem=1ms, group=1ms, cch=1ms, nonUi=0ms, oomadj=0ms, allProc=0ms, monitor=0ms, kill=20ms], sysinfo: [bgcount=0]
+04-10 00:09:35.371  3192  4852 I OsenseKillAction: KillAction: 0mb more anonRss to reclaim, 0mb more swapMb to reclaim, <skip> mem guard, cur avail=8987mb, bundle: Bundle[{bgActivityAppCount=0, minBgCount=30, type=cached, scene=NirvanaLowFree, purposeFreeMB=781}]
+04-10 00:09:35.375  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_MEM_RELEASED, bundle: Bundle[{scene=SCENE_MEM_RELEASED}]
+04-10 00:09:35.388  1611  1611 I Zygote  : Process 15694 exited due to signal 9 (Killed)
+--------- beginning of system
+04-10 00:09:35.388  3192  5072 I ActivityManager: Death received, pid = 15694, processName = com.android.settings.intelligence for thread android.os.BinderProxy@a257fba
+04-10 00:09:35.388  3192  4897 I ActivityManager: Process com.android.settings.intelligence (pid 15694) has died: cch+65 CEM 
+04-10 00:09:35.390  3192  4897 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.391  1185  1185 E lowmemorykiller: device memory 2343256 free 165219 file 2156489
+04-10 00:09:35.391  1895  1895 E qspmHal : setAppInfoH atPid = 15694, gpuFname:com.android.settings.intelligence, gpuFver:140000000
+04-10 00:09:35.391  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.392  1610  1655 E TetherController: property_get sys.radio.data.modem_share_flag return 0, 1!
+04-10 00:09:35.390  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:15694,uid:10223
+04-10 00:09:35.392  4792  5802 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.android.settings.intelligence, pid=15694, uid=10223, state=onProcessDied}]
+04-10 00:09:35.392  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@a416eeb target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.392  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@a416eeb target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.392  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.393  3192  3508 D DisplayManagerService: Drop pending events for gone uid 10223
+04-10 00:09:35.393  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- com.android.settings.intelligence[0]
+04-10 00:09:35.398 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:35.399 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:35.400 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:35.400 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:35.400 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=252 (Hex: 0xfc)
+04-10 00:09:35.400 22231 22231 I MNNJNI  : DEBUG: CPURuntime::onCreate called. cpuMask=0 (Hex: 0x0)
+04-10 00:09:35.448  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_1000/pid_24294
+04-10 00:09:35.449  3192  5514 I ActivityManager: Death received, pid = 24294, processName = com.oplus.notificationmanager for thread android.os.BinderProxy@43e3b33
+04-10 00:09:35.450  3192  9540 I ActivityManager: Process com.oplus.notificationmanager (pid 24294) has died: cch+85 CEM 
+04-10 00:09:35.450  3192  9540 D OplusAppStartupManager: prevent restart service, pkgName = com.oplus.notificationmanager, scenePriority = -1
+04-10 00:09:35.450  1611  1611 I Zygote  : Process 24294 exited due to signal 9 (Killed)
+04-10 00:09:35.451  3192  9540 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.452  1895  1895 E qspmHal : setAppInfoH atPid = 24294, gpuFname:com.oplus.notificationmanager, gpuFver:159960100
+04-10 00:09:35.454  4792  5802 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=android.uid.system:1000, pid=24294, uid=1000, state=onProcessDied}]
+04-10 00:09:35.454  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.460  2454  2454 D tcmd    : DpmCom :there are 1 file descriptor(s) with events pending
+04-10 00:09:35.460  2454  2454 D tcmd    : DpmCom : 1 events pending, handling 17 for 30
+04-10 00:09:35.460  2454  2454 D tcmd    : DpmCom :fd '30' sent HUP.
+04-10 00:09:35.460  2454  2454 D tcmd    : DpmCom::removeComEventHandler fd 30
+04-10 00:09:35.460  1611  1611 I Zygote  : Process 13937 exited due to signal 9 (Killed)
+04-10 00:09:35.460  2454  2454 D tcmd    : waiting on events (-1ms)
+04-10 00:09:35.460  3192  4888 I ActivityManager: Death received, pid = 13937, processName = com.coloros.regservice for thread android.os.BinderProxy@f553052
+04-10 00:09:35.461  3192  4897 I ActivityManager: Process com.coloros.regservice (pid 13937) has died: cch+75 SVC 
+04-10 00:09:35.461  3192  4897 D OplusAppStartupManager: prevent restart service, pkgName = com.coloros.regservice, scenePriority = -1
+04-10 00:09:35.461  3192  4897 D CompatChangeReporter: Compat change id reported: 311208629; UID 10197; state: ENABLED
+04-10 00:09:35.462  3192  4897 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.463  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:13937,uid:10197
+04-10 00:09:35.463  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.464  3192  3508 D DisplayManagerService: Drop pending events for gone uid 10197
+04-10 00:09:35.464  1895  1895 E qspmHal : setAppInfoH atPid = 13937, gpuFname:com.coloros.regservice, gpuFver:1500000550
+04-10 00:09:35.464  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.465  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-1ms what=1 obj=com.oplus.atlas.OplusAtlasEvent@26a0448 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.465  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-1ms what=1 obj=com.oplus.atlas.OplusAtlasEvent@26a0448 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.465  4792  5740 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.coloros.regservice, pid=13937, uid=10197, state=onProcessDied}]
+04-10 00:09:35.465  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- [0]
+04-10 00:09:35.468  3192  4519 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+04-10 00:09:35.470  3192  4519 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+04-10 00:09:35.471  3192  4519 D InetDiagMessage: Destroyed live tcp sockets for uids={10197} in 6ms
+04-10 00:09:35.472  3192  4519 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+04-10 00:09:35.476  3192  4519 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+04-10 00:09:35.479  3192  4519 D InetDiagMessage: Destroyed live tcp sockets for uids={20197} in 9ms
+04-10 00:09:35.487  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10279/pid_6434
+04-10 00:09:35.487  1611  1611 I Zygote  : Process 6434 exited due to signal 9 (Killed)
+04-10 00:09:35.487  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10197/pid_13937
+04-10 00:09:35.488  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10223/pid_15694
+04-10 00:09:35.490  3192  5505 I ActivityManager: Death received, pid = 6434, processName = com.android.permissioncontroller for thread android.os.BinderProxy@b260e61
+04-10 00:09:35.490  3192  9540 I ActivityManager: Process com.android.permissioncontroller (pid 6434) has died: cch+75 CEM 
+04-10 00:09:35.491  1185  1185 E lowmemorykiller: device memory 2357987 free 180329 file 2154701
+04-10 00:09:35.494  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.494  3192  3508 D DisplayManagerService: Drop pending events for gone uid 10279
+04-10 00:09:35.495  4792  5740 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.android.permissioncontroller, pid=6434, uid=10279, state=onProcessDied}]
+04-10 00:09:35.495  1895  1895 E qspmHal : setAppInfoH atPid = 6434, gpuFname:com.android.permissioncontroller, gpuFver:15020190
+04-10 00:09:35.495  3192  9540 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.497  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:6434,uid:10279
+04-10 00:09:35.497  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.497  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- com.android.permissioncontroller[0]
+04-10 00:09:35.503  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-6ms what=1 obj=com.oplus.atlas.OplusAtlasEvent@c21f2e1 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.504  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-7ms what=1 obj=com.oplus.atlas.OplusAtlasEvent@c21f2e1 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.509  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10136/pid_15724
+04-10 00:09:35.510  1611  1611 I Zygote  : Process 15724 exited due to signal 9 (Killed)
+04-10 00:09:35.512  3192  5475 I ActivityManager: Death received, pid = 15724, processName = com.coloros.gallery3d for thread android.os.BinderProxy@79bdd86
+04-10 00:09:35.512  3192  4519 D ConnectivityService: releasing NetworkRequest [ REQUEST id=5164, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10136 RequestorUid: 10136 RequestorPkg: com.coloros.gallery3d UnderlyingNetworks: Null] ] (release request)
+04-10 00:09:35.513  3192  4897 I ActivityManager: Process com.coloros.gallery3d (pid 15724) has died: cch+65 CEM 
+04-10 00:09:35.514  3192  4897 D OplusAppStartupManager: prevent restart service, pkgName = com.coloros.gallery3d, scenePriority = -1
+04-10 00:09:35.516  3192  3508 D DisplayManagerService: Drop pending events for gone uid 10136
+04-10 00:09:35.518  3192  3508 D CameraDelegate: Uid gone for 10136
+04-10 00:09:35.518  3192  3508 D CameraDelegate: notifyCameraDelegateListeners com.android.server.display.OplusFeatureEdrEnhanceBrightness@59c71ad
+04-10 00:09:35.518  3192  3508 D OplusFeatureEdrEnhanceBrightness: retore edr dynamic rate.
+04-10 00:09:35.518  1895  1895 E qspmHal : setAppInfoH atPid = 15724, gpuFname:com.coloros.gallery3d, gpuFver:150750030
+04-10 00:09:35.519  3192  4897 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.522  4792  5740 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.coloros.gallery3d, pid=15724, uid=10136, state=onProcessDied}]
+04-10 00:09:35.523  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:15724,uid:10136
+04-10 00:09:35.523  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@d7b2806 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.523  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.524  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-1ms what=1 obj=com.oplus.atlas.OplusAtlasEvent@d7b2806 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.524  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- com.coloros.gallery3d[0]
+04-10 00:09:35.525  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.528  3192  5505 I ActivityManager: Death received, pid = 30030, processName = com.android.rkpdapp for thread android.os.BinderProxy@9542f9d
+04-10 00:09:35.530  3192  9540 I ActivityManager: Process com.android.rkpdapp (pid 30030) has died: cch+45 CEM 
+04-10 00:09:35.532  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:30030,uid:10277
+04-10 00:09:35.533  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@e460ec7 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.533  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@e460ec7 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.533  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.533  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- com.android.rkpdapp[0]
+04-10 00:09:35.533  4792  5740 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.android.rkpdapp, pid=30030, uid=10277, state=onProcessDied}]
+04-10 00:09:35.533  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.533  3192  3508 D DisplayManagerService: Drop pending events for gone uid 10277
+04-10 00:09:35.536  1895  1895 E qspmHal : setAppInfoH atPid = 30030, gpuFname:com.android.rkpdapp, gpuFver:350
+04-10 00:09:35.536  3192  9540 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.536  1611  1611 I Zygote  : Process 30030 exited due to signal 9 (Killed)
+04-10 00:09:35.536  3192  3521 D AppProfilerExtImpl: Skipped pss collection for CPU busy
+04-10 00:09:35.538  3192  4205 I ActivityManager: Death received, pid = 15693, processName = com.coloros.filemanager for thread android.os.BinderProxy@8b3de0f
+04-10 00:09:35.538  1611  1611 I Zygote  : Process 15693 exited due to signal 9 (Killed)
+04-10 00:09:35.538  3192  4897 I ActivityManager: Process com.coloros.filemanager (pid 15693) has died: cch+55 CEM 
+04-10 00:09:35.539  3192  4897 D OplusAppStartupManager: prevent restart service, pkgName = com.coloros.filemanager, scenePriority = -1
+04-10 00:09:35.539  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:15693,uid:10302
+04-10 00:09:35.540  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@13f1cf4 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.540  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@13f1cf4 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.540  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.540  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- com.coloros.filemanager[0]
+04-10 00:09:35.540 29998 29998 I AIUnit-AIUnitService: onUnbind: caller = com.coloros.gallery3d, intent = Intent { act=oplus.intent.action.AIUNIT_SERVICE typ=com.coloros.gallery3d id=20260409161738190 cmp=com.oplus.aiunit/.core.AIUnitService (has extras) mCallingUid=10136 }
+04-10 00:09:35.541  3192  3508 D DisplayManagerService: Drop pending events for gone uid 10302
+04-10 00:09:35.542  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.546  4792  5740 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.coloros.filemanager, pid=15693, uid=10302, state=onProcessDied}]
+04-10 00:09:35.547  3192  5308 I OplusHansManager : onUidGone(), 10302 com.coloros.filemanager exit SM
+04-10 00:09:35.547  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager R exit SM
+04-10 00:09:35.547  3192  5308 I OplusHansManager : onUidGone(), 10302 com.coloros.filemanager alarm removed
+04-10 00:09:35.547  3192  5095 I OplusHansManager : uid=10302, pkg=com.coloros.filemanager R exit(), R stay=28383
+04-10 00:09:35.549  3192  4897 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.549  1895  1895 E qspmHal : setAppInfoH atPid = 15693, gpuFname:com.coloros.filemanager, gpuFver:160020040
+04-10 00:09:35.593  1185  1185 E lowmemorykiller: device memory 2365791 free 179912 file 2155823
+04-10 00:09:35.629  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10145/pid_15570
+04-10 00:09:35.630  1611  1611 I Zygote  : Process 15570 exited due to signal 9 (Killed)
+04-10 00:09:35.630  3192  3411 I ActivityManager: Death received, pid = 15570, processName = com.oplus.dmp:main for thread android.os.BinderProxy@fc84c12
+04-10 00:09:35.631  3192  9540 I ActivityManager: Process com.oplus.dmp:main (pid 15570) has died: cch+65 CEM 
+04-10 00:09:35.631  3192  9540 D OplusAppStartupManager: prevent restart service, pkgName = com.oplus.dmp, scenePriority = -1
+04-10 00:09:35.633  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10302/pid_15693
+04-10 00:09:35.633  3192  3533 I libprocessgroup: Removed cgroup /sys/fs/cgroup/uid_10277/pid_30030
+04-10 00:09:35.638  1895  1895 E qspmHal : setAppInfoH atPid = 15570, gpuFname:com.oplus.dmp, gpuFver:160130800
+04-10 00:09:35.638  3192  9540 E WindowProcessControllerExtImpl: shouldMakeAbnormalActivityFinishing, list may empty, mHasActivities: false
+04-10 00:09:35.638  6566  6636 D OplusAtlas.OplusAtlasEventDispatch: setEvent:atlas_event_on_process_died info:pid:15570,uid:10145
+04-10 00:09:35.638  6566  7118 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-1ms what=1 obj=com.oplus.atlas.OplusAtlasEvent@b69dc1d target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.638  6566  8372 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=0 what=1 obj=com.oplus.atlas.OplusAtlasEvent@b69dc1d target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:35.638  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: callClient:clientID:1 exist:1, event:18, isOneWay:0
+04-10 00:09:35.639  2577  2577 D HoloAudio::SpecailizerPLService_Aidl: getMssEnable --- com.oplus.dmp[0]
+04-10 00:09:35.640  5091  5869 I GamingScene: onInputEvent : INPUT_PROCESS_DIED
+04-10 00:09:35.643  4792  5740 I PluginSeedling--Base: SeedlingPluginService-->onStateChange: Bundle[{pkgName=com.oplus.dmp, pid=15570, uid=10145, state=onProcessDied}]
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Core capacities set to: [
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 379:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 379:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 923:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 923:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 923:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 867:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 867:
+04-10 00:09:35.670 22231 22231 I MNNJNI  : 1024
+04-10 00:09:35.670 22231 22231 I MNNJNI  : ]
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Prefill tuning updated: policy=work_steal, target_chunks=0
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Decode tuning updated: policy=dynamic, target_chunks=8
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Default execution updated: threads=6, affinity=0xFC
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Prefill execution updated: threads=6, affinity=0xFC
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Decode execution updated: threads=4, affinity=0xFC
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Thread config: pool=6, prefill=6, decode=4
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Pool    cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Prefill cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Decode  cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Scheduler prefill=work_steal decode=dynamic
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AECS] Final execution plan prefill=2,3,4,5,6,7/6 decode=2,3,4,5,6,7/4 split_phase_bench=1
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AECS] Final static core capacities=379,379,923,923,923,867,867,1024
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Scheduler config p=work_steal,d=dynamic,dc=0
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench] Active bindings pool=6/[2,3,4,5,6,7] prefill=6/[2,3,4,5,6,7] decode=4/[2,3,4,5,6,7]
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:35.670 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:35.695  1185  1185 E lowmemorykiller: device memory 2363339 free 179754 file 2155950
+04-10 00:09:35.795  1185  1185 E lowmemorykiller: device memory 2360819 free 179639 file 2155950
+04-10 00:09:35.882 22217 22217 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1832680,1:1834022,2:1842610,3:1825728] latency_us=2297314 tok_s=55.717
+04-10 00:09:35.882 22217 22217 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=2.297314 s speed=55.717 tok/s
+04-10 00:09:35.882 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:35.882 22217 22217 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.836078 s decode=2.297314 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:35.882 22217 22217 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:35.882 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:35.895  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:09:36.172  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.4,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 164.934753/118.372406/57.092796/344.731750,ts 8797021185412651,cnt 53392,flag 131072
+04-10 00:09:36.233  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:36.279  3192  4856 I Osense-PsiDetector: 9200,706,6535,8704,25,492,279,2029,8556,6912,1509,0,16,8286
+04-10 00:09:36.279  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=3}]
+04-10 00:09:36.280 29998 29998 I AIRuntimeManager: onClientUnbind com.coloros.gallery3d:10136:15724
+04-10 00:09:36.283 29998 30051 I AIUnit-r6.f1775642555236: onReceive android.intent.action.BATTERY_CHANGED -> BatteryEvent[batteryPct:100.0, isCharging:true, isLowBattery:false, isPowerSave:false, plugged:2]
+04-10 00:09:36.283 29998 30064 I AIUnit-UnitManager: destroy com.coloros.gallery3d:10136:15724
+04-10 00:09:36.292 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:0, currentTemperature:26, currentThermalStatus:0]
+04-10 00:09:36.292 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:29, currentThermalStatus:0]
+04-10 00:09:36.292 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:0, currentTemperature:26, currentThermalStatus:0]
+04-10 00:09:36.293 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:-1, currentTemperature:24, currentThermalStatus:0]
+04-10 00:09:36.293 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:0, currentTemperature:27, currentThermalStatus:0]
+04-10 00:09:36.293 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:29, currentThermalStatus:0]
+04-10 00:09:36.293 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.294 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:33, currentThermalStatus:0]
+04-10 00:09:36.294 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:4, currentTemperature:35, currentThermalStatus:0]
+04-10 00:09:36.294 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:32, currentThermalStatus:0]
+04-10 00:09:36.294 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:30, currentThermalStatus:0]
+04-10 00:09:36.295 29998 30051 I AIUnit-r6.f1775642555236: onReceive android.intent.action.ACTION_POWER_CONNECTED -> BatteryEvent[batteryPct:100.0, isCharging:true, isLowBattery:false, isPowerSave:false, plugged:2]
+04-10 00:09:36.295 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.295 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.295 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:33, currentThermalStatus:0]
+04-10 00:09:36.296 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:30, currentThermalStatus:0]
+04-10 00:09:36.296 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.296 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.296 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.297 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.297 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:33, currentThermalStatus:0]
+04-10 00:09:36.297 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:4, currentTemperature:35, currentThermalStatus:0]
+04-10 00:09:36.297 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:32, currentThermalStatus:0]
+04-10 00:09:36.297 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:30, currentThermalStatus:0]
+04-10 00:09:36.297  1185  1185 E lowmemorykiller: device memory 2355411 free 179622 file 2156148
+04-10 00:09:36.298 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.298 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.298 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:33, currentThermalStatus:0]
+04-10 00:09:36.298 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:4, currentTemperature:35, currentThermalStatus:0]
+04-10 00:09:36.299 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:32, currentThermalStatus:0]
+04-10 00:09:36.299 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:30, currentThermalStatus:0]
+04-10 00:09:36.299 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.299 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.300 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:33, currentThermalStatus:0]
+04-10 00:09:36.301 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:4, currentTemperature:35, currentThermalStatus:0]
+04-10 00:09:36.301 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:5, currentTemperature:37, currentThermalStatus:0]
+04-10 00:09:36.301 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:4, currentTemperature:34, currentThermalStatus:0]
+04-10 00:09:36.301 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:32, currentThermalStatus:0]
+04-10 00:09:36.302 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:30, currentThermalStatus:0]
+04-10 00:09:36.302 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.302 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:31, currentThermalStatus:0]
+04-10 00:09:36.302 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:33, currentThermalStatus:0]
+04-10 00:09:36.302 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:4, currentTemperature:35, currentThermalStatus:0]
+04-10 00:09:36.303 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:3, currentTemperature:32, currentThermalStatus:0]
+04-10 00:09:36.303 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:2, currentTemperature:30, currentThermalStatus:0]
+04-10 00:09:36.303 29998 29998 I AIUnit-r6.s1775642555242: onReceive TemperatureEvent[thermalLevel:1, currentTemperature:28, currentThermalStatus:0]
+04-10 00:09:36.303 29998 29998 I AIUnit-AIUnitService: onUnbind: caller = com.oplus.dmp, intent = Intent { act=oplus.intent.action.AIUNIT_SERVICE typ=com.oplus.dmp id=20260409161635067 cmp=com.oplus.aiunit/.core.AIUnitService (has extras) mCallingUid=10145 }
+04-10 00:09:36.305 29998 29998 I AIRuntimeManager: onClientUnbind com.oplus.dmp:10145:15570
+04-10 00:09:36.305 29998 29998 I AIUnit-AIUnitService: onDestroy
+04-10 00:09:36.305 29998 30068 I AIUnit-UnitManager: destroy com.oplus.dmp:10145:15570
+04-10 00:09:36.306 29998 29998 I AIUnit-AIUnitDownloadService: onUnbind Intent { act=com.oplus.aiunit.BIND_DOWNLOAD_SERVICE typ=com.oplus.dmp id=20260409161713009 cmp=com.oplus.aiunit/.download.service.AIUnitDownloadService (has extras) mCallingUid=10145 }
+04-10 00:09:36.308 29998 30064 I AIUnit-UnitManager: destroyAll
+04-10 00:09:36.317 29998 30065 I AIUnit-AIFreeze: cancel ai_download id =  2
+04-10 00:09:36.317 29998 29998 I AIUnit-AIUnitDownloadService: onDestroy
+04-10 00:09:36.336 29998 29998 W AIUnit-r6.m1775642555235: onTrimMemory 40
+04-10 00:09:36.336 29998 29998 I AIUnit-Utils: getMemInfo: memoryInfo=android.app.ActivityManager$MemoryInfo@3e20eba
+04-10 00:09:36.337 29998 29998 I AIUnit-Utils: getMemInfoByProc: info=MemInfo(totalMem:15942533120, availMem:9647570944)
+04-10 00:09:36.384 29998 30065 I AIUnit-UnitManager: onEvents: memoryEvent=MemoryEvent(aMem:[totalMem:14.85GB, availMem:9.05GB], sMem:[totalMem:14.85GB, availMem:8.99GB]. cur:ProcessMemory(name=com.oplus.aiunit, pid=29998, pss=27716))
+04-10 00:09:36.385 29998 30173 I MonitorHandlerThread: getAllProcessMemory, processName = com.oplus.aiunit, this process use memory: 27716 KB
+04-10 00:09:36.385 29998 30173 I MonitorHandlerThread: handleMemoryTask, now usedMemPercentage is 0.007552010672433036, used memory = 27716 KB, total memory = 3670016.0 KB
+04-10 00:09:36.387  1185  1185 E lowmemorykiller: device memory 2355452 free 179374 file 2156567
+04-10 00:09:36.387  3192  4856 I Osense-PsiDetector: 9200,704,6535,8704,25,492,279,2029,8558,6913,1510,0,16,8286
+04-10 00:09:36.387  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=4}]
+04-10 00:09:36.388  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_LEAK, bundle: Bundle[{memLevel=4}]
+04-10 00:09:36.519  3192  3556 D CameraDelegate: handleMessage MSG_MODE_RECOVERY_BRIGHTNESS 10136
+04-10 00:09:36.588  1185  1185 E lowmemorykiller: device memory 2355853 free 179304 file 2157598
+04-10 00:09:37.055  1741  1741 D healthd : system healthd: battery l=100 v=4388 t=27.8 h=2 st=5 c=787 fc=6415000 cc=28 chg=u
+04-10 00:09:37.067  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:09:37.068  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:09:37.070  3192  3542 D BatteryStatsImplExtImpl: updateStandbyStatistics time interval is too short, ingore.
+04-10 00:09:37.070  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:09:37.233  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:37.323  3192  4856 I Osense-PsiDetector: 9200,682,6535,8704,25,492,279,2038,8579,6918,1527,0,16,8286
+04-10 00:09:37.323  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_RES_MEM_PSI_NORMAL, bundle: Bundle[{memLevel=3}]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:37.326  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:37.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:37.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:37.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:37.399 22231 22231 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9529 ws_local_pop_success=7628 ws_steal_attempts=887 ws_steal_success=887 ws_steal_empty=0 ws_steal_cas_retries=1 ws_stolen_tasks=2122 ws_total_chunks=8515 tasks_per_thread=[0:6751,1:4102,2:4324,3:4181,4:4344,5:4026] latency_us=1684738 tok_s=303.905
+04-10 00:09:37.399 22231 22231 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=1.684738 s speed=303.905 tok/s
+04-10 00:09:37.399 22231 22231 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:37.399 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:37.514  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.5, cct -1.0, r/g/b/c: 175.9/118.4/68.5/333.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.044373, conf 0.0, ts 8797022527043224
+04-10 00:09:37.594 22217 22217 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9524 ws_local_pop_success=7659 ws_steal_attempts=851 ws_steal_success=851 ws_steal_empty=0 ws_steal_cas_retries=6 ws_stolen_tasks=2409 ws_total_chunks=8510 tasks_per_thread=[0:6912,1:4098,2:4321,3:4187,4:4337,5:3873] latency_us=1683388 tok_s=304.149
+04-10 00:09:37.594 22217 22217 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=1.683388 s speed=304.149 tok/s
+04-10 00:09:37.594 22217 22217 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:37.594 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:37.616  5098  5878 E NhsModemCrashUploader: loadModemCrashInfoPbFile No ModemCrashInfo.pb
+04-10 00:09:37.963  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:09:37.964  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:09:38.123  1741  1741 D healthd : system healthd: battery l=100 v=4388 t=27.8 h=2 st=5 c=829 fc=6415000 cc=28 chg=u
+04-10 00:09:38.129  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:09:38.130  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:09:38.234  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:38.259  4792  6880 I PluginSeedling--Origin: OSenseManager-->isMEMHighPressure oldState:false newState: true isMEMHighPressure:true
+04-10 00:09:38.259  4792  6880 I PluginSeedling--Origin: OSenseManager-->Osense Manager callback is running
+04-10 00:09:38.536  6566  7511 D OplusAtlas.OplusMessageHandler: handleMessage: Msg { when=-98ms what=3 target=com.oplus.atlas.OplusMessageHandler$MyHandler }
+04-10 00:09:38.629  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_IDLE_RECOVER, bundle: Bundle[{scene=SCENE_IDLE_RECOVER}]
+04-10 00:09:38.630  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: respreload
+04-10 00:09:38.630  3192  4847 D Osense-BaseDecisionMaker: invoke process preload policy
+04-10 00:09:38.631  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: clear
+04-10 00:09:38.631  3192  4847 D Osense-BaseDecisionMaker: invoke clear policy,type: unforbid
+04-10 00:09:38.631  3192  4847 I OsenseKillAction: KillAction: unhandled request: id=58998, enable=true, scene=SCENE_IDLE_RECOVER, type=unforbid, cchOnly=false, appcare=0
+04-10 00:09:38.738  6289  6312 E horae   : 0: back:27769,back_1:28401,frame:26023,front:28742, 19 1, +(374), 0 ,28990,28670,28606,28692,27800,28968,28654,28591,28675,27800,30246,28692,28591,28725,27800,33113,29116,28736,29332,27800, target_temp:28742, algo:0
+04-10 00:09:38.739  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:09:38.856  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.6,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 159.436935/112.735619/62.802074/321.749634,ts 8797023868456193,cnt 53402,flag 131072
+04-10 00:09:38.866  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,278,278,4388,4388,787,98,100,1,1,1048704,453,5048,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:09:38.866  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-09-38
+04-10 00:09:38.866  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:09:39.234  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:40.198  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.2, cct -1.0, r/g/b/c: 148.4/101.5/57.1/304.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.004077, conf 0.0, ts 8797025210267443
+04-10 00:09:40.235  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:40.568  3192  4210 I resRelease: policy type is 1
+04-10 00:09:40.751 22231 22231 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:2018168,1:1796634,2:1799680,3:1720558] latency_us=3203693 tok_s=39.954
+04-10 00:09:40.751 22231 22231 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=3.203693 s speed=39.954 tok/s
+04-10 00:09:40.751 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:40.751 22231 22231 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=1.684738 s decode=3.203693 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:40.751 22231 22231 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:40.751 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:40.895  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:09:40.972 22217 22217 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:2020116,1:1796814,2:1797276,3:1720834] latency_us=3232904 tok_s=39.593
+04-10 00:09:40.972 22217 22217 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=3.232904 s speed=39.593 tok/s
+04-10 00:09:40.972 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:40.972 22217 22217 I MNNJNI  : [llm_bench][measure 2/5] result prefill=1.683388 s decode=3.232904 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:40.972 22217 22217 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:40.972 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:41.236  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:41.341  4792  6880 I PluginSeedling--Origin: OSenseManager-->isMEMHighPressure oldState:true newState: false isMEMHighPressure:false
+04-10 00:09:41.341  4792  6880 I PluginSeedling--Origin: OSenseManager-->Osense Manager callback is running
+04-10 00:09:41.538  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 3.8,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 153.939102/107.098839/62.802074/310.258575,ts 8797026551857964,cnt 53412,flag 131072
+04-10 00:09:42.173  1741  1741 D healthd : system healthd: battery l=100 v=4376 t=27.7 h=2 st=5 c=965 fc=6415000 cc=28 chg=u
+04-10 00:09:42.181  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:09:42.182  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:09:42.184  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 53
+04-10 00:09:42.184  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:09:42.236  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:42.327  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:42.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:42.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:42.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:42.499 22231 22231 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9529 ws_local_pop_success=7649 ws_steal_attempts=868 ws_steal_success=866 ws_steal_empty=2 ws_steal_cas_retries=7 ws_stolen_tasks=2416 ws_total_chunks=8515 tasks_per_thread=[0:6911,1:4102,2:4324,3:4183,4:4339,5:3869] latency_us=1709510 tok_s=299.501
+04-10 00:09:42.499 22231 22231 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=1.709510 s speed=299.501 tok/s
+04-10 00:09:42.499 22231 22231 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:42.499 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:42.707 22217 22217 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9535 ws_local_pop_success=7652 ws_steal_attempts=869 ws_steal_success=869 ws_steal_empty=0 ws_steal_cas_retries=3 ws_stolen_tasks=2259 ws_total_chunks=8521 tasks_per_thread=[0:6902,1:3943,2:4321,3:4189,4:4342,5:4031] latency_us=1707386 tok_s=299.874
+04-10 00:09:42.707 22217 22217 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=1.707386 s speed=299.874 tok/s
+04-10 00:09:42.707 22217 22217 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:42.707 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:42.880  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.0, cct -1.0, r/g/b/c: 148.4/101.5/57.1/287.3, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.034322, conf 0.0, ts 8797027893404058
+04-10 00:09:43.237  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:43.740  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:09:43.742  1378 25124 I android.system.suspend-service: First holding wakelock name = PowerManagerService.WakeLocks
+04-10 00:09:43.746  1610  1655 E TetherController: property_get sys.radio.data.modem_share_flag return 0, 1!
+04-10 00:09:43.751  1378 25124 I android.system.suspend-service: Last release wakelock name = PowerManagerService.WakeLocks
+04-10 00:09:43.751  1378 25124 I android.system.suspend-service: mAutosuspendEnabled=1
+04-10 00:09:43.759  8034 32028 E MIDASApplication: MIDASPullAtomManager: onPullAtom 150017
+04-10 00:09:43.759  3192  5189 D KernelStatsHelper: getKernelStats start!
+04-10 00:09:43.762  3192  4592 D OplusNetlinkSocket: handleNetlinkRecvKernelMessage:nlmsghdr:StructNlMsgHdr{ nlmsg_len{3004}, nlmsg_type{41()}, nlmsg_flags{0()}, nlmsg_seq{0}, nlmsg_pid{209195504} }
+04-10 00:09:43.762  3192  4592 D KernelStatsHelper: get magic :[-1, -1, -1, 77, 65, 71, 73, 67]
+04-10 00:09:43.762  3192  4592 D KernelStatsHelper: magic matched count:79 data_len:4108
+04-10 00:09:43.762  3192  4592 D OplusNetlinkSocket: handleNetlinkRecvKernelMessage:nlmsghdr:StructNlMsgHdr{ nlmsg_len{1168}, nlmsg_type{41()}, nlmsg_flags{0()}, nlmsg_seq{0}, nlmsg_pid{209195504} }
+04-10 00:09:43.762  3192  4592 D KernelStatsHelper: data over! check: true
+04-10 00:09:43.867  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,277,277,4376,4376,965,98,100,1,1,1048704,453,5046,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:09:43.867  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-09-43
+04-10 00:09:43.867  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:09:44.222  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 5.2,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 159.436935/101.462059/57.092796/310.258575,ts 8797029234973276,cnt 53422,flag 131072
+04-10 00:09:44.237  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:45.238  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:45.563  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.5, cct -1.0, r/g/b/c: 164.9/112.7/62.8/333.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.010851, conf 0.0, ts 8797030576446453
+04-10 00:09:45.895  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:09:45.981 22231 22231 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1996460,1:1797964,2:1798244,3:1742372] latency_us=3338616 tok_s=38.339
+04-10 00:09:45.981 22231 22231 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=3.338616 s speed=38.339 tok/s
+04-10 00:09:45.981 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:45.981 22231 22231 I MNNJNI  : [llm_bench][measure 1/5] result prefill=1.709510 s decode=3.338616 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:45.981 22231 22231 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:45.981 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:46.214 22217 22217 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1997586,1:1797996,2:1798878,3:1740580] latency_us=3365789 tok_s=38.030
+04-10 00:09:46.214 22217 22217 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=3.365789 s speed=38.030 tok/s
+04-10 00:09:46.214 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:46.214 22217 22217 I MNNJNI  : [llm_bench][measure 3/5] result prefill=1.707386 s decode=3.365789 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:46.214 22217 22217 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:46.214 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:46.238  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:46.905  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.7,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 181.428223/129.645966/74.220642/356.222809,ts 8797031917953589,cnt 53432,flag 131072
+04-10 00:09:47.239  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:47.298  1741  1741 D healthd : system healthd: battery l=100 v=4374 t=27.7 h=2 st=5 c=1016 fc=6415000 cc=28 chg=u
+04-10 00:09:47.305  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:09:47.306  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:09:47.308  3192  3542 D BatteryStatsImplExtImpl: updateStandbyStatistics time interval is too short, ingore.
+04-10 00:09:47.308  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:47.328  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:47.410  1914  1962 D [ANTI_EXPANSION_ALGORITHM]: chg_update_anti_expansion_handle_thread In progress...: [88,48,0] [0,0]0
+04-10 00:09:47.710 22231 22231 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9563 ws_local_pop_success=7665 ws_steal_attempts=884 ws_steal_success=884 ws_steal_empty=0 ws_steal_cas_retries=2 ws_stolen_tasks=2085 ws_total_chunks=8549 tasks_per_thread=[0:6729,1:4108,2:4324,3:4189,4:4346,5:4032] latency_us=1699439 tok_s=301.276
+04-10 00:09:47.710 22231 22231 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=1.699439 s speed=301.276 tok/s
+04-10 00:09:47.710 22231 22231 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:47.710 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:47.938 22217 22217 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9562 ws_local_pop_success=7677 ws_steal_attempts=872 ws_steal_success=871 ws_steal_empty=1 ws_steal_cas_retries=2 ws_stolen_tasks=2154 ws_total_chunks=8548 tasks_per_thread=[0:6810,1:4025,2:4325,3:4190,4:4346,5:4032] latency_us=1693652 tok_s=302.305
+04-10 00:09:47.938 22217 22217 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=1.693652 s speed=302.305 tok/s
+04-10 00:09:47.938 22217 22217 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:47.938 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:47.963  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:09:47.964  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:09:48.240  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:48.246  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.9, cct -1.0, r/g/b/c: 181.4/129.6/68.5/367.7, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.016143, conf 0.0, ts 8797033259413016
+04-10 00:09:48.739  6289  6312 E horae   : 0: back:28358,back_1:29145,frame:26184,front:29333, 19 1, +(1229), 0 ,30246,28692,28591,28725,27800,33113,29116,28736,29332,27800,35506,29820,29055,30224,27700,36758,30562,29521,31112,27700, target_temp:29333, algo:0
+04-10 00:09:48.739  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:09:48.867  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:121, read content:,277,277,4374,4374,1016,98,100,1,1,1048704,450,5039,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:09:48.867  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-09-48
+04-10 00:09:48.867  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:09:49.240  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:49.588  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.9,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 186.926056/135.282761/79.929916/367.713867,ts 8797034600894683,cnt 53442,flag 131072
+04-10 00:09:50.241  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: read file:/proc/subsys_sleepmon/adsp_compact
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:sleep_mode_chosen=1|3
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:sleep_mode_reason=LPRM_Disabled|
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:clocks=
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:active_thread=|
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:latency_mode=0|1499|53|51|
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:    latency_normal=-1(CuPD_PM_VOTE_TCPC0)
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:    latency_island=4294967295(3)
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:duration_mode=0|5997|161|102|
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:    duration_normal=7392820(TCPC_0)
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:    duration_island=50926(1)
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:    duration_soft=4294967295
+04-10 00:09:50.245 14604 14622 D QcomSubSystemLpmParser: line:resource=/core/cpu/tcm(ssc_tcm_4|)
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: read file:/proc/subsys_sleepmon/cdsp_compact
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:sleep_mode_chosen=0|1
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:sleep_mode_reason=
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:clocks=
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:active_thread=|
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:latency_mode=19946|735|
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:    latency_normal=65535(DCVSClt_TARGET)
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:    latency_island=4294967295(-1)
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:duration_mode=1089619|3580|
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:    duration_normal=3744227494320421(q6_sysmon)
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:    duration_island=18446744073709551615(-1)
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:    duration_soft=4294967295
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: line:resource=null
+04-10 00:09:50.246 14604 14622 D QcomSubSystemLpmParser: read file:/proc/subsys_sleepmon/slpi_compact
+04-10 00:09:50.247 14604 14622 E QcomSubSystemLpmParser: exception:/proc/subsys_sleepmon/slpi_compact: open failed: ENOMEM (Out of memory)
+04-10 00:09:50.247 14604 14622 D RegulatorsMonitor: updateCountersStatsMapLocked syncToLocal:false
+04-10 00:09:50.896  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:09:50.929  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.8, cct -1.0, r/g/b/c: 175.9/135.3/62.8/356.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.024974, conf 0.0, ts 8797035942471193
+04-10 00:09:51.159 22231 22231 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1996108,1:1795714,2:1798720,3:1744498] latency_us=3302834 tok_s=38.755
+04-10 00:09:51.159 22231 22231 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=3.302834 s speed=38.755 tok/s
+04-10 00:09:51.159 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:51.159 22231 22231 I MNNJNI  : [llm_bench][measure 2/5] result prefill=1.699439 s decode=3.302834 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:51.159 22231 22231 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:51.159 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:51.242  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:51.415 22217 22217 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1997792,1:1794808,2:1799532,3:1742908] latency_us=3332897 tok_s=38.405
+04-10 00:09:51.415 22217 22217 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=3.332897 s speed=38.405 tok/s
+04-10 00:09:51.415 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:51.415 22217 22217 I MNNJNI  : [llm_bench][measure 4/5] result prefill=1.693652 s decode=3.332897 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:51.415 22217 22217 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:51.415 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:52.242  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:52.271  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.7,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 181.428223/124.009178/68.511360/356.222809,ts 8797037284007495,cnt 53452,flag 131072
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:52.329  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:52.330  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:52.330  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:52.330  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:52.330  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:52.330  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:52.413  1741  1741 D healthd : system healthd: battery l=100 v=4373 t=27.8 h=2 st=5 c=1059 fc=6415000 cc=28 chg=u
+04-10 00:09:52.421  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:09:52.421  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:09:52.422  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 46
+04-10 00:09:52.423  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:09:52.909 22231 22231 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9590 ws_local_pop_success=7671 ws_steal_attempts=905 ws_steal_success=905 ws_steal_empty=0 ws_steal_cas_retries=7 ws_stolen_tasks=1824 ws_total_chunks=8576 tasks_per_thread=[0:6322,1:4748,2:4324,3:4030,4:4116,5:4188] latency_us=1722873 tok_s=297.178
+04-10 00:09:52.909 22231 22231 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=1.722873 s speed=297.178 tok/s
+04-10 00:09:52.909 22231 22231 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:52.909 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:53.154 22217 22217 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9572 ws_local_pop_success=7666 ws_steal_attempts=893 ws_steal_success=892 ws_steal_empty=1 ws_steal_cas_retries=4 ws_stolen_tasks=2242 ws_total_chunks=8558 tasks_per_thread=[0:6888,1:4110,2:4330,3:4032,4:4331,5:4037] latency_us=1709737 tok_s=299.461
+04-10 00:09:53.154 22217 22217 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=1.709737 s speed=299.461 tok/s
+04-10 00:09:53.154 22217 22217 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:53.154 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:53.243  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:53.614  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.9, cct -1.0, r/g/b/c: 181.4/124.0/68.5/367.7, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.008478, conf 0.0, ts 8797038625384370
+04-10 00:09:53.738  6289  6312 E horae   : 0: back:28624,back_1:29427,frame:26605,front:29876, 19 1, +(1341), 0 ,33113,29116,28736,29332,27800,35506,29820,29055,30224,27700,36758,30562,29521,31112,27700,37849,31217,30020,31905,27800, target_temp:29876, algo:0
+04-10 00:09:53.739  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:09:53.868  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:121, read content:,278,278,4373,4373,1059,98,100,1,1,1048704,450,5036,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:09:53.868  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-09-53
+04-10 00:09:53.869  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:09:54.244  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:54.954  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 5.0,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 175.930405/129.645966/57.092796/361.968323,ts 8797039967198849,cnt 53462,flag 131072
+04-10 00:09:55.244  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:55.896  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:09:55.940  6293 15144 I midasd  : OplusObrainService::notifyEventInt eventId:21 iParam:0
+04-10 00:09:55.942  8034 32028 I OplusObrain: OplusObrainClientInvoke.nativeGetTelephonyInfo
+04-10 00:09:55.943  1897  1897 E android.hardware.power.stats-impl.oplus: HandleFactory::read open charger_input_current_now(/proc/charger/input_current_now) failed! fd: -1 errno: 2
+04-10 00:09:55.943  1897  1897 W android.hardware.power.stats-impl.oplus: PruneException: Unknown binder exception (2) pruned into EX_TRANSACTION_FAILED
+04-10 00:09:55.943  6293 10591 W midasd  : handleFactory read failed.
+04-10 00:09:55.945  8034 32028 I OplusObrain: OplusObrainClientInvoke.nativeGetTrafficTypeInfoForNetworkType networkType 0
+04-10 00:09:55.945  3192  5189 D KernelStatsHelper: getKernelStats start!
+04-10 00:09:55.947  3192  4592 D OplusNetlinkSocket: handleNetlinkRecvKernelMessage:nlmsghdr:StructNlMsgHdr{ nlmsg_len{3004}, nlmsg_type{41()}, nlmsg_flags{0()}, nlmsg_seq{0}, nlmsg_pid{209195504} }
+04-10 00:09:55.947  3192  4592 D KernelStatsHelper: get magic :[-1, -1, -1, 77, 65, 71, 73, 67]
+04-10 00:09:55.947  3192  4592 D KernelStatsHelper: magic matched count:79 data_len:4108
+04-10 00:09:55.947  3192  4592 D OplusNetlinkSocket: handleNetlinkRecvKernelMessage:nlmsghdr:StructNlMsgHdr{ nlmsg_len{1168}, nlmsg_type{41()}, nlmsg_flags{0()}, nlmsg_seq{0}, nlmsg_pid{209195504} }
+04-10 00:09:55.947  3192  4592 D KernelStatsHelper: data over! check: true
+04-10 00:09:56.244  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:56.296  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.8, cct -1.0, r/g/b/c: 181.4/118.4/74.2/362.0, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.016649, conf 0.0, ts 8797041308591662
+04-10 00:09:56.361 22231 22231 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1997882,1:1798492,2:1804050,3:1734616] latency_us=3302117 tok_s=38.763
+04-10 00:09:56.361 22231 22231 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=3.302117 s speed=38.763 tok/s
+04-10 00:09:56.361 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:56.361 22231 22231 I MNNJNI  : [llm_bench][measure 3/5] result prefill=1.722873 s decode=3.302117 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:56.361 22231 22231 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:56.361 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:56.623 22217 22217 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1996176,1:1798578,2:1801690,3:1738596] latency_us=3327855 tok_s=38.463
+04-10 00:09:56.623 22217 22217 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=3.327855 s speed=38.463 tok/s
+04-10 00:09:56.623 22217 22217 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:56.623 22217 22217 I MNNJNI  : [llm_bench][measure 5/5] result prefill=1.709737 s decode=3.327855 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:56.623 22217 22217 I MNNJNI  : [llm_bench] Final result prefill=363.634 +- 139.068 tok/s decode=42.042 +- 7.667 tok/s prefill=6/[2,3,4,5,6,7] decode=4/[2,3,4,5,6,7]
+04-10 00:09:57.246  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:57.330  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:09:57.331  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:57.331  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:57.332  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:09:57.333  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:09:57.333  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:09:57.333  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:09:57.333  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:09:57.333  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:09:57.333  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:09:57.334  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:09:57.474 22231 22231 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9585 ws_local_pop_success=7659 ws_steal_attempts=913 ws_steal_success=912 ws_steal_empty=1 ws_steal_cas_retries=1 ws_stolen_tasks=2032 ws_total_chunks=8571 tasks_per_thread=[0:6237,1:4943,2:4324,3:3954,4:4077,5:4193] latency_us=1096896 tok_s=466.772
+04-10 00:09:57.474 22231 22231 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=1.096896 s speed=466.772 tok/s
+04-10 00:09:57.474 22231 22231 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:57.474 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:09:57.544  1741  1741 D healthd : system healthd: battery l=100 v=4369 t=27.7 h=2 st=5 c=1124 fc=6415000 cc=28 chg=u
+04-10 00:09:57.560  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:09:57.561  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:09:57.563  3192  3542 D BatteryStatsImplExtImpl: updateStandbyStatistics time interval is too short, ingore.
+04-10 00:09:57.563  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:09:57.638  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.7,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 175.930405/129.645966/68.511360/344.731750,ts 8797042650052211,cnt 53472,flag 131072
+04-10 00:09:57.963  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:09:57.965  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:09:58.247  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:58.630  3192  4847 I Osense-BaseDecisionMaker: notifySceneToAthenaPolicy: SCENE_IDLE_RECOVER, bundle: Bundle[{scene=SCENE_IDLE_RECOVER}]
+04-10 00:09:58.633  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: respreload
+04-10 00:09:58.633  3192  4847 D Osense-BaseDecisionMaker: invoke process preload policy
+04-10 00:09:58.633  3192  4847 I Osense-BaseDecisionMaker: scene: SCENE_IDLE_RECOVER, excutingPolicy: clear
+04-10 00:09:58.633  3192  4847 D Osense-BaseDecisionMaker: invoke clear policy,type: unforbid
+04-10 00:09:58.634  3192  4847 I OsenseKillAction: KillAction: unhandled request: id=58999, enable=true, scene=SCENE_IDLE_RECOVER, type=unforbid, cchOnly=false, appcare=0
+04-10 00:09:58.749  5091  5876 D Acc-OplusLinkBoostCommon: notifyThermalBroadCast level = 1 temp = 30,lastTemp: 29 ,th: 44
+04-10 00:09:58.755  5235  5235 D RFPowerBoostManager: my thermal listener proxy invoke method:notifyThermalBroadCast args len:2
+04-10 00:09:58.755  5235  5235 D RFPowerBoostManager: current temp is 30, mInCalling is false, current threshold is 41
+04-10 00:09:58.869  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:121, read content:,277,277,4369,4369,1124,98,100,1,1,1048704,456,5046,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:09:58.870  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-09-58
+04-10 00:09:58.870  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:09:58.963 22231 22231 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1836186,1:1833902,2:1834280,3:1830672] latency_us=1363731 tok_s=93.860
+04-10 00:09:58.963 22231 22231 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=1.363731 s speed=93.860 tok/s
+04-10 00:09:58.963 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:09:58.963 22231 22231 I MNNJNI  : [llm_bench][measure 4/5] result prefill=1.096896 s decode=1.363731 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:09:58.963 22231 22231 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-10 00:09:58.963 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: UNKNOWN -> PREFILL (threads=6, affinity=0xFC)
+04-10 00:09:58.979  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.8, cct -1.0, r/g/b/c: 175.9/118.4/62.8/356.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.001238, conf 0.0, ts 8797043991368357
+04-10 00:09:59.248  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:09:59.813 22231 22231 I MNNJNI  : [llm_bench][sched][PREFILL] policy=work_steal ops=169 total=27728 step=317 threads=6 ws_total_tasks=27728 ws_local_pop_calls=9589 ws_local_pop_success=7673 ws_steal_attempts=903 ws_steal_success=902 ws_steal_empty=1 ws_steal_cas_retries=1 ws_stolen_tasks=1895 ws_total_chunks=8575 tasks_per_thread=[0:6237,1:4898,2:4175,3:3877,4:4193,5:4348] latency_us=834085 tok_s=613.846
+04-10 00:09:59.813 22231 22231 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.834085 s speed=613.846 tok/s
+04-10 00:09:59.813 22231 22231 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=4 bind=[2,3,4,5,6,7]
+04-10 00:09:59.813 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: PREFILL -> DECODE (threads=4, affinity=0xFC)
+04-10 00:10:00.014  4792  4792 I SystemUi--SystemUi--: Clock-->smallTime: 00:10
+04-10 00:10:00.015  4792  4792 I SystemUi--SystemUi--: Clock-->smallTime: 00:10
+04-10 00:10:00.016  4792  4792 I SystemUi--SystemUi--: Clock-->smallTime: 00:10
+04-10 00:10:00.016  4792  4792 I SystemUi--SystemUi--: Clock-->smallTime: 00:10
+04-10 00:10:00.173  3192  4357 V AlarmManager: sending alarm Alarm{f473b72 type 3 origWhen 8796985044 whenElapsed 8796985044 android} uid 1000 whenElapsed 8796985044 windowLength 0 maxWhenElapsed 8796985044 repeatInterval 0 action null component null tag TIME_TICK flags 0x9 procName system_server
+04-10 00:10:00.182  5091  5893 I AMC     : [P-airplane_mode/0] execute single in triggers[0]:[loop:true][loop:true] successfully!
+04-10 00:10:00.182  5091  5893 I AMC     : [P-airplane_mode/0] execute check triggers[0]:[airplanelowpowerlight, airplanelowpower, airplanefastscan] logical:or
+04-10 00:10:00.182  5091  5893 E AMC     : [P-airplane_mode/0] execute failed check triggers[0]:[loop:true][airplanelowpowerlight:false, airplanelowpower:false, airplanefastscan:false]
+04-10 00:10:00.183  5091  5893 I AMC     : [P-airplane_mode/1] execute single in triggers[0]:[loop:true][loop:true] successfully!
+04-10 00:10:00.183  5091  5893 E AMC     : [P-airplane_mode/1] failed to execute check triggers, non active subId!
+04-10 00:10:00.183  5091  5893 I AMC     : [P-airplane_datadisable] execute single in triggers[0]:[loop:true][loop:true] successfully!
+04-10 00:10:00.183  5091  5893 I AMC     : [P-airplane_datadisable] execute check triggers[0]:[data, airplanelowpower] logical:and
+04-10 00:10:00.183  5091  5893 E AMC     : [P-airplane_datadisable] execute failed check triggers[0]:[loop:true][data:false, airplanelowpower:false]
+04-10 00:10:00.183  5235  5235 D SubsysBroadcastManager: onReceive action:android.intent.action.TIME_TICK
+04-10 00:10:00.191  4792  4792 I SystemUi--Keyguard: OplusKeyguardBottomAreaController-->updateBottomAreaElementUi: reason=updateWorkProfileState, isKgdGlideTipShowing=false, isKeyguardVisible=true
+04-10 00:10:00.191  4792  4792 I SystemUi--Keyguard: OplusBiometricAuthContr-->getFpType udfpsBottomPadding 0.0
+04-10 00:10:00.191  4792  4792 I SystemUi--Keyguard: OplusKeyguardBottomAreaController-->fpType 1, isSupportedFpType true
+04-10 00:10:00.192  4792  4792 I SystemUi--Keyguard: OplusKeyguardBottomAreaController-->hasLockscreenMagazineTips=true  hasWorkProfile=false  hasLockscreenSignature=false
+04-10 00:10:00.192  4792  4792 I SystemUi--Keyguard: OplusKeyguardBottomAreaController-->displayMode LockscreenMagazine bottomAreaDisplayConfig BottomAreaDisplayConfig(lockscreenSignatureVisible=false, workProfileVisible=false, lockscreenMagazineVisible=true, notificationCapsulePosition=2, glideTipViewPosition=4, affordanceTipViewPosition=4)
+04-10 00:10:00.192  4792  4792 I SystemUi--Keyguard: KeyguardSignatureView-->hideSignature reason=signatureVisible
+04-10 00:10:00.192  4792  4792 I SystemUi--Keyguard: OplusBiometricAuthContr-->getFpType udfpsBottomPadding 0.0
+04-10 00:10:00.192  4792  4792 I SystemUi--Keyguard: PictorialAppInfo-->isShowPictorialTipDevice true,bottomMargin=222
+04-10 00:10:00.192  4792  4792 I SystemUi--Keyguard: OplusKeyguardBottomAreaController-->updateNotificationCapsulePosition 2
+04-10 00:10:00.198  1378 25124 I android.system.suspend-service: First holding wakelock name = PowerManagerService.WakeLocks
+04-10 00:10:00.202  3192  4357 V AlarmManager: sending alarm Alarm{1499cbe type 3 origWhen 8796968000 whenElapsed 8796968000 android} uid 1000 whenElapsed 8796968000 windowLength 0 maxWhenElapsed 8796968000 repeatInterval 0 action null component null tag StatsCompanionService.periodic flags 0x9 procName system_server
+04-10 00:10:00.207  1609  4940 I statsd  : Fate decided that an alarm will trigger subscribers.
+04-10 00:10:00.208  3192  4357 V AlarmManager: sending alarm Alarm{7f18235 type 0 origWhen 1775751000172 whenElapsed 8797045217 android} uid 1000 whenElapsed 8797045217 windowLength 0 maxWhenElapsed 8797045217 repeatInterval 0 action oplus.android.internal.thermalupload.ALARM_WAKEUP component null flags 0x9 procName system_server
+04-10 00:10:00.209  8034 32028 I OplusObrain: OplusObrainClientInvoke.nativeGetTelephonyInfo
+04-10 00:10:00.211  8034 32028 I OplusObrain: OplusObrainClientInvoke.nativeGetTrafficTypeInfoForNetworkType networkType 0
+04-10 00:10:00.211  3192  5505 D KernelStatsHelper: getKernelStats start!
+04-10 00:10:00.212  3192  4592 D OplusNetlinkSocket: handleNetlinkRecvKernelMessage:nlmsghdr:StructNlMsgHdr{ nlmsg_len{3004}, nlmsg_type{41()}, nlmsg_flags{0()}, nlmsg_seq{0}, nlmsg_pid{209195504} }
+04-10 00:10:00.212  3192  4592 D KernelStatsHelper: get magic :[-1, -1, -1, 77, 65, 71, 73, 67]
+04-10 00:10:00.212  3192  4592 D KernelStatsHelper: magic matched count:79 data_len:4108
+04-10 00:10:00.212  3192  4592 D OplusNetlinkSocket: handleNetlinkRecvKernelMessage:nlmsghdr:StructNlMsgHdr{ nlmsg_len{1168}, nlmsg_type{41()}, nlmsg_flags{0()}, nlmsg_seq{0}, nlmsg_pid{209195504} }
+04-10 00:10:00.212  3192  4592 D KernelStatsHelper: data over! check: true
+04-10 00:10:00.217  6015  6105 D PhoneUsageTime: lastChargeTime=1775750888206 LastChargeDurationTime=12932542
+04-10 00:10:00.222  3192  3192 D LightsServiceExtImpl: currentTime is not belong to 700 - 2330
+04-10 00:10:00.222  3192  3192 D OplusThermalStats: onReceive: act = oplus.android.internal.thermalupload.ALARM_WAKEUP
+04-10 00:10:00.223  1897  1897 E android.hardware.power.stats-impl.oplus: HandleFactory::read open charger_input_current_now(/proc/charger/input_current_now) failed! fd: -1 errno: 2
+04-10 00:10:00.223  1897  1897 W android.hardware.power.stats-impl.oplus: PruneException: Unknown binder exception (2) pruned into EX_TRANSACTION_FAILED
+04-10 00:10:00.223  6293 10591 W midasd  : handleFactory read failed.
+04-10 00:10:00.227  3192  4668 D CommSceneService: notify align tick changed state=1
+04-10 00:10:00.227  3192  4668 I CommSceneListener: on scene=1006 state=1 pId=-1
+04-10 00:10:00.227  3192  4668 I CommSceneListener: on scene=1006 state=1 pId=-1
+04-10 00:10:00.227  3192  4668 I LinkPower: [Main] handleCommSceneListener scene:1006 state:1 phoneId:-1
+04-10 00:10:00.227  3192  4668 I LinkPower: [Main] notifyLoopTick in
+04-10 00:10:00.227  3192  4668 I LinkPower: [JudgeRule] name:freeze finalCheckAction scene is 1001
+04-10 00:10:00.227  3192  4668 I LinkPower: [JudgeCommSceneProcess] commInfo mRusTimeInfo is 300 mSceneState is 1 mActiveFlag is 3 runTime is 8784013830
+04-10 00:10:00.227  3192  4668 I LinkPower: [JudgeRule] name:freeze finalCheckAction TIME_SATISFY
+04-10 00:10:00.227  3192  4668 E LinkPower: [JudgeMonitorProcess] failed to deleteLastRecord, mMonitorRecordAccumulate is empty!
+04-10 00:10:00.227  3192  4668 E LinkPower: [JudgeMonitorProcess] failed to deleteLastRecord, mMonitorRecordAccumulate is empty!
+04-10 00:10:00.227  3192  4668 I LinkPower: [JudgeRule] name:freeze finalCheckAction resule ruleState: false commSeceneFlag: 1 monitorFlag: 0
+04-10 00:10:00.227  3192  4668 D OSysNetControlService: handle comm scene=1006 state=1 phoneId=-1
+04-10 00:10:00.227  3192  4668 D OSysNetControlService: condition id=1 delay not match!
+04-10 00:10:00.227  3192  4668 D OSysNetControlService: condition id=2 state=false not match!
+04-10 00:10:00.237  1378 25124 I android.system.suspend-service: Last release wakelock name = PowerManagerService.WakeLocks
+04-10 00:10:00.237  1378 25124 I android.system.suspend-service: mAutosuspendEnabled=1
+04-10 00:10:00.238  3192  3558 D OplusDisplayBrightnessBroadcastReceiver: onReceive action = android.intent.action.TIME_TICK , listeners = [com.android.server.display.ambience.events.event.TimeEvent$TimeChangeReceiver@6fe0a81, com.android.server.display.marvels.module.ORBrightnessMarvelsDataCollector$ScreenStateReceiver@d5f53de, com.android.server.display.oplus.eyeprotect.manager.AiCurveManager$RhythmBroadcastReceiverWithUpgradeUI@223f726]
+04-10 00:10:00.248  3192  4668 I LinkPower: [MonitorService] update scene:S_OFF name:wifi_sta_conn_primary mr:{d=111970, t={android.uid.system=111970}}
+04-10 00:10:00.248  3192  4668 E LinkPower: [MonitorService] failed to set scene:S_S_OFF running to false
+04-10 00:10:00.248  3192  4668 I LinkPower: [JudgeRule] name:freeze JudgeRule info RuleID 1 Name freeze ActionName data_app_request_freeze PriorityID 20 TimeGap 0
+04-10 00:10:00.248  3192  4668 I LinkPower: [JudgeRule] name:freeze finalCheckAction scene is 1001
+04-10 00:10:00.248  3192  4668 I LinkPower: [JudgeCommSceneProcess] commInfo mRusTimeInfo is 300 mSceneState is 1 mActiveFlag is 3 runTime is 8784013830
+04-10 00:10:00.248  3192  4668 I LinkPower: [JudgeRule] name:freeze finalCheckAction TIME_SATISFY
+04-10 00:10:00.248  3192  4668 E LinkPower: [JudgeMonitorProcess] failed to deleteLastRecord, mMonitorRecordAccumulate is empty!
+04-10 00:10:00.248  3192  4668 E LinkPower: [JudgeMonitorProcess] failed to deleteLastRecord, mMonitorRecordAccumulate is empty!
+04-10 00:10:00.248  3192  4668 I LinkPower: [JudgeRule] name:freeze finalCheckAction resule ruleState: false commSeceneFlag: 1 monitorFlag: 0
+04-10 00:10:00.248  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:00.251  5091  5893 D PKPI    : [KpiKernel] update kpi:redundantpkgwakeupc value:0 duration:111
+04-10 00:10:00.320  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.5,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 170.432587/118.372406/62.802074/350.477264,ts 8797045332947784,cnt 53482,flag 131072
+04-10 00:10:00.352  5098  5779 W ModemAci: [KernelWakeupInfo] failed to update kernel wakeup due to empty map!
+04-10 00:10:00.362  3192  4668 I LinkPower: [MonitorLeafBpfWakeup] Origin WakeupInfoMain Diff:111s InWakeup:null OutWakeup:null WakeupDuration(ms):null
+04-10 00:10:00.362  3192  4668 I LinkPower: [MonitorLeafBpfWakeup] Origin WakeupInfoDetails Diff:111s OutImHbWakeup:null OutAlignWakeup:null InKeepWakeup:null ReInWakeup:null ReOutWakeup:null
+04-10 00:10:00.366  5091  5893 D PKPI    : [KpiKernel] update kpi:mcsoutwakeupc value:0 duration:111
+04-10 00:10:00.467  5098  5779 W ModemAci: [AppInfo] failed to update app info due to empty map!
+04-10 00:10:00.897  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:10:01.225  1378 25124 I android.system.suspend-service: First holding wakelock name = PowerManagerService.WakeLocks
+04-10 00:10:01.229  3192  3541 D Upload hourtemp: put hourtemp in upLoadMap
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp holdtimeThreshold:1800000
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp battemp36:1434
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp heatThreshold:44
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp hourtempMap:hour10:360;hour11:360;hour12:360;hour13:360;hour14:360;hour15:360;hour16:360;hour17:360;hour18:360;hour19:360;hour20:360;hour21:360;hour22:360;hour23:380;hour0:360;hour1:360;hour2:360;hour3:360;hour4:360;hour5:360;hour6:360;hour7:360;hour8:360;hour9:360;
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp lessHeatThreshold:41
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp maxPhoneTemp:38
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp phonetemp38:2
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp phonetemp37:2
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp moreHeatThreshold:49
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp phonetemp36:1429
+04-10 00:10:01.230  3192  3541 I OplusThermalStats: uploadThermalTemp maxBatTemp:36
+04-10 00:10:01.241  3192  3541 I OplusThermalStats: uploadStampTemp tempTime:2026-04-10-00-10-01
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp maxEnvitemp:24
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp hourtempMap:hour10:360;hour11:360;hour12:360;hour13:360;hour14:360;hour15:360;hour16:360;hour17:360;hour18:360;hour19:360;hour20:360;hour21:360;hour22:360;hour23:380;hour0:360;hour1:360;hour2:360;hour3:360;hour4:360;hour5:360;hour6:360;hour7:360;hour8:360;hour9:360;
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp phoneTempMap:phonetemp36:1429;phonetemp37:2;phonetemp38:2;
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp maxPhoneTemp:38
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp TOP5APP:mApk:系统桌面 mDuration:86400125 mTemp:290;
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp hourEnvitempMap:hour10:20;hour11:20;hour12:20;hour13:20;hour14:20;hour15:22;hour16:21;hour17:20;hour18:19;hour19:18;hour20:19;hour21:21;hour22:21;hour23:22;hour0:21;hour1:20;hour2:20;hour3:18;hour4:18;hour5:24;hour6:24;hour7:23;hour8:23;hour9:21;
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp key:TempMap
+04-10 00:10:01.242  3192  3541 I OplusThermalStats: uploadStampTemp maxBatTemp:36
+04-10 00:10:01.243  3192  3541 D OplusManager: send on stamp success
+04-10 00:10:01.252  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:01.253  4667  4692 V StampEventRecorder: onStamp id : 040201
+04-10 00:10:01.292 22231 22231 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=21800 total=7335040 step=2374 threads=4 dyn_total_tasks=7335040 dyn_target_chunks=8 dyn_claim_calls=261600 dyn_claim_success=174400 dyn_claim_empty=87200 dyn_claim_tasks=7335040 dyn_total_chunks=174400 tasks_per_thread=[0:1841044,1:1832314,2:1832358,3:1829324] latency_us=1353911 tok_s=94.541
+04-10 00:10:01.292 22231 22231 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=1.353911 s speed=94.541 tok/s
+04-10 00:10:01.292 22231 22231 I MNNJNI  : [AutoTuner] Phase changed: DECODE -> UNKNOWN (threads=6, affinity=0xFC)
+04-10 00:10:01.292 22231 22231 I MNNJNI  : [llm_bench][measure 5/5] result prefill=0.834085 s decode=1.353911 s prefill_bind=[2,3,4,5,6,7] decode_bind=[2,3,4,5,6,7]
+04-10 00:10:01.292 22231 22231 I MNNJNI  : [llm_bench] Final result prefill=395.715 +- 141.876 tok/s decode=60.852 +- 30.445 tok/s prefill=6/[2,3,4,5,6,7] decode=4/[2,3,4,5,6,7]
+04-10 00:10:01.663  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.7, cct -1.0, r/g/b/c: 181.4/129.6/62.8/344.7, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.042271, conf 0.0, ts 8797046674446222
+04-10 00:10:02.254  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:02.338  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:10:02.339  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:10:02.339  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:10:02.340  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:10:02.340  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:10:02.340  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:10:02.340  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:10:02.340  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:10:02.341  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:10:02.341  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:10:02.342  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:10:02.342  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:10:02.342  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:10:02.342  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:10:02.342  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:10:02.342  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:10:02.343  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:10:02.664  1741  1741 D healthd : system healthd: battery l=100 v=4367 t=27.7 h=2 st=5 c=1144 fc=6415000 cc=28 chg=u
+04-10 00:10:02.679  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:10:02.680  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:10:02.684  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 46
+04-10 00:10:02.684  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:10:03.010  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.6,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 175.930405/124.009178/68.511360/350.477264,ts 8797048015821586,cnt 53492,flag 131072
+04-10 00:10:03.257  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:03.753  6289  6312 E horae   : 0: back:29237,back_1:30000,frame:27727,front:30553, 19 1, +(1753), 0 ,36758,30562,29521,31112,27700,37849,31217,30020,31905,27800,38753,31797,30524,32607,27700,38981,32306,31006,33227,27700, target_temp:30553, algo:0
+04-10 00:10:03.871  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:120, read content:,277,277,4367,4367,1144,98,100,1,1,1048704,87,5145,100,0,4500,500,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:10:03.872  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-10-03
+04-10 00:10:03.872  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:10:04.261  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:04.346  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.8, cct -1.0, r/g/b/c: 170.4/124.0/68.5/356.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.009447, conf 0.0, ts 8797049357471065
+04-10 00:10:05.253  1378 25124 I android.system.suspend-service: Last release wakelock name = PowerManagerService.WakeLocks
+04-10 00:10:05.253  3192  3541 I OplusThermalStats:  initUploadAlarm 
+04-10 00:10:05.253  1378 25124 I android.system.suspend-service: mAutosuspendEnabled=1
+04-10 00:10:05.262  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:05.690  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.5,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 170.432587/129.645966/68.511360/356.222809,ts 8797050698931378,cnt 53502,flag 131072
+04-10 00:10:05.897  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:10:06.263  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:07.032  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.7, cct -1.0, r/g/b/c: 175.9/124.0/57.1/344.7, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.017841, conf 0.0, ts 8797052040337263
+04-10 00:10:07.265  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:07.344  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:10:07.344  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:10:07.345  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:10:07.345  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:10:07.345  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:10:07.345  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:10:07.345  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:10:07.345  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:10:07.346  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:10:07.346  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:10:07.346  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:10:07.346  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:10:07.346  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:10:07.347  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:10:07.347  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:10:07.347  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:10:07.347  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:10:07.788  1741  1741 D healthd : system healthd: battery l=100 v=4465 t=27.7 h=2 st=5 c=-480 fc=6415000 cc=28 chg=u
+04-10 00:10:07.803  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:10:07.804  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:10:07.807  3192  3542 D BatteryStatsImplExtImpl: updateStandbyStatistics time interval is too short, ingore.
+04-10 00:10:07.807  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:10:07.816  3192  3192 D OplusWifiBroadCastDispatcher: mBroadcastReceiver: onReceiver  action=android.intent.action.BATTERY_CHANGED
+04-10 00:10:07.816  3192  4206 D OplusCustomizeRestrictionManagerService: isSuperPowerSavingModeDisabled Pid: 4792, Uid: 10227
+04-10 00:10:07.817  3192  4206 D OplusCustomizeRestrictionManagerService: isSuperPowerSavingModeDisabled Pid: 4792, Uid: 10227
+04-10 00:10:07.817  3192  3558 D OplusDisplayBrightnessBroadcastReceiver: onReceive action = android.intent.action.BATTERY_CHANGED , listeners = [com.android.server.display.OplusFeatureLowVoltageLimitBrightness$InstallVoltageBroadcastReceiver@341772d, com.android.server.display.OplusFeatureHDREnhanceBrightness$PhoneInfoReceiver@efda462]
+04-10 00:10:07.817  5235  5235 D SubsysBroadcastManager: onReceive action:android.intent.action.BATTERY_CHANGED
+04-10 00:10:07.817  5235  5235 D RFPowerBoostManager: current battery level is 100
+04-10 00:10:07.818  3192  3558 I OplusFeatureLowVoltageLimitBrightness[P]: handleMessage MSG_BATTER_TEMPERATURE_CHAGNE changed = false temperature = 277 , battery = 100
+04-10 00:10:07.818  3192  4206 D OplusCustomizeRestrictionManagerService: isSuperPowerSavingModeDisabled Pid: 4792, Uid: 10227
+04-10 00:10:07.819  3192  4206 D OplusCustomizeRestrictionManagerService: isSuperPowerSavingModeDisabled Pid: 4792, Uid: 10227
+04-10 00:10:07.820  4792  4792 I SystemUi--Statusbar: BatteryControllerExt-->updateBatteryChangeIntent():broadcast=android.intent.action.BATTERY_CHANGED,level=100,scale=100
+04-10 00:10:07.820  4792  4792 I SystemUi--Statusbar: BatteryRepository-->level: 100 -- isSavingMode: false
+04-10 00:10:07.820  5073  5073 D DeviceStatisticsService: onReceive: action= android.intent.action.BATTERY_CHANGED
+04-10 00:10:07.822  6015  6151 E Battery : a: getAISleepDuration: predictResult is null.
+04-10 00:10:07.822  6015  6151 E Battery : ChargeProtectionUtils: mCanlendarTmp.isEmpty()!
+04-10 00:10:07.823  6015  6134 I DeepThinkerSDK: [APP] ClientConnection: getDeepThinkerBridge start
+04-10 00:10:07.823  6015  6134 I DeepThinkerSDK: [APP] ClientConnection: getDeepThinkerBridge end
+04-10 00:10:07.823  6015  6134 I DeepThinkerSDK: [APP] UserDomainManager: businessId : 401 threshold : 0.6 learnPeriod:30
+04-10 00:10:07.824  4792  4924 I SystemUi--SystemUi--: OtgHelper-->OtgCurrentState = 1, mOtgLastState = 1
+04-10 00:10:07.827  6015  6134 I DeepThinkerSDK: [APP] UserDomainManager: PerformanceOfLongCharging{probabilityOfLocation=0.0, probabilityOfApps=0.0, probabilityOfTime=0.0, probabilityOfTotal=0.0, duration=0}
+04-10 00:10:07.966  6841 30485 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:10:07.967  6841 28817 D gaia-GaiaConnectChecker: start connect check++
+04-10 00:10:08.270  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:08.372  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.7,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 181.428223/124.009178/57.092796/350.477264,ts 8797053381589555,cnt 53512,flag 131072
+04-10 00:10:08.752  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:10:08.875  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:121, read content:,277,277,4465,4465,-480,98,100,1,1,1048704,450,5034,100,0,4500,600,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:10:08.876  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-10-08
+04-10 00:10:08.876  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:10:09.276  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:09.588 14604 14626 D TrafficMonitor3: checkWifiApEnabled ap state:11 0/false
+04-10 00:10:09.712  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.8, cct -1.0, r/g/b/c: 175.9/129.6/68.5/356.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.025075, conf 0.0, ts 8797054723150128
+04-10 00:10:10.277  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:10.898  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:10:11.055  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.7,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 170.432587/118.372406/62.802074/356.222809,ts 8797056064521534,cnt 53522,flag 131072
+04-10 00:10:11.240  3192  4997 W Binder  : Outgoing transactions from this process must be FLAG_ONEWAY
+04-10 00:10:11.240  3192  4997 W Binder  : java.lang.Throwable
+04-10 00:10:11.240  3192  4997 W Binder  : 	at android.os.BinderProxy.transact(BinderProxy.java:633)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at android.content.ContentProviderProxy.insert(ContentProviderNative.java:587)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at android.content.ContentProviderClient.insert(ContentProviderClient.java:347)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at android.content.ContentProviderClient.insert(ContentProviderClient.java:336)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at com.oplus.util.OplusStatisticsImpl.insert(OplusStatisticsImpl.java:307)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at com.oplus.util.OplusStatisticsImpl.sendDataToDCS(OplusStatisticsImpl.java:287)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at com.oplus.util.OplusStatisticsImpl.flushInternal(OplusStatisticsImpl.java:264)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at com.oplus.util.OplusStatisticsImpl.lambda$setDelayFlushJobIfNeed$4(OplusStatisticsImpl.java:211)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at com.oplus.util.OplusStatisticsImpl.$r8$lambda$4UYTp2NCu6Rml69JNqEuK7o54SI(Unknown Source:0)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at com.oplus.util.OplusStatisticsImpl$$ExternalSyntheticLambda5.run(D8$$SyntheticClass:0)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at java.util.concurrent.FutureTask.run(FutureTask.java:290)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:307)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+04-10 00:10:11.240  3192  4997 W Binder  : 	at java.lang.Thread.run(Thread.java:1012)
+04-10 00:10:11.260  7098  7143 I MMKV    : <MMKV_IO.cpp:456::writeActualSize> [mmkv.default] increase sequence to 4424, crc 4040441106, actualSize 654
+04-10 00:10:11.278  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:11.946  1870  1934 E ANDR-PERF-UTIL: ANDR-PERF-UTIL: save_node_val() 366: Failed to read /sys/devices/system/cpu/cpu0/cpufreq/walt/pl
+04-10 00:10:11.947  1870  1934 E ANDR-PERF-OPTSHANDLER: ANDR-PERF-OPTSHANDLER: modify_sysfsnode() 1095: Failed to read /sys/devices/system/cpu/cpu0/cpufreq/walt/pl
+04-10 00:10:11.947  1870  1934 E ANDR-PERF-RESOURCEQS: ANDR-PERF-RESOURCEQS: AddAndApply() 167: Failed to apply optimization [5, 17]
+04-10 00:10:11.947  1870  1934 E ANDR-PERF-UTIL: ANDR-PERF-UTIL: save_node_val() 366: Failed to read /sys/devices/system/cpu/cpu2/cpufreq/walt/pl
+04-10 00:10:11.947  1870  1934 E ANDR-PERF-OPTSHANDLER: ANDR-PERF-OPTSHANDLER: modify_sysfsnode() 1095: Failed to read /sys/devices/system/cpu/cpu2/cpufreq/walt/pl
+04-10 00:10:11.947  1870  1934 E ANDR-PERF-RESOURCEQS: ANDR-PERF-RESOURCEQS: AddAndApply() 167: Failed to apply optimization [5, 17]
+04-10 00:10:12.213  3192  3531 D ProcessCpuTrackerExtImpl: mContext is already set, return now! 
+04-10 00:10:12.280  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:12.348  1914  1947 D vendor.oplus.hardware.charger-V6-service: s_chg_user_mode: 3
+04-10 00:10:12.349  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:10:12.350  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:10:12.350  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:10:12.350  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:10:12.351  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:10:12.351  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:10:12.351  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:10:12.351  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:10:12.351  1914  1947 D vendor.oplus.hardware.charger-V6-service: scale_chg Start!!!
+04-10 00:10:12.352  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 0, 3]
+04-10 00:10:12.352  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 2, 10]
+04-10 00:10:12.352  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 1, 4]
+04-10 00:10:12.352  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 3, 3]
+04-10 00:10:12.352  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 4, 3]
+04-10 00:10:12.352  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 5, 8]
+04-10 00:10:12.353  1914  1947 D vendor.oplus.hardware.charger-V6-service: [0, 6, 8]
+04-10 00:10:12.395  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.7, cct -1.0, r/g/b/c: 175.9/124.0/68.5/350.5, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.025642, conf 0.0, ts 8797057405886013
+04-10 00:10:12.907  1741  1741 D healthd : system healthd: battery l=100 v=4469 t=27.7 h=2 st=5 c=-460 fc=6415000 cc=28 chg=u
+04-10 00:10:12.934  1914  1914 D vendor.oplus.hardware.charger-V6-service: get_ui_charge_icon_type 0 0 0 0 0
+04-10 00:10:12.935  1914  1914 D vendor.oplus.hardware.charger-V6-service: oplus_chg_get_cpa_power 2500 charge_online 1 retention_topic 0
+04-10 00:10:12.940  3192  3542 D BatteryStatsImplExtImpl: mActiveProcesses size = 46
+04-10 00:10:12.940  3192  3542 D BatteryStatsImplExtImpl: rpmhStats is null or interval time is too short.
+04-10 00:10:13.285  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:13.735  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.5,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 181.428223/118.372406/74.220642/356.222809,ts 8797058747332940,cnt 53532,flag 131072
+04-10 00:10:13.749  8034 17543 D ShellSubscriberWorkerThread: the first 8 bytes empty, and RestData length > 8 
+04-10 00:10:13.878  1914  1957 D vendor.oplus.hardware.charger-V6-service: ret_value:121, read content:,277,277,4469,4469,-460,98,100,1,1,1048704,453,5045,100,0,4500,600,500,0,0,7500,0,0,1,0,2,1,1,0,4,6430,100,0,0,0,0,0,0,0
+04-10 00:10:13.878  1914  1957 D vendor.oplus.hardware.charger-V6-service: gmtime: 2026-04-10-00-10-13
+04-10 00:10:13.879  1914  1957 D vendor.oplus.hardware.charger-V6-service: usb_online:1, ac_online:-2147483648, wireless_online:-2147483648
+04-10 00:10:14.287  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:15.081  3192  4344 D FusionLightNextGen: process end reported = 1, mode: 0, lux 3.8, cct -1.0, r/g/b/c: 170.4/118.4/68.5/356.2, R/G/B: 0.0/0.0/0.0, bri 0.0, match 1.00, ir 0.001535, conf 0.0, ts 8797060088698201
+04-10 00:10:15.289  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:15.899  1890 25015 V Codec2-DumpInput: [processLoop:L697][c2.qti.hevc.decoder_319]QueueRead[0] empty, waiting buffer.
+04-10 00:10:16.292  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol
+04-10 00:10:16.417  1761  7744 I sensors-hal: handle_oplus_wise_rgb_event:189, high_pwm_light:lux 4.6,cct 5300.0,brl/algo/ir 0.0/2.0/0.0,pwm/dc 0.0/0.0,rgbc 181.428223/118.372406/62.802074/356.222809,ts 8797061430016326,cnt 53542,flag 131072
+04-10 00:10:17.293  1914  1958 D BatteryChargeControl: bcc get no support from charging protocol

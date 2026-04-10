@@ -10,6 +10,8 @@ FILES=(
     "/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/source/backend/cpu/compute/ConvInt8TiledExecutor.cpp"
     "/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/source/backend/cpu/AutoTuner.cpp"
     "/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/source/backend/cpu/CPUBackend.cpp"
+    "/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/transformers/llm/engine/src/aecs_tuner.cpp"
+    "/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/transformers/llm/engine/demo/llm_bench_aecs.cpp"
 )
 
 for f in "${FILES[@]}"; do

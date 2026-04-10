@@ -45,6 +45,7 @@ struct LlmBenchAecsSetupParams {
     std::vector<int> decode_cpu_ids;
     bool prefill_manual = false;
     bool decode_manual = false;
+    int benchmark_repeat = 1;
     AecsTuningConfig tuning_config;
     AecsHeuristicParams heuristic_params;
     LlmBenchScheduleConfig schedule_config;
@@ -106,6 +107,8 @@ private:
     AecsCpuTopology mTopology;
     LlmBenchAecsBuildPlan mBuildPlan;
     LlmBenchAecsRuntimePlan mRuntimePlan;
+    PhaseTuningResult mCachedPhaseResult;
+    bool mUseCachedPlan = false;
     bool mPrepared = false;
     std::unique_ptr<ThermalGuard> mThermalGuard;
     std::unique_ptr<EnergyProfiler> mEnergyProfiler;

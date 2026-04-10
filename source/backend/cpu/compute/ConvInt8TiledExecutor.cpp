@@ -578,7 +578,9 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
     auto cpuBn = static_cast<CPUBackend*>(backend());
     auto core = cpuBn->int8Functions();
     auto gcore = cpuBn->functions();
-    const int threads = std::max(1, std::min(cpuBn->threadNumber(), AutoTuner::getInstance()->getActiveThreadCount()));
+    // Resize-time scratch buffers must follow the pool thread count.
+    // The phase-specific active thread count is applied later in onExecute().
+    const int threads = std::max(cpuBn->threadNumber(), 1);
 
     mRelatedFunctions = *(static_cast<CPUBackend*>(backend())->int8GemmFunctions());
 
@@ -1567,6 +1569,16 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                 });
             }
             MNN_CONCURRENCY_PREFILL_WORKSTEAL_END();
+        } else if (mSchedulePolicy == SchedulerPolicy::STATIC) {
+            MNN_CONCURRENCY_BEGIN(tId, threads) {
+                const int start = mDivides[tId];
+                const int end = mDivides[tId + 1];
+                if (start < end) {
+                    processOcRange((int)tId, start, end);
+                    AutoTuner::getInstance()->noteThreadTasks(InferencePhase::PREFILL, (int)tId, end - start);
+                }
+            }
+            MNN_CONCURRENCY_END();
         } else {
             MNN_CONCURRENCY_DECODE_DYNAMIC_BEGIN(tId,
                                                  threads,
@@ -1593,6 +1605,16 @@ ErrorCode DenseConvInt8TiledExecutor::onExecute(const std::vector<Tensor*>& inpu
                 });
             }
             MNN_CONCURRENCY_PREFILL_WORKSTEAL_END();
+        } else if (mSchedulePolicy == SchedulerPolicy::STATIC) {
+            MNN_CONCURRENCY_BEGIN(tId, threads) {
+                const int start = mDivides[tId];
+                const int end = mDivides[tId + 1];
+                if (start < end) {
+                    tileSplitFunction((int)tId, start, end, 1);
+                    AutoTuner::getInstance()->noteThreadTasks(InferencePhase::PREFILL, (int)tId, end - start);
+                }
+            }
+            MNN_CONCURRENCY_END();
         } else {
             MNN_CONCURRENCY_DECODE_DYNAMIC_BEGIN(tId,
                                                  threads,
