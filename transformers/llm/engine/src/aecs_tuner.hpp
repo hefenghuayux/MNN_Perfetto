@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <MNN/MNNDefine.h>
+#include "backend/cpu/AutoTuner.hpp"
 
 namespace MNN {
 namespace Transformer {
@@ -107,6 +108,7 @@ struct AecsCandidateResult {
 struct AecsStaticCalibrationResult {
     bool cache_hit = false;
     bool valid = false;
+    SchedulerPolicy target_policy = SchedulerPolicy::STATIC;
     int cluster_count = 0;
     std::vector<int> core_capacities;
     std::vector<double> cluster_ratios;
@@ -253,6 +255,7 @@ public:
                            const PrefillMeasureFn& prefill_measure,
                            const DecodeMeasureFn& decode_measure) const;
     AecsStaticCalibrationResult calibrateStaticCapacities(const AecsCacheKey& cache_key,
+                                                          SchedulerPolicy target_policy,
                                                           const StaticCalibrationMeasureFn& measure) const;
 
     double heuristicPower(const std::vector<int>& cpu_ids) const;
@@ -262,7 +265,8 @@ public:
 private:
     bool loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* result) const;
     void saveCache(const AecsCacheKey& cache_key, const PhaseTuningResult& result) const;
-    AecsStaticCalibrationResult tuneStaticCalibration(const StaticCalibrationMeasureFn& measure) const;
+    AecsStaticCalibrationResult tuneStaticCalibration(SchedulerPolicy target_policy,
+                                                      const StaticCalibrationMeasureFn& measure) const;
     AecsCandidateResult tunePrefill(const PrefillMeasureFn& prefill_measure) const;
     AecsCandidateResult tuneDecodeStage1(const std::vector<int>& prefill_cpu_ids,
                                          int prefill_threads,
@@ -277,7 +281,8 @@ private:
                            const AecsTuningConfig& cached_config,
                            const AecsHeuristicParams& cached_heuristic,
                            const AecsCacheKey& cached_key) const;
-    bool matchesStaticCalibrationLayout(const AecsStaticCalibrationResult& result) const;
+    bool matchesStaticCalibrationLayout(const AecsStaticCalibrationResult& result,
+                                        SchedulerPolicy target_policy) const;
 
 private:
     AecsCpuTopology mTopology;

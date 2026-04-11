@@ -107,6 +107,15 @@
 # REPEAT_COUNT=5 \
 # SPLIT_PHASE_BENCH=true \
 # bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260410_225814  \
+# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260410_225814 \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================

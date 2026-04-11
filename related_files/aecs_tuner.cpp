@@ -813,6 +813,13 @@ struct StaticRatioCandidate {
     AecsMeasurement measurement;
 };
 
+struct WorkStealCapacityCandidate {
+    int w234 = 0;
+    int w65 = 0;
+    std::vector<int> core_capacities;
+    AecsMeasurement measurement;
+};
+
 static std::vector<int> removeCpuIdsInCluster(const std::vector<int>& cpu_ids,
                                               const std::vector<int>& cluster_cpu_ids) {
     std::vector<int> result;
@@ -829,6 +836,43 @@ static int maxCpuId(const std::vector<int>& cpu_ids) {
         return -1;
     }
     return *std::max_element(cpu_ids.begin(), cpu_ids.end());
+}
+
+static bool hasCpuId(const AecsCpuTopology& topology, int cpu_id) {
+    return std::find(topology.all_cpu_ids_desc.begin(), topology.all_cpu_ids_desc.end(), cpu_id) !=
+           topology.all_cpu_ids_desc.end();
+}
+
+static std::vector<int> buildWorkStealRepresentativeCpuIds(const AecsCpuTopology& topology) {
+    std::vector<int> cpu_ids;
+    for (auto cpu_id : topology.all_cpu_ids_desc) {
+        if (cpu_id >= 2 && cpu_id <= 7) {
+            cpu_ids.push_back(cpu_id);
+        }
+    }
+    return cpu_ids;
+}
+
+static std::vector<int> buildWorkStealGridCapacities(const AecsCpuTopology& topology,
+                                                     const std::vector<int>& inspected_capacities,
+                                                     int w234,
+                                                     int w65) {
+    if (inspected_capacities.size() <= 7) {
+        return {};
+    }
+    for (int cpu_id = 0; cpu_id <= 7; ++cpu_id) {
+        if (!hasCpuId(topology, cpu_id)) {
+            return {};
+        }
+    }
+    std::vector<int> capacities = inspected_capacities;
+    capacities[2] = std::max(1, w234);
+    capacities[3] = std::max(1, w234);
+    capacities[4] = std::max(1, w234);
+    capacities[5] = std::max(1, w65);
+    capacities[6] = std::max(1, w65);
+    capacities[7] = 1024;
+    return capacities;
 }
 
 } // namespace
@@ -1398,7 +1442,11 @@ std::vector<int> AecsTuner::normalizeCpuIds(const std::vector<int>& cpu_ids) con
     return ordered;
 }
 
-bool AecsTuner::matchesStaticCalibrationLayout(const AecsStaticCalibrationResult& result) const {
+bool AecsTuner::matchesStaticCalibrationLayout(const AecsStaticCalibrationResult& result,
+                                               SchedulerPolicy target_policy) const {
+    if (result.target_policy != target_policy) {
+        return false;
+    }
     if (result.cluster_count != static_cast<int>(mTopology.clusters_desc.size())) {
         return false;
     }
@@ -1414,16 +1462,19 @@ bool AecsTuner::matchesStaticCalibrationLayout(const AecsStaticCalibrationResult
 }
 
 AecsStaticCalibrationResult AecsTuner::calibrateStaticCapacities(const AecsCacheKey& cache_key,
+                                                                 SchedulerPolicy target_policy,
                                                                  const StaticCalibrationMeasureFn& measure) const {
     PhaseTuningResult cached_result;
     const bool cache_loaded = loadCache(cache_key, &cached_result);
-    if (!mConfig.force_retune && cached_result.static_calibration.valid) {
+    if (!mConfig.force_retune && cached_result.static_calibration.valid &&
+        matchesStaticCalibrationLayout(cached_result.static_calibration, target_policy)) {
         return cached_result.static_calibration;
     }
 
-    auto calibration = tuneStaticCalibration(measure);
+    auto calibration = tuneStaticCalibration(target_policy, measure);
     if (!calibration.valid) {
-        MNN_PRINT("[AECS][Static] calibration failed, keep inspected topology capacities\n");
+        MNN_PRINT("[AECS][Capacity][%s] calibration failed, keep inspected topology capacities\n",
+                  schedulerPolicyName(target_policy));
         return calibration;
     }
 
@@ -1434,8 +1485,10 @@ AecsStaticCalibrationResult AecsTuner::calibrateStaticCapacities(const AecsCache
     return calibration;
 }
 
-AecsStaticCalibrationResult AecsTuner::tuneStaticCalibration(const StaticCalibrationMeasureFn& measure) const {
+AecsStaticCalibrationResult AecsTuner::tuneStaticCalibration(SchedulerPolicy target_policy,
+                                                             const StaticCalibrationMeasureFn& measure) const {
     AecsStaticCalibrationResult result;
+    result.target_policy = target_policy;
     result.cluster_count = static_cast<int>(mTopology.clusters_desc.size());
     result.cluster_cpu_ids.reserve(mTopology.clusters_desc.size());
     for (const auto& cluster : mTopology.clusters_desc) {
@@ -1444,7 +1497,8 @@ AecsStaticCalibrationResult AecsTuner::tuneStaticCalibration(const StaticCalibra
 
     auto inspected_cluster_weights = clusterWeightsFromTopology(mTopology);
     if (inspected_cluster_weights.empty()) {
-        MNN_PRINT("[AECS][Static] unable to derive cluster weights from topology\n");
+        MNN_PRINT("[AECS][Capacity][%s] unable to derive cluster weights from topology\n",
+                  schedulerPolicyName(target_policy));
         return result;
     }
 
@@ -1453,7 +1507,8 @@ AecsStaticCalibrationResult AecsTuner::tuneStaticCalibration(const StaticCalibra
         result.cluster_ratios = ratiosFromClusterWeights(inspected_cluster_weights);
         result.valid = !result.core_capacities.empty();
         if (result.valid) {
-            MNN_PRINT("[AECS][Static] single cluster topology, reuse inspected capacities\n");
+            MNN_PRINT("[AECS][Capacity][%s] single cluster topology, reuse inspected capacities\n",
+                      schedulerPolicyName(target_policy));
         }
         return result;
     }
@@ -1465,7 +1520,146 @@ AecsStaticCalibrationResult AecsTuner::tuneStaticCalibration(const StaticCalibra
     const int representative_threads = static_cast<int>(representative_cpu_ids.size());
     const auto inspected_capacities = expandClusterWeightsToCpuCapacities(mTopology, inspected_cluster_weights);
     if (representative_threads <= 0 || inspected_capacities.empty()) {
-        MNN_PRINT("[AECS][Static] no representative prefill candidate available before ratio sweep\n");
+        MNN_PRINT("[AECS][Capacity][%s] no representative prefill candidate available before ratio sweep\n",
+                  schedulerPolicyName(target_policy));
+        return result;
+    }
+    if (target_policy == SchedulerPolicy::WORK_STEAL) {
+        const auto work_steal_cpu_ids = buildWorkStealRepresentativeCpuIds(mTopology);
+        const int work_steal_threads = static_cast<int>(work_steal_cpu_ids.size());
+        if (work_steal_threads != 6) {
+            MNN_PRINT("[AECS][Capacity][%s] expected representative cpu_ids=7,6,5,4,3,2, got=%s\n",
+                      schedulerPolicyName(target_policy),
+                      joinCpuIds(work_steal_cpu_ids).c_str());
+            return result;
+        }
+        const auto inspected_measurement = measure(work_steal_cpu_ids, work_steal_threads, inspected_capacities);
+        MNN_PRINT("[AECS][Capacity][%s] baseline representative=%s threads=%d capacities=%s speed=%.3f tok/s time=%.6f s\n",
+                  schedulerPolicyName(target_policy),
+                  joinCpuIds(work_steal_cpu_ids).c_str(),
+                  work_steal_threads,
+                  joinCpuIds(inspected_capacities).c_str(),
+                  inspected_measurement.speed_tok_s,
+                  inspected_measurement.time_s);
+
+        std::vector<WorkStealCapacityCandidate> candidates;
+        auto better_work_steal_candidate = [&](const WorkStealCapacityCandidate& candidate,
+                                               const WorkStealCapacityCandidate& best) {
+            const double speed_eps = 1e-9;
+            if (candidate.measurement.speed_tok_s > best.measurement.speed_tok_s + speed_eps) {
+                return true;
+            }
+            if (std::fabs(candidate.measurement.speed_tok_s - best.measurement.speed_tok_s) > speed_eps) {
+                return false;
+            }
+            const int candidate_distance =
+                std::abs(candidate.w65 - inspected_capacities[5]) + std::abs(candidate.w234 - inspected_capacities[2]);
+            const int best_distance =
+                std::abs(best.w65 - inspected_capacities[5]) + std::abs(best.w234 - inspected_capacities[2]);
+            if (candidate_distance != best_distance) {
+                return candidate_distance < best_distance;
+            }
+            if (candidate.w65 != best.w65) {
+                return candidate.w65 < best.w65;
+            }
+            return candidate.w234 < best.w234;
+        };
+        auto evaluate_grid = [&](int w234, int w65, const char* stage) {
+            if (w234 <= 0 || w65 <= 0 || w234 > w65 || w65 > 1024) {
+                return;
+            }
+            for (const auto& existing : candidates) {
+                if (existing.w234 == w234 && existing.w65 == w65) {
+                    return;
+                }
+            }
+            const auto core_capacities = buildWorkStealGridCapacities(mTopology, inspected_capacities, w234, w65);
+            if (core_capacities.empty()) {
+                MNN_PRINT("[AECS][Capacity][%s] unable to build grid capacities for w234=%d w65=%d\n",
+                          schedulerPolicyName(target_policy), w234, w65);
+                return;
+            }
+            MNN_PRINT("[AECS][Capacity][%s][%s] begin representative=%s w234=%d w65=%d capacities=%s\n",
+                      schedulerPolicyName(target_policy),
+                      stage,
+                      joinCpuIds(work_steal_cpu_ids).c_str(),
+                      w234,
+                      w65,
+                      joinCpuIds(core_capacities).c_str());
+            WorkStealCapacityCandidate candidate;
+            candidate.w234 = w234;
+            candidate.w65 = w65;
+            candidate.core_capacities = core_capacities;
+            candidate.measurement = measure(work_steal_cpu_ids, work_steal_threads, core_capacities);
+            MNN_PRINT("[AECS][Capacity][%s][%s] representative=%s w234=%d w65=%d speed=%.3f tok/s time=%.6f s\n",
+                      schedulerPolicyName(target_policy),
+                      stage,
+                      joinCpuIds(work_steal_cpu_ids).c_str(),
+                      w234,
+                      w65,
+                      candidate.measurement.speed_tok_s,
+                      candidate.measurement.time_s);
+            candidates.push_back(candidate);
+        };
+
+        const int coarse_w65_values[] = {832, 880, 928, 976};
+        const int coarse_w234_values[] = {768, 832, 896, 928};
+        for (int w65 : coarse_w65_values) {
+            for (int w234 : coarse_w234_values) {
+                evaluate_grid(w234, w65, "coarse");
+            }
+        }
+        if (candidates.empty()) {
+            MNN_PRINT("[AECS][Capacity][%s] no valid 2D candidates produced for work_steal search\n",
+                      schedulerPolicyName(target_policy));
+            return result;
+        }
+
+        size_t best_index = 0;
+        for (size_t i = 1; i < candidates.size(); ++i) {
+            if (better_work_steal_candidate(candidates[i], candidates[best_index])) {
+                best_index = i;
+            }
+        }
+        const int fine_deltas[] = {-48, -32, -16, 0, 16, 32, 48};
+        for (int delta_w65 : fine_deltas) {
+            for (int delta_w234 : fine_deltas) {
+                evaluate_grid(candidates[best_index].w234 + delta_w234,
+                              candidates[best_index].w65 + delta_w65,
+                              "fine");
+            }
+        }
+
+        best_index = 0;
+        for (size_t i = 1; i < candidates.size(); ++i) {
+            if (better_work_steal_candidate(candidates[i], candidates[best_index])) {
+                best_index = i;
+            }
+        }
+        const auto& best = candidates[best_index];
+        if (best.measurement.speed_tok_s + 1e-9 < inspected_measurement.speed_tok_s) {
+            MNN_PRINT("[AECS][Capacity][%s] validation searched speed=%.3f tok/s baseline=%.3f tok/s; keep inspected capacities=%s\n",
+                      schedulerPolicyName(target_policy),
+                      best.measurement.speed_tok_s,
+                      inspected_measurement.speed_tok_s,
+                      joinCpuIds(inspected_capacities).c_str());
+            result.core_capacities = inspected_capacities;
+        } else {
+            MNN_PRINT("[AECS][Capacity][%s] validation searched speed=%.3f tok/s baseline=%.3f tok/s; adopt searched capacities=%s\n",
+                      schedulerPolicyName(target_policy),
+                      best.measurement.speed_tok_s,
+                      inspected_measurement.speed_tok_s,
+                      joinCpuIds(best.core_capacities).c_str());
+            result.core_capacities = best.core_capacities;
+        }
+        result.valid = true;
+        MNN_PRINT("[AECS][Capacity][%s] selected representative=%s best_w234=%d best_w65=%d final_capacities=%s after %zu measurements\n",
+                  schedulerPolicyName(target_policy),
+                  joinCpuIds(work_steal_cpu_ids).c_str(),
+                  best.w234,
+                  best.w65,
+                  joinCpuIds(result.core_capacities).c_str(),
+                  candidates.size());
         return result;
     }
     MNN_PRINT("[AECS][Static] representative warmup cpu_ids=%s threads=%d capacities=%s before pair measurements\n",
@@ -2152,6 +2346,8 @@ bool AecsTuner::loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* resu
         result->decode_threads = jsonGetInt(saved_result, "decode_threads", static_cast<int>(result->decode_cpu_ids.size()));
         result->static_calibration.cluster_count =
             jsonGetInt(saved_result, "static_cluster_count", static_cast<int>(mTopology.clusters_desc.size()));
+        result->static_calibration.target_policy = static_cast<SchedulerPolicy>(
+            jsonGetInt(saved_result, "static_target_policy", static_cast<int>(SchedulerPolicy::STATIC)));
         if (saved_result.HasMember("static_core_capacities")) {
             result->static_calibration.core_capacities = parseCpuIdArray(saved_result["static_core_capacities"]);
         }
@@ -2162,7 +2358,8 @@ bool AecsTuner::loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* resu
             result->static_calibration.cluster_cpu_ids = parseCpuIdMatrix(saved_result["static_cluster_cpu_ids"]);
         }
         if (!result->static_calibration.core_capacities.empty()) {
-            if (!matchesStaticCalibrationLayout(result->static_calibration)) {
+            if (!matchesStaticCalibrationLayout(result->static_calibration,
+                                               result->static_calibration.target_policy)) {
                 MNN_PRINT("[AECS][Static] cached cluster layout mismatch, remeasure static capacities\n");
                 result->static_calibration = AecsStaticCalibrationResult();
             } else {
@@ -2244,6 +2441,7 @@ void AecsTuner::saveCache(const AecsCacheKey& cache_key, const PhaseTuningResult
     result_json.AddMember("decode_cpu_ids", decode_ids, allocator);
     result_json.AddMember("decode_threads", result.decode_threads, allocator);
     result_json.AddMember("static_cluster_count", result.static_calibration.cluster_count, allocator);
+    result_json.AddMember("static_target_policy", static_cast<int>(result.static_calibration.target_policy), allocator);
     rapidjson::Value static_core_capacities;
     writeCpuIdArray(&static_core_capacities, result.static_calibration.core_capacities, allocator);
     result_json.AddMember("static_core_capacities", static_core_capacities, allocator);

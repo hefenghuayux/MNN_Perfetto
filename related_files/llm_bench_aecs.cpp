@@ -121,6 +121,12 @@ static TuningParams buildPhaseTuningParams(const LlmBenchScheduleConfig& schedul
     return params;
 }
 
+static SchedulerPolicy normalizedPrefillPolicy(const LlmBenchScheduleConfig& schedule_config) {
+    return schedule_config.prefill.policy == SchedulerPolicy::STATIC
+        ? SchedulerPolicy::STATIC
+        : SchedulerPolicy::WORK_STEAL;
+}
+
 static std::string summarizeDecodeCandidates(const std::vector<AecsCandidateResult>& candidates, bool feasible_only) {
     std::ostringstream stream;
     bool first = true;
@@ -390,8 +396,17 @@ void LlmBenchAecsController::computeBuildPlan() {
         } else {
             MNN_PRINT("[AECS][Cache] miss for current key (no cached execution plan/static capacities)\n");
         }
+        const auto current_prefill_policy = normalizedPrefillPolicy(mParams.schedule_config);
+        if (mCachedPhaseResult.static_calibration.valid &&
+            mCachedPhaseResult.static_calibration.target_policy != current_prefill_policy) {
+            MNN_PRINT("[AECS][Cache] ignore cached static capacities=%s because target_policy=%s does not match current prefill policy=%s\n",
+                      joinCpuIds(mCachedPhaseResult.static_calibration.core_capacities).c_str(),
+                      schedulerPolicyName(mCachedPhaseResult.static_calibration.target_policy),
+                      schedulerPolicyName(current_prefill_policy));
+        }
         mUseCachedStaticCalibration = mCachedPhaseResult.cache_hit &&
-                                     mCachedPhaseResult.static_calibration.valid;
+                                     mCachedPhaseResult.static_calibration.valid &&
+                                     mCachedPhaseResult.static_calibration.target_policy == current_prefill_policy;
         mUseCachedPlan = !mParams.prefill_manual &&
                          !mParams.decode_manual &&
                          mCachedPhaseResult.cache_hit &&
@@ -521,16 +536,18 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
                   tuning_default_decode_threads,
                   joinCpuIds(tuning_default_decode_cpu_ids).c_str());
 
+        const auto calibration_prefill_policy = normalizedPrefillPolicy(mParams.schedule_config);
         LlmBenchScheduleConfig static_schedule_config = mParams.schedule_config;
-        static_schedule_config.prefill.policy = SchedulerPolicy::STATIC;
+        static_schedule_config.prefill.policy = calibration_prefill_policy;
         AecsTuner static_tuner(mTopology, mParams.tuning_config, mParams.heuristic_params);
-        MNN_PRINT("[AECS] Start static calibration with build pool=%d/%s and inspected capacities=%s, force prefill policy=%s\n",
+        MNN_PRINT("[AECS] Start capacity calibration with build pool=%d/%s and inspected capacities=%s, target prefill policy=%s\n",
                   mBuildPlan.pool_threads,
                   joinCpuIds(mBuildPlan.pool_cpu_ids).c_str(),
                   joinCpuIds(mBuildPlan.core_capacities).c_str(),
                   schedulerPolicyName(static_schedule_config.prefill.policy));
         const auto static_calibration = static_tuner.calibrateStaticCapacities(
             cache_key,
+            calibration_prefill_policy,
             [&](const std::vector<int>& cpu_ids, int threads, const std::vector<int>& core_capacities) {
                 return measurePrefillCandidate(llm,
                                                tuning_prompt_tokens,
@@ -549,12 +566,14 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
         if (static_calibration.valid) {
             mBuildPlan.core_capacities = static_calibration.core_capacities;
             mRuntimePlan.core_capacities = static_calibration.core_capacities;
-            MNN_PRINT("[AECS] Static calibration %s cluster_count=%d capacities=%s\n",
+            MNN_PRINT("[AECS] Capacity calibration %s target_policy=%s cluster_count=%d capacities=%s\n",
                       static_calibration.cache_hit ? "cache-hit" : "measured",
+                      schedulerPolicyName(static_calibration.target_policy),
                       static_calibration.cluster_count,
                       joinCpuIds(static_calibration.core_capacities).c_str());
         } else {
-            MNN_PRINT("[AECS] Static calibration unavailable, continue with inspected capacities=%s\n",
+            MNN_PRINT("[AECS] Capacity calibration unavailable for target_policy=%s, continue with inspected capacities=%s\n",
+                      schedulerPolicyName(calibration_prefill_policy),
                       joinCpuIds(mBuildPlan.core_capacities).c_str());
         }
 
