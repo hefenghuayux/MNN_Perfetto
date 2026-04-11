@@ -580,8 +580,8 @@ ErrorCode DenseConvInt8TiledExecutor::onResize(const std::vector<Tensor*>& input
     auto gcore = cpuBn->functions();
     // Resize-time scratch buffers must follow the pool thread count.
     // The phase-specific active thread count is applied later in onExecute().
-    const int threads = std::max(cpuBn->threadNumber(), 1);
-
+    // const int threads = std::max(cpuBn->threadNumber(), 1);
+    const int threads = std::max(1, std::min(cpuBn->threadNumber(), AutoTuner::getInstance()->getActiveThreadCount()));
     mRelatedFunctions = *(static_cast<CPUBackend*>(backend())->int8GemmFunctions());
 
     int UNIT, SRC_UNIT, DST_XUNIT;

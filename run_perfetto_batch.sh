@@ -79,8 +79,34 @@
 # GENERATE_TOKENS=128 \
 # REPEAT_COUNT=5 \
 # SPLIT_PHASE_BENCH=true \
-# bash ./run_perfetto_batch.sh 
+# bash ./run_perfetto_batch.sh
 
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_AECS_back  \
+# REMOTE_DIR=/data/local/tmp/work_steal_AECS_back \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260410_225814  \
+# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260410_225814 \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260410_225814  \
+# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260410_225814 \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================
@@ -270,11 +296,12 @@ adb shell "killall -9 perfetto > /dev/null 2>&1"
 # ---------------------------------------------------------
 TEST_CASES=(
     # 7:2,3,4,5,6,7
-    "6:2,3,4,5,6,7:2,3,6,7"
+    "6:2,3,4,5,6,7:7"
+    # "8:0,1,2,3,4,5,6,7:7"
     # 5:2,3,4,6,7
     
     # "4:4,5,6,7" 
-    # 3:5,6,7
+    # "3:5,6,7:7"
     # 2:6,7
     # 2:5,6
     # 1:7
@@ -314,6 +341,14 @@ for case in "${TEST_CASES[@]}"; do
         fi
     fi
 
+    # 未单独指定 phase 绑核时，默认沿用全局 ids。
+    if [[ -z "$case_prefill_ids" && -n "$ids" ]]; then
+        case_prefill_ids="$ids"
+    fi
+    if [[ -z "$case_decode_ids" && -n "$ids" ]]; then
+        case_decode_ids="$ids"
+    fi
+
     prefill_threads="${case_prefill_threads:-$PREFILL_THREADS}"
     decode_threads="${case_decode_threads:-$DECODE_THREADS}"
 
@@ -346,7 +381,19 @@ for case in "${TEST_CASES[@]}"; do
     fi
 
     PHASE_THREAD_ARGS_STR=$(join_quoted_args "-pt" "$prefill_threads" "-dt" "$decode_threads")
+    CASE_PHASE_CPU_ARGS=()
+    if [ "$ENABLE_AECS_RETUNE" != true ]; then
+        if [[ -n "$case_prefill_ids" ]]; then
+            CASE_PHASE_CPU_ARGS+=("-pids" "$case_prefill_ids")
+        fi
+        if [[ -n "$case_decode_ids" ]]; then
+            CASE_PHASE_CPU_ARGS+=("-dids" "$case_decode_ids")
+        fi
+    fi
     CASE_PHASE_CPU_ARGS_STR=""
+    if [ ${#CASE_PHASE_CPU_ARGS[@]} -gt 0 ]; then
+        CASE_PHASE_CPU_ARGS_STR=$(join_quoted_args "${CASE_PHASE_CPU_ARGS[@]}")
+    fi
     
     TIMESTAMP=$(date +"%H%M%S")
     # 生成文件名：包含全局绑核信息
@@ -368,6 +415,8 @@ for case in "${TEST_CASES[@]}"; do
     echo "测试包目录: $REMOTE_DIR"
     if [ "$ENABLE_AECS_RETUNE" = true ]; then
         echo "Prefill绑核 Ids: <AECS 搜索开启，已跳过传参> | Decode绑核 Ids: <AECS 搜索开启，已跳过传参>"
+    elif [ ${#CASE_PHASE_CPU_ARGS[@]} -gt 0 ]; then
+        echo "Prefill绑核 Ids: ${case_prefill_ids:-<未设置>} | Decode绑核 Ids: ${case_decode_ids:-<未设置>}"
     else
         echo "Prefill绑核 Ids: <使用缓存/程序默认，不传 phase 绑核参数> | Decode绑核 Ids: <使用缓存/程序默认，不传 phase 绑核参数>"
     fi

@@ -108,6 +108,7 @@ private:
     LlmBenchAecsBuildPlan mBuildPlan;
     LlmBenchAecsRuntimePlan mRuntimePlan;
     PhaseTuningResult mCachedPhaseResult;
+    bool mUseCachedStaticCalibration = false;
     bool mUseCachedPlan = false;
     bool mPrepared = false;
     std::unique_ptr<ThermalGuard> mThermalGuard;

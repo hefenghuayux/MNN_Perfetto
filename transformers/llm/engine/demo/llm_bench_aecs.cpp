@@ -348,9 +348,10 @@ void LlmBenchAecsController::computeBuildPlan() {
     mTopology = AecsCpuInspector::inspect(mParams.tuning_config.prefill_start_cpu);
     mBuildPlan.core_capacities = buildCoreCapacities(mTopology);
     mCachedPhaseResult = PhaseTuningResult();
+    mUseCachedStaticCalibration = false;
     mUseCachedPlan = false;
 
-    if (!mParams.tuning_config.force_retune && !mParams.prefill_manual && !mParams.decode_manual) {
+    if (!mParams.tuning_config.force_retune) {
         const auto cache_key = buildCacheKey(mParams, mTopology);
         AecsTuner cache_probe(mTopology, mParams.tuning_config, mParams.heuristic_params);
         mCachedPhaseResult = cache_probe.tune(
@@ -389,12 +390,19 @@ void LlmBenchAecsController::computeBuildPlan() {
         } else {
             MNN_PRINT("[AECS][Cache] miss for current key (no cached execution plan/static capacities)\n");
         }
-        mUseCachedPlan = mCachedPhaseResult.cache_hit &&
-                         (mCachedPhaseResult.static_calibration.valid ||
-                          !mCachedPhaseResult.prefill_cpu_ids.empty() ||
+        mUseCachedStaticCalibration = mCachedPhaseResult.cache_hit &&
+                                     mCachedPhaseResult.static_calibration.valid;
+        mUseCachedPlan = !mParams.prefill_manual &&
+                         !mParams.decode_manual &&
+                         mCachedPhaseResult.cache_hit &&
+                         (!mCachedPhaseResult.prefill_cpu_ids.empty() ||
                           !mCachedPhaseResult.decode_cpu_ids.empty());
-        if (mUseCachedPlan && mCachedPhaseResult.static_calibration.valid) {
+        if (mUseCachedStaticCalibration) {
             mBuildPlan.core_capacities = mCachedPhaseResult.static_calibration.core_capacities;
+        }
+        if ((mParams.prefill_manual || mParams.decode_manual) &&
+            (!mCachedPhaseResult.prefill_cpu_ids.empty() || !mCachedPhaseResult.decode_cpu_ids.empty())) {
+            MNN_PRINT("[AECS][Cache] manual phase binding present, ignore cached execution plan and reuse static capacities only\n");
         }
     }
 
@@ -451,14 +459,15 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
     mRuntimePlan.split_phase_bench = enabled() || mParams.split_phase_bench;
     mRuntimePlan.core_capacities = mBuildPlan.core_capacities;
 
+    if (mUseCachedStaticCalibration) {
+        mBuildPlan.core_capacities = mCachedPhaseResult.static_calibration.core_capacities;
+        mRuntimePlan.core_capacities = mCachedPhaseResult.static_calibration.core_capacities;
+        MNN_PRINT("[AECS] Reuse cached static calibration capacities=%s\n",
+                  joinCpuIds(mCachedPhaseResult.static_calibration.core_capacities).c_str());
+    }
+
     const bool cache_only_mode = mUseCachedPlan && !mBuildPlan.use_prefill_auto && !mBuildPlan.use_decode_auto;
     if (cache_only_mode) {
-        if (mCachedPhaseResult.static_calibration.valid) {
-            mBuildPlan.core_capacities = mCachedPhaseResult.static_calibration.core_capacities;
-            mRuntimePlan.core_capacities = mCachedPhaseResult.static_calibration.core_capacities;
-            MNN_PRINT("[AECS] Reuse cached static calibration capacities=%s\n",
-                      joinCpuIds(mCachedPhaseResult.static_calibration.core_capacities).c_str());
-        }
         if (!mCachedPhaseResult.prefill_cpu_ids.empty()) {
             mRuntimePlan.final_prefill_cpu_ids = mCachedPhaseResult.prefill_cpu_ids;
             mRuntimePlan.final_prefill_threads = std::max(1, mCachedPhaseResult.prefill_threads);
