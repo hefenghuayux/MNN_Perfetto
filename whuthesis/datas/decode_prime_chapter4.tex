@@ -1,0 +1,120 @@
+\section{离线 Priming 机制的实验分析}
+
+\subsection{实验设置}
+
+本节围绕离线 Priming 机制回答三个问题：第一，该机制是否能够稳定提升正式请求的 Decode 吞吐；第二，该收益是否会随着 prompt 长度和生成长度变化而改变；第三，该收益究竟来自正式算子本身，还是来自首次运行态初始化成本被提前支付。
+
+实验在同一台手机上完成，正式请求统一采用 split-phase benchmark 方式统计 Prefill 与 Decode 吞吐。对照组使用正式配置直接执行；实验组则在正式请求前增加一次隐藏 Priming，并在 Priming 结束后恢复正式请求参数。除特别说明外，正式请求均采用 Prefill 6 线程、Decode 1 线程配置；隐藏 Priming 在 8 线程池上执行一次。
+
+\subsection{不同负载下的性能收益}
+
+表~\ref{tab:decode-prime-throughput} 给出了离线 Priming 在三组代表性负载上的结果。可以看到，离线 Priming 对 Decode 吞吐的提升在不同负载下都存在，幅度约为 4.6\%\textasciitilde6.0\%；同时，在中长 prompt 场景下，正式 Prefill 吞吐也出现了 1.3\%\textasciitilde9.5\% 的提升。
+
+\begin{table}[ht]
+  \centering
+  \caption{离线 Priming 对正式请求吞吐的影响}
+  \label{tab:decode-prime-throughput}
+  \begin{tabular}{c c c c c c}
+    \hline
+    Prompt/Decode & 方案 & Prefill(tok/s) & Decode(tok/s) & Prefill提升 & Decode提升 \\
+    \hline
+    128 / 32 &
+    无 Priming &
+    629.52 $\pm$ 3.23 &
+    224.62 $\pm$ 1.47 &
+    -- &
+    -- \\
+    128 / 32 &
+    离线 Priming &
+    637.87 $\pm$ 3.28 &
+    234.86 $\pm$ 2.19 &
+    +1.33\% &
+    +4.56\% \\
+    \hline
+    512 / 128 &
+    无 Priming &
+    601.87 $\pm$ 1.91 &
+    214.17 $\pm$ 1.38 &
+    -- &
+    -- \\
+    512 / 128 &
+    离线 Priming &
+    624.39 $\pm$ 1.02 &
+    227.04 $\pm$ 1.19 &
+    +3.74\% &
+    +6.01\% \\
+    \hline
+    1024 / 512 &
+    无 Priming &
+    491.43 $\pm$ 0.22 &
+    183.17 $\pm$ 0.32 &
+    -- &
+    -- \\
+    1024 / 512 &
+    离线 Priming &
+    538.00 $\pm$ 2.57 &
+    192.60 $\pm$ 0.43 &
+    +9.47\% &
+    +5.15\% \\
+    \hline
+  \end{tabular}
+\end{table}
+
+这一结果说明，离线 Priming 的收益并非局限于某一组固定 token 配置，而是对不同负载都具有一定稳定性。更重要的是，Decode 吞吐提升的相对幅度比正式 Prefill 更稳定，这与该机制最初面向 Decode 稳态性能设计的目标一致。
+
+\subsection{机制验证：首次正式 Prefill 前的 simpleperf 证据}
+
+仅凭吞吐提升仍不足以判断收益来源。为验证离线 Priming 是否主要通过提前支付运行态初始化成本来改善正式请求，本文进一步在\textbf{第一次 formal prefill 前}插入同步点，并使用 \texttt{simpleperf stat} 仅采集这一次正式 Prefill 的硬件计数器。对比对象为：
+
+\begin{enumerate}
+  \item \texttt{pool8 + no-prime}：8 线程池，直接进入首次正式 Prefill；
+  \item \texttt{pool8 + prime8 + prompt1}：先执行一次 8 线程、1 token 的隐藏 Priming，再进入首次正式 Prefill。
+\end{enumerate}
+
+选择 \texttt{prompt1} 的原因在于，它可以验证收益是否必须依赖“大 prompt 预热”。若 1 token 的隐藏预热也能改善正式 Prefill，则说明收益主要来自执行路径初始化，而不是长 prompt 本身的数据热身。
+
+表~\ref{tab:decode-prime-simpleperf} 给出了归一化后的关键计数器结果。为了避免不同运行长度造成的直接计数不可比，表中优先使用每百万指令 fault 数、每千条指令 TLB/LLC miss 数和 miss rate 等归一化指标。
+
+\begin{table}[ht]
+  \centering
+  \caption{首次正式 Prefill 的 \texttt{simpleperf stat} 对比}
+  \label{tab:decode-prime-simpleperf}
+  \begin{tabular}{l c c}
+    \hline
+    指标 & \texttt{pool8 + no-prime} & \texttt{pool8 + prime8 + prompt1} \\
+    \hline
+    Context-switches / sec & 81.32 & 2.68 \\
+    Page-faults / MInstr & 4.24 & 0.39 \\
+    Minor-faults / sec & 10.31K & 1.71K \\
+    dTLB miss rate & 5.36\% & 1.82\% \\
+    dTLB-misses / 1KInstr & 19.11 & 3.56 \\
+    LLC-load-misses / 1KInstr & 0.91 & 0.65 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+从表~\ref{tab:decode-prime-simpleperf} 可以看出，离线 Priming 后的首次正式 Prefill 在多个“冷启动敏感”指标上均明显下降：page faults per million instructions 由 4.24 降至 0.39，dTLB misses per 1K instructions 由 19.11 降至 3.56，context-switches per second 由 81.32 降至 2.68。相比之下，泛化的 \texttt{cache-misses} 指标在本设备上并未给出同等清晰的结论，因此本文不将其作为主证据。
+
+上述结果支持如下判断：离线 Priming 的主要作用并不是改变正式 Prefill/Decode 底层算子的计算逻辑，而是提前完成大线程池执行路径上的运行时初始化，包括线程池工作状态、算子提交路径以及页映射和地址转换相关状态。正式请求因此能够以更接近稳态的运行态进入计算阶段。
+
+\subsection{为什么正式 Prefill 也会变快}
+
+进一步消融发现，若隐藏 Priming 仍只使用 6 线程，则无法稳定建立目标执行路径；而当隐藏 Priming 在 8 线程上执行时，即使其 prompt 长度仅为 1 token，后续正式 Prefill 仍会变快。这说明正式 Prefill 的收益并不依赖于隐藏执行中是否已经处理了一个大 prompt，而主要依赖于“目标大线程池路径是否已经被完整执行过一次”。
+
+因此，本文认为正式 Prefill 的加速同样属于运行态初始化被提前支付的副作用，而不是正式 Prefill 算子本身发生了独立优化。该现象与前述 simpleperf 观察是一致的。
+
+\subsection{对用户体验与功耗的影响}
+
+从用户体验角度看，离线 Priming 更适合作为\textbf{模型加载后的单次后台预热}，而不适合作为\textbf{每个请求前置执行}。原因在于，Priming 本身需要额外执行一次隐藏 Prefill。若将其放在每个请求前执行，则短回复场景中的额外启动开销会抵消吞吐收益。
+
+以 wall time 为例，在 128/32 负载上，请求级 Priming 会使端到端耗时由 1.59\,s 增加至 1.81\,s；在 512/128 负载上，会由 3.73\,s 增加至 4.53\,s。由此可见，请求级 Priming 会增大首请求时延，因此并不适合作为默认请求路径的一部分。
+
+功耗方面，本文当前普通 benchmark 主路径尚未直接接入统一的能耗采样接口，而现有能耗采样能力主要服务于 AECS 搜索阶段。因此，本文\textbf{不将功耗变化作为严格定量结论}。但从工程上可以得到两个较稳妥的判断：
+
+\begin{enumerate}
+  \item 若将 Priming 放在\textbf{每个请求前}执行，由于会额外增加一次隐藏 Prefill，单请求总执行时间上升，总能耗大概率也会上升。
+  \item 若将 Priming 放在\textbf{模型加载后仅执行一次}，则其额外成本可以被后续多个正式请求分摊，单位请求的增量能耗趋近于零，而稳态 Decode 吞吐收益可以被持续保留。
+\end{enumerate}
+
+因此，本文将离线 Priming 视为一种\textbf{会话级冷启动优化}，而不是一种\textbf{请求级在线优化}。这一定位更符合真实用户体验优化的目标。
+

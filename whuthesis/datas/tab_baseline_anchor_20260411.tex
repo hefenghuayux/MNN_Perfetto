@@ -1,0 +1,17 @@
+\begin{table}[ht]
+  \centering
+  \caption{baseline 锚点表（`run_perfetto_batch_base.sh` 口径）}
+  \label{tab:baseline-anchor}
+  \begin{tabular}{c c c c c}
+    \hline
+    线程数 & 绑核配置 & pp512(tok/s) & tg128(tok/s) & 说明 \\
+    \hline
+    4 & 默认调度 & 418.90 $\pm$ 0.35 & 83.82 $\pm$ 5.39 & baseline 不绑核 \\
+    4 & `4,5,6,7` & 476.56 $\pm$ 3.03 & 96.59 $\pm$ 0.97 & baseline 统一绑核 \\
+    5 & 默认调度 & 479.00 $\pm$ 0.67 & 99.61 $\pm$ 0.57 & baseline 不绑核 \\
+    5 & `3,4,5,6,7` & 483.18 $\pm$ 0.29 & 99.83 $\pm$ 0.58 & baseline 统一绑核 \\
+    6 & 默认调度 & 522.31 $\pm$ 0.93 & 95.13 $\pm$ 0.13 & baseline 不绑核 \\
+    6 & `2,3,4,5,6,7` & 524.05 $\pm$ 0.46 & 93.60 $\pm$ 0.26 & baseline 统一绑核 \\
+    \hline
+  \end{tabular}
+\end{table}

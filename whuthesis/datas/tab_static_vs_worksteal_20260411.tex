@@ -1,0 +1,13 @@
+\begin{table}[ht]
+  \centering
+  \caption{相同阶段绑定下 Prefill static 与 work\_steal 的对比}
+  \label{tab:static-vs-worksteal}
+  \begin{tabular}{c c c c c c}
+    \hline
+    方案 & Prefill 策略 & pp512(ms) & tg128(ms) & decode tok/s & E2E(ms) \\
+    \hline
+    Ours & `work_steal` & 817.67 $\pm$ 2.95 & 557.38 $\pm$ 1.55 & 229.65 & 1375.05 $\pm$ 3.27 \\
+    Static-only & `static` & 962.66 $\pm$ 2.05 & 455.58 $\pm$ 2.01 & 280.97 & 1418.24 $\pm$ 2.04 \\
+    \hline
+  \end{tabular}
+\end{table}

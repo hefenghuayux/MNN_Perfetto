@@ -1,0 +1,75 @@
+>>> [模式] Perfetto Tracing 已关闭 (默认)
+>>> [模式] Schedule instrumentation 已关闭 (默认)
+>>> [模式] AECS 离线搜索已关闭 (默认)
+>>> [模式] decode_prime 已开启 (默认)
+>>> [参数] 脚本默认绑核参数: --prefill-policy static
+>>> [参数] 脚本功能参数: --split-phase-bench
+============================================================
+正在运行: 线程=8
+全局绑核 Ids: 0,1,2,3,4,5,6,7
+Prefill线程: 6 | Decode线程: 1
+测试包目录: /data/local/tmp/mnn_aecs_run_20260411_191830_pool8_default
+Prefill绑核 Ids: 2,3,4,5,6,7 | Decode绑核 Ids: 7
+============================================================
+>>> [Step 2] 运行 llm_bench...
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | p=static,d=dynamic,dc=0 | prompt=512<br>decode=128 | 531.86 ± 1.27<br>280.97 ± 1.37 |
+
+>>> [Done] 本轮结束。
+
+
+--- LOGCAT ---
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Thread config: pool=8, prefill=6, decode=1
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Pool    cpu ids: 0,1,2,3,4,5,6,7 | affinity mask: 0xFF
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Prefill cpu ids: 2,3,4,5,6,7 | affinity mask: 0xFC
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Decode  cpu ids: 7 | affinity mask: 0x80
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Scheduler prefill=static decode=dynamic
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Case model=./model_dir/config.json prompt=512 decode=128 repeats=5 kv=true split_phase=1
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Scheduler config p=static,d=dynamic,dc=0
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] Active bindings pool=8/[0,1,2,3,4,5,6,7] prefill=6/[2,3,4,5,6,7] decode=1/[7]
+04-11 19:38:03.290 15072 15072 I MNNJNI  : [llm_bench] final_op_encoder_number=0
+04-11 19:38:04.421 15072 15072 I MNNJNI  : [llm_bench][decode_prime] prompt=512 gen=1 prefill_threads=8 decode_threads=1 bind=[0,1,2,3,4,5,6,7] prefill=1.083460 s decode=0.003925 s prefill_speed=472.560 tok/s decode_speed=254.777 tok/s
+04-11 19:38:04.421 15072 15072 I MNNJNI  : [llm_bench][warmup 1/1] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-11 19:38:05.387 15072 15072 I MNNJNI  : [llm_bench][sched][PREFILL] policy=static ops=168 total=8736 step=1 threads=6 static_total_tasks=8736 tasks_per_thread=[0:11180,1:10844,2:10844,3:11012,4:10844,5:11012] latency_us=952004 tok_s=537.813
+04-11 19:38:05.387 15072 15072 I MNNJNI  : [llm_bench][warmup 1/1] finish prefill time=0.952004 s speed=537.813 tok/s
+04-11 19:38:05.387 15072 15072 I MNNJNI  : [llm_bench][warmup 1/1] start decode gen=128 threads=1 bind=[7]
+04-11 19:38:05.963 15072 15072 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=56 threads=1 dyn_total_tasks=38016 dyn_target_chunks=2 dyn_claim_calls=504 dyn_claim_success=336 dyn_claim_empty=168 dyn_claim_tasks=38016 dyn_total_chunks=336 tasks_per_thread=[0:38016] latency_us=454295 tok_s=281.755
+04-11 19:38:05.963 15072 15072 I MNNJNI  : [llm_bench][warmup 1/1] finish decode time=0.454295 s speed=281.755 tok/s
+04-11 19:38:05.963 15072 15072 I MNNJNI  : [llm_bench][warmup 1/1] result prefill=0.952004 s decode=0.454295 s prefill_bind=[2,3,4,5,6,7] decode_bind=[7]
+04-11 19:38:05.963 15072 15072 I MNNJNI  : [llm_bench][measure 1/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-11 19:38:06.941 15072 15072 I MNNJNI  : [llm_bench][sched][PREFILL] policy=static ops=168 total=8736 step=1 threads=6 static_total_tasks=8736 tasks_per_thread=[0:11180,1:10844,2:10844,3:11012,4:10844,5:11012] latency_us=964720 tok_s=530.724
+04-11 19:38:06.941 15072 15072 I MNNJNI  : [llm_bench][measure 1/5] finish prefill time=0.964720 s speed=530.724 tok/s
+04-11 19:38:06.941 15072 15072 I MNNJNI  : [llm_bench][measure 1/5] start decode gen=128 threads=1 bind=[7]
+04-11 19:38:07.517 15072 15072 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=56 threads=1 dyn_total_tasks=38016 dyn_target_chunks=2 dyn_claim_calls=504 dyn_claim_success=336 dyn_claim_empty=168 dyn_claim_tasks=38016 dyn_total_chunks=336 tasks_per_thread=[0:38016] latency_us=454127 tok_s=281.859
+04-11 19:38:07.517 15072 15072 I MNNJNI  : [llm_bench][measure 1/5] finish decode time=0.454127 s speed=281.859 tok/s
+04-11 19:38:07.517 15072 15072 I MNNJNI  : [llm_bench][measure 1/5] result prefill=0.964720 s decode=0.454127 s prefill_bind=[2,3,4,5,6,7] decode_bind=[7]
+04-11 19:38:07.517 15072 15072 I MNNJNI  : [llm_bench][measure 2/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-11 19:38:08.495 15072 15072 I MNNJNI  : [llm_bench][sched][PREFILL] policy=static ops=168 total=8736 step=1 threads=6 static_total_tasks=8736 tasks_per_thread=[0:11180,1:10844,2:10844,3:11012,4:10844,5:11012] latency_us=965210 tok_s=530.455
+04-11 19:38:08.495 15072 15072 I MNNJNI  : [llm_bench][measure 2/5] finish prefill time=0.965210 s speed=530.455 tok/s
+04-11 19:38:08.495 15072 15072 I MNNJNI  : [llm_bench][measure 2/5] start decode gen=128 threads=1 bind=[7]
+04-11 19:38:09.073 15072 15072 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=56 threads=1 dyn_total_tasks=38016 dyn_target_chunks=2 dyn_claim_calls=504 dyn_claim_success=336 dyn_claim_empty=168 dyn_claim_tasks=38016 dyn_total_chunks=336 tasks_per_thread=[0:38016] latency_us=454349 tok_s=281.722
+04-11 19:38:09.074 15072 15072 I MNNJNI  : [llm_bench][measure 2/5] finish decode time=0.454349 s speed=281.722 tok/s
+04-11 19:38:09.074 15072 15072 I MNNJNI  : [llm_bench][measure 2/5] result prefill=0.965210 s decode=0.454349 s prefill_bind=[2,3,4,5,6,7] decode_bind=[7]
+04-11 19:38:09.074 15072 15072 I MNNJNI  : [llm_bench][measure 3/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-11 19:38:10.049 15072 15072 I MNNJNI  : [llm_bench][sched][PREFILL] policy=static ops=168 total=8736 step=1 threads=6 static_total_tasks=8736 tasks_per_thread=[0:11180,1:10844,2:10844,3:11012,4:10844,5:11012] latency_us=962329 tok_s=532.043
+04-11 19:38:10.049 15072 15072 I MNNJNI  : [llm_bench][measure 3/5] finish prefill time=0.962329 s speed=532.043 tok/s
+04-11 19:38:10.049 15072 15072 I MNNJNI  : [llm_bench][measure 3/5] start decode gen=128 threads=1 bind=[7]
+04-11 19:38:10.627 15072 15072 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=56 threads=1 dyn_total_tasks=38016 dyn_target_chunks=2 dyn_claim_calls=504 dyn_claim_success=336 dyn_claim_empty=168 dyn_claim_tasks=38016 dyn_total_chunks=336 tasks_per_thread=[0:38016] latency_us=454786 tok_s=281.451
+04-11 19:38:10.627 15072 15072 I MNNJNI  : [llm_bench][measure 3/5] finish decode time=0.454786 s speed=281.451 tok/s
+04-11 19:38:10.627 15072 15072 I MNNJNI  : [llm_bench][measure 3/5] result prefill=0.962329 s decode=0.454786 s prefill_bind=[2,3,4,5,6,7] decode_bind=[7]
+04-11 19:38:10.627 15072 15072 I MNNJNI  : [llm_bench][measure 4/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-11 19:38:11.599 15072 15072 I MNNJNI  : [llm_bench][sched][PREFILL] policy=static ops=168 total=8736 step=1 threads=6 static_total_tasks=8736 tasks_per_thread=[0:11180,1:10844,2:10844,3:11012,4:10844,5:11012] latency_us=959811 tok_s=533.438
+04-11 19:38:11.599 15072 15072 I MNNJNI  : [llm_bench][measure 4/5] finish prefill time=0.959811 s speed=533.438 tok/s
+04-11 19:38:11.599 15072 15072 I MNNJNI  : [llm_bench][measure 4/5] start decode gen=128 threads=1 bind=[7]
+04-11 19:38:12.177 15072 15072 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=56 threads=1 dyn_total_tasks=38016 dyn_target_chunks=2 dyn_claim_calls=504 dyn_claim_success=336 dyn_claim_empty=168 dyn_claim_tasks=38016 dyn_total_chunks=336 tasks_per_thread=[0:38016] latency_us=455096 tok_s=281.259
+04-11 19:38:12.177 15072 15072 I MNNJNI  : [llm_bench][measure 4/5] finish decode time=0.455096 s speed=281.259 tok/s
+04-11 19:38:12.177 15072 15072 I MNNJNI  : [llm_bench][measure 4/5] result prefill=0.959811 s decode=0.455096 s prefill_bind=[2,3,4,5,6,7] decode_bind=[7]
+04-11 19:38:12.177 15072 15072 I MNNJNI  : [llm_bench][measure 5/5] start prefill prompt=512 threads=6 bind=[2,3,4,5,6,7]
+04-11 19:38:13.151 15072 15072 I MNNJNI  : [llm_bench][sched][PREFILL] policy=static ops=168 total=8736 step=1 threads=6 static_total_tasks=8736 tasks_per_thread=[0:11180,1:10844,2:10844,3:11012,4:10844,5:11012] latency_us=961221 tok_s=532.656
+04-11 19:38:13.152 15072 15072 I MNNJNI  : [llm_bench][measure 5/5] finish prefill time=0.961221 s speed=532.656 tok/s
+04-11 19:38:13.152 15072 15072 I MNNJNI  : [llm_bench][measure 5/5] start decode gen=128 threads=1 bind=[7]
+04-11 19:38:13.733 15072 15072 I MNNJNI  : [llm_bench][sched][DECODE] policy=dynamic ops=168 total=38016 step=56 threads=1 dyn_total_tasks=38016 dyn_target_chunks=2 dyn_claim_calls=504 dyn_claim_success=336 dyn_claim_empty=168 dyn_claim_tasks=38016 dyn_total_chunks=336 tasks_per_thread=[0:38016] latency_us=459534 tok_s=278.543
+04-11 19:38:13.733 15072 15072 I MNNJNI  : [llm_bench][measure 5/5] finish decode time=0.459534 s speed=278.543 tok/s
+04-11 19:38:13.733 15072 15072 I MNNJNI  : [llm_bench][measure 5/5] result prefill=0.961221 s decode=0.459534 s prefill_bind=[2,3,4,5,6,7] decode_bind=[7]
+04-11 19:38:13.733 15072 15072 I MNNJNI  : [llm_bench] Final result prefill=531.863 +- 1.267 tok/s decode=280.967 +- 1.375 tok/s prefill=6/[2,3,4,5,6,7] decode=1/[7]

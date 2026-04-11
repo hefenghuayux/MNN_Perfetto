@@ -1,0 +1,3 @@
+scheme	prefill_policy	pool_threads	pool_ids	prefill_threads	prefill_ids	decode_threads	decode_ids	pp512_ms_mean	pp512_ms_std	tg128_ms_mean	tg128_ms_std	e2e_ms_mean	e2e_ms_std	prefill_tok_s_mean	decode_tok_s_mean	repeats
+ours	work_steal	8	0,1,2,3,4,5,6,7	6	2,3,4,5,6,7	1	7	817.67	2.95	557.38	1.55	1375.05	3.27	626.18	229.65	5
+static_only	static	8	0,1,2,3,4,5,6,7	6	2,3,4,5,6,7	1	7	962.66	2.05	455.58	2.01	1418.24	2.04	531.86	280.97	5

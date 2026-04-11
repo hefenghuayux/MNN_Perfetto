@@ -116,7 +116,7 @@ struct CommandParameters
 static const RuntimeParameters runtimeParamsDefaults = {
     /* model                */ {"./Qwen2.5-1.5B-Instruct"},
     /* backends             */ {0},
-    /* threads              */ {4},
+    /* threads              */ {8},
     /* prefillThreads       */ {},
     /* decodeThreads        */ {},
     /* useMmap              */ false,
@@ -136,7 +136,7 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* hasDecodeCpuIds      */ false,
     /* hasDecodeDynamicBlocks */ false,
     /* splitPhaseBench      */ false,
-    /* decodePrimeEnabled   */ false,
+    /* decodePrimeEnabled   */ true,
     /* decodePrimePromptTokens */ 0,
     /* decodePrimeDecodeTokens */ 1,
     /* decodePrimePrefillThreads */ 0,
@@ -1172,7 +1172,7 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("      --prefill-policy <work_steal|static>  (default: work_steal)\n");
     printf("      --decode-dynamic-blocks <n[,n...]>    (default: auto=2T)\n");
     printf("      --split-phase-bench                   (default: false) | force separate prefill/decode benchmark passes\n");
-    printf("      --decode-prime                        (default: false) | run one hidden prefill+decode prime pass before measurement\n");
+    printf("      --decode-prime                        (default: true) | disable the default hidden prefill+decode prime pass before measurement\n");
     printf("      --decode-prime-prompt <n>             (default: use benchmark prompt tokens)\n");
     printf("      --decode-prime-gen <n>                (default: 1)\n");
     printf("      --decode-prime-prefill-threads <n>    (default: use pool thread count)\n");
@@ -1427,7 +1427,7 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
         } else if (arg == "--split-phase-bench") {
             runtimeParams.splitPhaseBench = true;
         } else if (arg == "--decode-prime") {
-            runtimeParams.decodePrimeEnabled = true;
+            runtimeParams.decodePrimeEnabled = false;
         } else if (arg == "--decode-prime-prompt") {
             if (++i >= argc) {
                 invalidParam = true;
@@ -2035,6 +2035,9 @@ int main(int argc, char ** argv) {
                 if (use_split_phase_bench) {
                     llm->reset();
                     if (prompt_tokens > 0) {
+                        if (warmup_run && envFlagEnabled("MNN_LLM_BENCH_SYNC_BEFORE_FIRST_PREFILL")) {
+                            wait_for_perf_trigger();
+                        }
                         MNN_PRINT("[llm_bench][%s %d/%d] start prefill prompt=%d threads=%d bind=%s\n",
                                   warmup_run ? "warmup" : "measure",
                                   run_display_index,
@@ -2056,6 +2059,10 @@ int main(int argc, char ** argv) {
                                   run_display_total,
                                   static_cast<double>(prefillTime) / 1e6,
                                   tokensPerSecond(prompt_tokens, prefillTime));
+                        if (warmup_run && envFlagEnabled("MNN_LLM_BENCH_EXIT_AFTER_FIRST_PREFILL")) {
+                            MNN_PRINT("[llm_bench] exit after first formal prefill due to MNN_LLM_BENCH_EXIT_AFTER_FIRST_PREFILL\n");
+                            return 0;
+                        }
                     }
                     if (decodeTokens > 0) {
                         if (warmup_run && envFlagEnabled("MNN_LLM_BENCH_SYNC_BEFORE_FIRST_DECODE")) {

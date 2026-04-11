@@ -1,0 +1,4 @@
+| model                          |  modelSize | backend    | threads | precision  | scheduler  | llm_demo   | speed(tok/s) |
+| ------------------------------ | ---------: | ---------- | ----: | ---------- | ---------- | ---------- | ------------ |
+| model_dir                      | 359.78 MiB | CPU        |     6 | Low        | p=static,d=dynamic,dc=0 | prompt=512<br>decode=128 | 532.83 ± 0.00<br>280.41 ± 0.00 |
+

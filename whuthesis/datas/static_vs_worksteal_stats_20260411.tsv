@@ -1,0 +1,3 @@
+scheme	local_pop_success_mean	steal_attempts_mean	steal_success_mean	steal_empty_mean	steal_cas_retries_mean	stolen_tasks_mean	static_total_tasks_mean
+ours_work_steal	15540.0	1337.2	1245.6	91.6	116.0	4075.2	
+static_only							8736.0

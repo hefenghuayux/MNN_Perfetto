@@ -138,11 +138,21 @@
 # LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260411_180028  \
 # REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260411_180028 \
 # KV_CACHE=true \
+# PROMPT_TOKENS=1024 \
+# GENERATE_TOKENS=512 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh 
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260411_191830_pool8_default  \
+# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260411_191830_pool8_default \
+# KV_CACHE=true \
 # PROMPT_TOKENS=512 \
 # GENERATE_TOKENS=128 \
 # REPEAT_COUNT=5 \
 # SPLIT_PHASE_BENCH=true \
-# bash ./run_perfetto_batch.sh --decode-prime
+# bash ./run_perfetto_batch.sh
+# 上面这条现在的语义是：关闭默认开启的 decode_prime
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================
@@ -151,6 +161,8 @@
 ENABLE_TRACE=false
 ENABLE_INSTRUMENT=false
 ENABLE_AECS_RETUNE=false
+DECODE_PRIME_DEFAULT=true
+DECODE_PRIME_DISABLED=false
 LLM_BENCH_ARGS=()
 
 join_quoted_args() {
@@ -178,6 +190,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --aecs-retune)
             ENABLE_AECS_RETUNE=true
+            shift
+            ;;
+        --decode-prime)
+            DECODE_PRIME_DISABLED=true
+            LLM_BENCH_ARGS+=("$1")
             shift
             ;;
         --)
@@ -210,6 +227,14 @@ if [ "$ENABLE_AECS_RETUNE" = true ]; then
     echo ">>> [模式] AECS 离线搜索已开启 (--force-retune/--aecs-retune)"
 else
     echo ">>> [模式] AECS 离线搜索已关闭 (默认)"
+fi
+
+if [ "$DECODE_PRIME_DEFAULT" = true ]; then
+    if [ "$DECODE_PRIME_DISABLED" = true ]; then
+        echo ">>> [模式] decode_prime 已关闭 (--decode-prime)"
+    else
+        echo ">>> [模式] decode_prime 已开启 (默认)"
+    fi
 fi
 
 EXTRA_BENCH_ARGS=""
@@ -335,6 +360,7 @@ TEST_CASES=(
     # 使用 6 段格式显式表达：
     # pool=8(0-7), real prefill=6(2-7), real decode=1(7)
     "8:0,1,2,3,4,5,6,7:2,3,4,5,6,7:7:6:1"
+    # "8:2,3,4,5,6,7:7"
     # "8:0,1,2,3,4,5,6,7:7"
     # 5:2,3,4,6,7
     

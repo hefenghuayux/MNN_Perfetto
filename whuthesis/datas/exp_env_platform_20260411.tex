@@ -1,0 +1,27 @@
+\begin{table}[ht]
+  \centering
+  \caption{第4章实验平台与统一运行环境}
+  \label{tab:exp-env-platform}
+  \begin{tabular}{p{3.4cm} p{9.2cm}}
+    \hline
+    项目 & 配置 \\
+    \hline
+    手机平台 & OnePlus PKG110（设备代号 OP5D2BL1） \\
+    SoC & Snapdragon 8 Gen 3（SM8650） \\
+    Android 版本 & Android 15，增量版本 V.46ea308-2771c91-2776590 \\
+    CPU 拓扑 & little: 0,1；mid: 2,3,4；big: 5,6；prime: 7 \\
+    CPU 最高频率 & 0,1: 2265600 kHz；2,3,4: 3148800 kHz；5,6: 2956800 kHz；7: 3302400 kHz \\
+    仓库版本 & `956912720b677f3c87012b245752453bd2163689`（branch: `codex/prefill-weighted-worksteal-decode-dynamic`） \\
+    当前工作区 & dirty，实验基于 2026-04-09 本地打包结果 \\
+    测试包 & `/data/local/tmp/work_steal_decode_blocks_current` \\
+    调度策略 & Prefill=`work_steal`，Decode=`dynamic` \\
+    编译选项 & Release；`MNN_BUILD_BENCHMARK=ON`；`MNN_LOW_MEMORY=true`；`MNN_CPU_WEIGHT_DEQUANT_GEMM=true`；`MNN_BUILD_LLM=true`；`MNN_SUPPORT_TRANSFORMER_FUSE=true`；`MNN_ARM82=true`；`MNN_USE_LOGCAT=true`；`MNN_BUILD_DEMO=ON` \\
+    并行运行时 & `MNN_USE_THREAD_POOL=ON`，`MNN_OPENMP=OFF` \\
+    模型配置 & `./model_dir/config.json`；主文件 `llm.mnn`；权重 `llm.mnn.weight`；backend=`cpu`；precision=`low`；memory=`low` \\
+    主实验输入 & Prefill=512 token，Decode=128 token \\
+    固定运行口径 & `-a cpu -kv true --split-phase-bench -rep 5`，额外 1 次 warmup，不显式传 `-mmp`（即 `mmap=false`） \\
+    统计口径 & 所有主结果统一报告 `mean \pm std` \\
+    冻结时环境 & 电量 100\%，USB 供电，电池温度 28.3\,\textdegree C，CPU 热区约 28.9\textasciitilde32.0\,\textdegree C \\
+    \hline
+  \end{tabular}
+\end{table}
