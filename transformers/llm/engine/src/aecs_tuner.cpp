@@ -2360,6 +2360,7 @@ bool AecsTuner::loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* resu
             result->decode_cpu_ids = parseCpuIdArray(saved_result["decode_cpu_ids"]);
         }
         result->decode_threads = jsonGetInt(saved_result, "decode_threads", static_cast<int>(result->decode_cpu_ids.size()));
+        result->op_encoder_number = jsonGetInt(saved_result, "op_encoder_number", 0);
         result->static_calibration.cluster_count =
             jsonGetInt(saved_result, "static_cluster_count", static_cast<int>(mTopology.clusters_desc.size()));
         result->static_calibration.target_policy = static_cast<SchedulerPolicy>(
@@ -2386,6 +2387,7 @@ bool AecsTuner::loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* resu
         result->cache_hit = true;
         result->prefill_from_cache = !result->prefill_cpu_ids.empty();
         result->decode_from_cache = !result->decode_cpu_ids.empty();
+        result->op_encoder_from_cache = result->op_encoder_number > 0;
         MNN_PRINT("[AECS] Cache hit for model=%s, prefill=%s, decode=%s, static=%d\n",
                   cache_key.model_path.c_str(),
                   joinCpuIds(result->prefill_cpu_ids).c_str(),
@@ -2456,6 +2458,7 @@ void AecsTuner::saveCache(const AecsCacheKey& cache_key, const PhaseTuningResult
     writeCpuIdArray(&decode_ids, result.decode_cpu_ids, allocator);
     result_json.AddMember("decode_cpu_ids", decode_ids, allocator);
     result_json.AddMember("decode_threads", result.decode_threads, allocator);
+    result_json.AddMember("op_encoder_number", result.op_encoder_number, allocator);
     result_json.AddMember("static_cluster_count", result.static_calibration.cluster_count, allocator);
     result_json.AddMember("static_target_policy", static_cast<int>(result.static_calibration.target_policy), allocator);
     rapidjson::Value static_core_capacities;

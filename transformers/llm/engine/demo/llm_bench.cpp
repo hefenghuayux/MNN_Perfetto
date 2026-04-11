@@ -60,6 +60,11 @@ struct RuntimeParameters
     bool hasDecodeCpuIds;
     bool hasDecodeDynamicBlocks;
     bool splitPhaseBench;
+    bool decodePrimeEnabled;
+    int decodePrimePromptTokens;
+    int decodePrimeDecodeTokens;
+    int decodePrimePrefillThreads;
+    int decodePrimeDecodeThreads;
 };
 
 struct TestParameters
@@ -101,6 +106,11 @@ struct CommandParameters
     bool hasDecodeCpuIds;
     LlmBenchScheduleConfig scheduleConfig;
     bool splitPhaseBench;
+    bool decodePrimeEnabled;
+    int decodePrimePromptTokens;
+    int decodePrimeDecodeTokens;
+    int decodePrimePrefillThreads;
+    int decodePrimeDecodeThreads;
 };
 
 static const RuntimeParameters runtimeParamsDefaults = {
@@ -125,7 +135,12 @@ static const RuntimeParameters runtimeParamsDefaults = {
     /* hasPrefillCpuIds     */ false,
     /* hasDecodeCpuIds      */ false,
     /* hasDecodeDynamicBlocks */ false,
-    /* splitPhaseBench      */ false
+    /* splitPhaseBench      */ false,
+    /* decodePrimeEnabled   */ false,
+    /* decodePrimePromptTokens */ 0,
+    /* decodePrimeDecodeTokens */ 1,
+    /* decodePrimePrefillThreads */ 0,
+    /* decodePrimeDecodeThreads */ 0
 };
 
 static const TestParameters testParamsDefaults = {
@@ -170,6 +185,11 @@ struct commandParametersInstance
         mCmdParam.hasDecodeCpuIds = cmdParam.hasDecodeCpuIds;
         mCmdParam.scheduleConfig = cmdParam.scheduleConfig;
         mCmdParam.splitPhaseBench = cmdParam.splitPhaseBench;
+        mCmdParam.decodePrimeEnabled = cmdParam.decodePrimeEnabled;
+        mCmdParam.decodePrimePromptTokens = cmdParam.decodePrimePromptTokens;
+        mCmdParam.decodePrimeDecodeTokens = cmdParam.decodePrimeDecodeTokens;
+        mCmdParam.decodePrimePrefillThreads = cmdParam.decodePrimePrefillThreads;
+        mCmdParam.decodePrimeDecodeThreads = cmdParam.decodePrimeDecodeThreads;
     }
 
     CommandParameters get_cmd_parameters() const
@@ -197,7 +217,12 @@ struct commandParametersInstance
                mCmdParam.scheduleConfig.prefill.policy == other.mCmdParam.scheduleConfig.prefill.policy &&
                mCmdParam.scheduleConfig.decode.policy == other.mCmdParam.scheduleConfig.decode.policy &&
                mCmdParam.scheduleConfig.decode.dynamic_target_chunks == other.mCmdParam.scheduleConfig.decode.dynamic_target_chunks &&
-               mCmdParam.splitPhaseBench == other.mCmdParam.splitPhaseBench;
+               mCmdParam.splitPhaseBench == other.mCmdParam.splitPhaseBench &&
+               mCmdParam.decodePrimeEnabled == other.mCmdParam.decodePrimeEnabled &&
+               mCmdParam.decodePrimePromptTokens == other.mCmdParam.decodePrimePromptTokens &&
+               mCmdParam.decodePrimeDecodeTokens == other.mCmdParam.decodePrimeDecodeTokens &&
+               mCmdParam.decodePrimePrefillThreads == other.mCmdParam.decodePrimePrefillThreads &&
+               mCmdParam.decodePrimeDecodeThreads == other.mCmdParam.decodePrimeDecodeThreads;
     }
 };
 
@@ -261,6 +286,28 @@ static bool parsePrefillSchedulerPolicyToken(const std::string& token, MNN::Sche
 }
 
 static std::string scheduleConfigString(const LlmBenchScheduleConfig& config);
+static AecsCacheKey buildAecsCacheKey(const LlmBenchAecsSetupParams& params, const AecsCpuTopology& topology);
+static int prepareAecsOpEncoderNumber(Llm* llm,
+                                      const LlmBenchAecsSetupParams& params,
+                                      const LlmBenchAecsBuildPlan& build_plan,
+                                      const LlmBenchAecsRuntimePlan& runtime_plan,
+                                      bool aecs_enabled);
+static std::string cpuIdsToJson(const std::vector<int>& cpu_ids);
+static double tokensPerSecond(int n_tokens, int64_t cost_us);
+
+static bool envFlagEnabled(const char* name) {
+    if (name == nullptr) {
+        return false;
+    }
+    const char* value = std::getenv(name);
+    if (value == nullptr || value[0] == '\0') {
+        return false;
+    }
+    if (value[0] == '0' && value[1] == '\0') {
+        return false;
+    }
+    return true;
+}
 
 struct TestInstance
 {
@@ -379,6 +426,202 @@ static std::string scheduleConfigString(const LlmBenchScheduleConfig& config) {
            << ",d=" << MNN::schedulerPolicyName(config.decode.policy)
            << ",dc=" << config.decode.dynamic_target_chunks;
     return stream.str();
+}
+
+static AecsCacheKey buildAecsCacheKey(const LlmBenchAecsSetupParams& params, const AecsCpuTopology& topology) {
+    AecsCacheKey cache_key;
+    cache_key.device_fingerprint = topology.device_fingerprint;
+    cache_key.model_path = params.model_path;
+    cache_key.mnn_version = MNN_VERSION;
+    cache_key.backend = params.backend;
+    cache_key.precision = params.precision;
+    cache_key.memory = params.memory;
+    cache_key.power = params.power;
+    cache_key.dynamic_option = params.dynamic_option;
+    cache_key.use_mmap = params.use_mmap;
+    cache_key.n_prompt = params.prompt_tokens;
+    return cache_key;
+}
+
+static int64_t measureStableOpEncoderCandidate(Llm* llm, int candidate) {
+    if (llm == nullptr) {
+        return 0;
+    }
+
+    const std::vector<int> prefill_tokens(1, 16);
+    const std::vector<int> decode_tokens(1, 16);
+    llm->setOpEncoderNumberForCommit(candidate);
+    llm->reset();
+
+    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::PREFILL);
+    llm->response(prefill_tokens, nullptr, nullptr, 1);
+    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::DECODE);
+    llm->response(decode_tokens, nullptr, nullptr, 1);
+
+    const auto* context = llm->getContext();
+    const int64_t decode_us = context != nullptr ? context->decode_us : 0;
+    llm->reset();
+    MNN::AutoTuner::getInstance()->setPhase(MNN::InferencePhase::UNKNOWN);
+    return decode_us;
+}
+
+static int prepareAecsOpEncoderNumber(Llm* llm,
+                                      const LlmBenchAecsSetupParams& params,
+                                      const LlmBenchAecsBuildPlan& build_plan,
+                                      const LlmBenchAecsRuntimePlan& runtime_plan,
+                                      bool aecs_enabled) {
+    static const std::vector<int> kOpEncoderNumberCandidates = {1, 5, 10, 20, 30, 50, 100};
+    if (llm == nullptr || !aecs_enabled || params.prefill_manual || params.decode_manual || params.decode_tokens <= 0) {
+        return 0;
+    }
+
+    const auto topology = AecsCpuInspector::inspect(params.tuning_config.prefill_start_cpu);
+    const auto cache_key = buildAecsCacheKey(params, topology);
+    AecsTuner cache_accessor(topology, params.tuning_config, params.heuristic_params, build_plan.pool_cpu_ids);
+    PhaseTuningResult cache_result;
+    if (!params.tuning_config.force_retune &&
+        cache_accessor.loadCache(cache_key, &cache_result) &&
+        cache_result.op_encoder_number > 0) {
+        llm->setOpEncoderNumberForCommit(cache_result.op_encoder_number);
+        MNN_PRINT("[llm_bench][OEN] cache-hit:%d\n", cache_result.op_encoder_number);
+        return cache_result.op_encoder_number;
+    }
+
+    configurePhaseExecutionPlan(runtime_plan.pool_threads, runtime_plan.pool_cpu_ids,
+                                runtime_plan.final_prefill_threads, runtime_plan.final_prefill_cpu_ids,
+                                runtime_plan.final_decode_threads, runtime_plan.final_decode_cpu_ids,
+                                params.schedule_config, runtime_plan.core_capacities,
+                                false);
+    int op_encoder_number = 0;
+    int64_t best_decode_us = std::numeric_limits<int64_t>::max();
+    for (const int candidate : kOpEncoderNumberCandidates) {
+        const int64_t decode_us = measureStableOpEncoderCandidate(llm, candidate);
+        MNN_PRINT("[llm_bench][OEN] candidate=%d decode_us=%lld\n",
+                  candidate,
+                  static_cast<long long>(decode_us));
+        if (decode_us > 0 && decode_us < best_decode_us) {
+            best_decode_us = decode_us;
+            op_encoder_number = candidate;
+        }
+    }
+    if (op_encoder_number > 0) {
+        llm->setOpEncoderNumberForCommit(op_encoder_number);
+        PhaseTuningResult cache_result_to_save;
+        if (!cache_accessor.loadCache(cache_key, &cache_result_to_save)) {
+            cache_result_to_save.prefill_cpu_ids = runtime_plan.final_prefill_cpu_ids;
+            cache_result_to_save.prefill_threads = runtime_plan.final_prefill_threads;
+            cache_result_to_save.decode_cpu_ids = runtime_plan.final_decode_cpu_ids;
+            cache_result_to_save.decode_threads = runtime_plan.final_decode_threads;
+            cache_result_to_save.static_calibration.core_capacities = runtime_plan.core_capacities;
+        }
+        cache_result_to_save.op_encoder_number = op_encoder_number;
+        cache_result_to_save.op_encoder_from_cache = false;
+        cache_accessor.saveCache(cache_key, cache_result_to_save);
+        MNN_PRINT("[llm_bench][OEN] tuned:%d\n", op_encoder_number);
+    }
+    llm->reset();
+    return op_encoder_number;
+}
+
+static void tuning_prepare(Llm* llm) {
+    if (llm == nullptr) {
+        return;
+    }
+    llm->tuning(OP_ENCODER_NUMBER, {1, 5, 10, 20, 30, 50, 100});
+}
+
+static bool runDecodePrime(Llm* llm,
+                           const CommandParameters& params,
+                           const LlmBenchAecsRuntimePlan& runtime_plan) {
+    if (llm == nullptr || !params.decodePrimeEnabled) {
+        return true;
+    }
+
+    const int prime_prompt_tokens = params.decodePrimePromptTokens > 0
+        ? params.decodePrimePromptTokens
+        : params.nPrompt;
+    if (prime_prompt_tokens <= 0) {
+        MNN_ERROR("decode_prime requires prompt tokens > 0 (configured=%d, benchmark=%d)\n",
+                  params.decodePrimePromptTokens,
+                  params.nPrompt);
+        return false;
+    }
+
+    const int prime_prefill_threads = params.decodePrimePrefillThreads > 0
+        ? params.decodePrimePrefillThreads
+        : runtime_plan.pool_threads;
+    const int prime_decode_threads = params.decodePrimeDecodeThreads > 0
+        ? params.decodePrimeDecodeThreads
+        : runtime_plan.final_decode_threads;
+    if (prime_prefill_threads > runtime_plan.pool_threads) {
+        MNN_ERROR("decode_prime prefill threads (%d) exceed pool threads (%d)\n",
+                  prime_prefill_threads,
+                  runtime_plan.pool_threads);
+        return false;
+    }
+    if (prime_decode_threads > runtime_plan.pool_threads) {
+        MNN_ERROR("decode_prime decode threads (%d) exceed pool threads (%d)\n",
+                  prime_decode_threads,
+                  runtime_plan.pool_threads);
+        return false;
+    }
+    if (!runtime_plan.pool_cpu_ids.empty()) {
+        const int available_prime_cpus = static_cast<int>(runtime_plan.pool_cpu_ids.size());
+        if (prime_prefill_threads > available_prime_cpus) {
+            MNN_ERROR("decode_prime prefill threads (%d) exceed pool cpu ids size (%d)\n",
+                      prime_prefill_threads,
+                      available_prime_cpus);
+            return false;
+        }
+        if (prime_decode_threads > available_prime_cpus) {
+            MNN_ERROR("decode_prime decode threads (%d) exceed pool cpu ids size (%d)\n",
+                      prime_decode_threads,
+                      available_prime_cpus);
+            return false;
+        }
+    }
+
+    const std::vector<int> prime_prompt(prime_prompt_tokens, 16);
+    const std::vector<int> prime_seed(1, 16);
+    auto* tuner = MNN::AutoTuner::getInstance();
+    auto* context = llm->getContext();
+    configurePhaseExecutionPlan(runtime_plan.pool_threads, runtime_plan.pool_cpu_ids,
+                                prime_prefill_threads, runtime_plan.pool_cpu_ids,
+                                prime_decode_threads, runtime_plan.pool_cpu_ids,
+                                params.scheduleConfig, runtime_plan.core_capacities,
+                                false);
+    llm->reset();
+
+    tuner->setPhase(MNN::InferencePhase::PREFILL);
+    begin_trace_marker("llm->decode_prime (prefill)");
+    llm->response(prime_prompt, nullptr, nullptr, 1);
+    end_trace_marker();
+    const int64_t prime_prefill_us = context != nullptr ? context->prefill_us : 0;
+
+    tuner->setPhase(MNN::InferencePhase::DECODE);
+    begin_trace_marker("llm->decode_prime (decode)");
+    llm->response(prime_seed, nullptr, nullptr, params.decodePrimeDecodeTokens);
+    end_trace_marker();
+    const int64_t prime_decode_us = context != nullptr ? context->decode_us : 0;
+    MNN_PRINT("[llm_bench][decode_prime] prompt=%d gen=%d prefill_threads=%d decode_threads=%d bind=%s prefill=%.6f s decode=%.6f s prefill_speed=%.3f tok/s decode_speed=%.3f tok/s\n",
+              prime_prompt_tokens,
+              params.decodePrimeDecodeTokens,
+              prime_prefill_threads,
+              prime_decode_threads,
+              cpuIdsToJson(runtime_plan.pool_cpu_ids).c_str(),
+              static_cast<double>(prime_prefill_us) / 1e6,
+              static_cast<double>(prime_decode_us) / 1e6,
+              tokensPerSecond(prime_prompt_tokens, prime_prefill_us),
+              tokensPerSecond(params.decodePrimeDecodeTokens, prime_decode_us));
+
+    llm->reset();
+    configurePhaseExecutionPlan(runtime_plan.pool_threads, runtime_plan.pool_cpu_ids,
+                                runtime_plan.final_prefill_threads, runtime_plan.final_prefill_cpu_ids,
+                                runtime_plan.final_decode_threads, runtime_plan.final_decode_cpu_ids,
+                                params.scheduleConfig, runtime_plan.core_capacities,
+                                false);
+    tuner->setPhase(MNN::InferencePhase::UNKNOWN);
+    return true;
 }
 
 static void printScheduleSummary(MNN::InferencePhase phase, int64_t latency_us, int tokens) {
@@ -748,6 +991,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                     tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                     tmpParam.scheduleConfig = scheduleConfig;
                     tmpParam.splitPhaseBench = rp.splitPhaseBench;
+                    tmpParam.decodePrimeEnabled = rp.decodePrimeEnabled;
+                    tmpParam.decodePrimePromptTokens = rp.decodePrimePromptTokens;
+                    tmpParam.decodePrimeDecodeTokens = rp.decodePrimeDecodeTokens;
+                    tmpParam.decodePrimePrefillThreads = rp.decodePrimePrefillThreads;
+                    tmpParam.decodePrimeDecodeThreads = rp.decodePrimeDecodeThreads;
                     auto instance = commandParametersInstance(tmpParam);
                     instances.push_back(instance);
                 }
@@ -783,6 +1031,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                 tmpParam.scheduleConfig = scheduleConfig;
                 tmpParam.splitPhaseBench = rp.splitPhaseBench;
+                tmpParam.decodePrimeEnabled = rp.decodePrimeEnabled;
+                tmpParam.decodePrimePromptTokens = rp.decodePrimePromptTokens;
+                tmpParam.decodePrimeDecodeTokens = rp.decodePrimeDecodeTokens;
+                tmpParam.decodePrimePrefillThreads = rp.decodePrimePrefillThreads;
+                tmpParam.decodePrimeDecodeThreads = rp.decodePrimeDecodeThreads;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -813,6 +1066,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                 tmpParam.scheduleConfig = scheduleConfig;
                 tmpParam.splitPhaseBench = rp.splitPhaseBench;
+                tmpParam.decodePrimeEnabled = rp.decodePrimeEnabled;
+                tmpParam.decodePrimePromptTokens = rp.decodePrimePromptTokens;
+                tmpParam.decodePrimeDecodeTokens = rp.decodePrimeDecodeTokens;
+                tmpParam.decodePrimePrefillThreads = rp.decodePrimePrefillThreads;
+                tmpParam.decodePrimeDecodeThreads = rp.decodePrimeDecodeThreads;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -846,6 +1104,11 @@ static std::vector<commandParametersInstance> get_cmd_params_instances(const Run
                 tmpParam.hasDecodeCpuIds = rp.hasDecodeCpuIds;
                 tmpParam.scheduleConfig = scheduleConfig;
                 tmpParam.splitPhaseBench = rp.splitPhaseBench;
+                tmpParam.decodePrimeEnabled = rp.decodePrimeEnabled;
+                tmpParam.decodePrimePromptTokens = rp.decodePrimePromptTokens;
+                tmpParam.decodePrimeDecodeTokens = rp.decodePrimeDecodeTokens;
+                tmpParam.decodePrimePrefillThreads = rp.decodePrimePrefillThreads;
+                tmpParam.decodePrimeDecodeThreads = rp.decodePrimeDecodeThreads;
                 auto instance = commandParametersInstance(tmpParam);
                 instances.push_back(instance);
             }
@@ -909,6 +1172,11 @@ static void printUsage(int /* argc */, char ** argv) {
     printf("      --prefill-policy <work_steal|static>  (default: work_steal)\n");
     printf("      --decode-dynamic-blocks <n[,n...]>    (default: auto=2T)\n");
     printf("      --split-phase-bench                   (default: false) | force separate prefill/decode benchmark passes\n");
+    printf("      --decode-prime                        (default: false) | run one hidden prefill+decode prime pass before measurement\n");
+    printf("      --decode-prime-prompt <n>             (default: use benchmark prompt tokens)\n");
+    printf("      --decode-prime-gen <n>                (default: 1)\n");
+    printf("      --decode-prime-prefill-threads <n>    (default: use pool thread count)\n");
+    printf("      --decode-prime-decode-threads <n>     (default: use benchmark decode threads)\n");
     printf("      --prefill-auto-bind                   (default: false) | search prefill cpu ids from highest-performance core\n");
     printf("      --decode-aecs                         (default: false) | run AECS decode search and persist result\n");
     printf("      --force-retune                        (default: false) | ignore cached AECS result and search again\n");
@@ -948,6 +1216,11 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.prefillPolicy = runtimeParamsDefaults.prefillPolicy;
     runtimeParams.hasDecodeDynamicBlocks = false;
     runtimeParams.splitPhaseBench = false;
+    runtimeParams.decodePrimeEnabled = runtimeParamsDefaults.decodePrimeEnabled;
+    runtimeParams.decodePrimePromptTokens = runtimeParamsDefaults.decodePrimePromptTokens;
+    runtimeParams.decodePrimeDecodeTokens = runtimeParamsDefaults.decodePrimeDecodeTokens;
+    runtimeParams.decodePrimePrefillThreads = runtimeParamsDefaults.decodePrimePrefillThreads;
+    runtimeParams.decodePrimeDecodeThreads = runtimeParamsDefaults.decodePrimeDecodeThreads;
 
     for (int i = 1; i < argc; i++) {
         arg = argv[i];
@@ -1153,6 +1426,36 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
             runtimeParams.hasDecodeDynamicBlocks = !runtimeParams.decodeDynamicBlocks.empty();
         } else if (arg == "--split-phase-bench") {
             runtimeParams.splitPhaseBench = true;
+        } else if (arg == "--decode-prime") {
+            runtimeParams.decodePrimeEnabled = true;
+        } else if (arg == "--decode-prime-prompt") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.decodePrimePromptTokens = p[0];
+        } else if (arg == "--decode-prime-gen") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.decodePrimeDecodeTokens = p[0];
+        } else if (arg == "--decode-prime-prefill-threads") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.decodePrimePrefillThreads = p[0];
+        } else if (arg == "--decode-prime-decode-threads") {
+            if (++i >= argc) {
+                invalidParam = true;
+                break;
+            }
+            auto p = splitString<int>(argv[i], splitDelim);
+            runtimeParams.decodePrimeDecodeThreads = p[0];
         } else if (arg == "--prefill-auto-bind") {
             runtimeParams.tuningConfig.prefill_auto_bind = true;
         } else if (arg == "--decode-aecs") {
@@ -1359,6 +1662,26 @@ static bool parseCmdParams(int argc, char ** argv, RuntimeParameters & runtimePa
     runtimeParams.heuristicParams.alpha = std::min(1.0, std::max(0.0, runtimeParams.heuristicParams.alpha));
     runtimeParams.heuristicParams.idle_factor = std::max(0.0, runtimeParams.heuristicParams.idle_factor);
     runtimeParams.heuristicParams.static_power = std::max(0.0, runtimeParams.heuristicParams.static_power);
+    if (runtimeParams.decodePrimePromptTokens < 0) {
+        fprintf(stderr, "error: decode-prime prompt tokens (%d) must be >= 0\n",
+                runtimeParams.decodePrimePromptTokens);
+        return false;
+    }
+    if (runtimeParams.decodePrimeDecodeTokens <= 0) {
+        fprintf(stderr, "error: decode-prime gen tokens (%d) must be > 0\n",
+                runtimeParams.decodePrimeDecodeTokens);
+        return false;
+    }
+    if (runtimeParams.decodePrimePrefillThreads < 0) {
+        fprintf(stderr, "error: decode-prime prefill threads (%d) must be >= 0\n",
+                runtimeParams.decodePrimePrefillThreads);
+        return false;
+    }
+    if (runtimeParams.decodePrimeDecodeThreads < 0) {
+        fprintf(stderr, "error: decode-prime decode threads (%d) must be >= 0\n",
+                runtimeParams.decodePrimeDecodeThreads);
+        return false;
+    }
 
     return true;
 }
@@ -1483,10 +1806,6 @@ static Llm* buildLLM(const std::string& config_path, int backend, int memory, in
         return nullptr;
     }
     return llmPtr;
-}
-
-static void tuning_prepare(Llm* llm) {
-    llm->tuning(OP_ENCODER_NUMBER, {1, 5, 10, 20, 30, 50, 100});
 }
 
 static void wait_for_perf_trigger() {
@@ -1654,6 +1973,9 @@ int main(int argc, char ** argv) {
             llm->load();
             end_trace_marker(); // <--- ATrace 结束
         }
+        if (envFlagEnabled("MNN_LLM_BENCH_FORCE_TUNING_PREPARE")) {
+            tuning_prepare(llm.get());
+        }
         
         auto context = llm->getContext();
         if (instance.mCmdParam.nGenerate > 0) {
@@ -1664,6 +1986,8 @@ int main(int argc, char ** argv) {
         const auto& final_decode_cpu_ids = aecsRuntimePlan.final_decode_cpu_ids;
         const int final_prefill_threads = aecsRuntimePlan.final_prefill_threads;
         const int final_decode_threads = aecsRuntimePlan.final_decode_threads;
+        const int final_op_encoder_number =
+            prepareAecsOpEncoderNumber(llm.get(), aecsSetup, aecsBuildPlan, aecsRuntimePlan, aecsController.enabled());
         const auto benchmark_prefill_cpu_ids = cpuIdsForLog(final_prefill_cpu_ids, aecsRuntimePlan.pool_cpu_ids);
         const auto benchmark_decode_cpu_ids = cpuIdsForLog(final_decode_cpu_ids, aecsRuntimePlan.pool_cpu_ids);
         const int benchmark_prefill_threads = threadsForLog(final_prefill_cpu_ids, final_prefill_threads,
@@ -1690,6 +2014,11 @@ int main(int argc, char ** argv) {
                   cpuIdsToJson(benchmark_prefill_cpu_ids).c_str(),
                   benchmark_decode_threads,
                   cpuIdsToJson(benchmark_decode_cpu_ids).c_str());
+        MNN_PRINT("[llm_bench] final_op_encoder_number=%d\n",
+                  final_op_encoder_number);
+        if (!runDecodePrime(llm.get(), instance.mCmdParam, aecsRuntimePlan)) {
+            return -1;
+        }
 
         // llm_demo test
         if (instance.mCmdParam.kvCache == "true") {
@@ -1729,6 +2058,9 @@ int main(int argc, char ** argv) {
                                   tokensPerSecond(prompt_tokens, prefillTime));
                     }
                     if (decodeTokens > 0) {
+                        if (warmup_run && envFlagEnabled("MNN_LLM_BENCH_SYNC_BEFORE_FIRST_DECODE")) {
+                            wait_for_perf_trigger();
+                        }
                         MNN_PRINT("[llm_bench][%s %d/%d] start decode gen=%d threads=%d bind=%s\n",
                                   warmup_run ? "warmup" : "measure",
                                   run_display_index,

@@ -405,9 +405,13 @@ void Llm::tuning(TuneType type, std::vector<int> candidates) {
         MNN_ERROR("tuning type not supported\n");
         return;
     }
+    tuneOpEncoderNumber(candidates);
+}
+
+int Llm::tuneOpEncoderNumber(const std::vector<int>& candidates) {
     // FIXME: Currently OpenCL Don't support KVMeta
     if (mConfig->backend_type() == "opencl") {
-        return;
+        return 0;
     }
     int decode_seq = 1;
     // Set to decode mode
@@ -427,14 +431,14 @@ void Llm::tuning(TuneType type, std::vector<int> candidates) {
         std::vector<int> input_ids(decode_seq, 0);
         auto outputs = forwardVec(input_ids);
         if(outputs.empty()) {
-            return;
+            return 0;
         }
         auto logits = outputs[0];
         if (nullptr == logits.get()) {
-            return;
+            return 0;
         }
         if (logits->getInfo()->size == 0) {
-            return;
+            return 0;
         }
         auto token   = sample(logits);
         auto time = _t.durationInUs();
@@ -448,6 +452,11 @@ void Llm::tuning(TuneType type, std::vector<int> candidates) {
     // clear dirty tuning kv history
     setKVCacheInfo(0, getCurrentHistory());
     reset();
+    return prefer_candidate;
+}
+
+void Llm::setOpEncoderNumberForCommit(int value) {
+    mRuntimeManager->setHint(MNN::Interpreter::OP_ENCODER_NUMBER_FOR_COMMIT, value);
 }
 
 void Llm::switchMode(Llm::Stage stage) {

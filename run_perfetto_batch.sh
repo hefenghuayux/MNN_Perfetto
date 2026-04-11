@@ -108,14 +108,41 @@
 # SPLIT_PHASE_BENCH=true \
 # bash ./run_perfetto_batch.sh
 
-# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260410_225814  \
-# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260410_225814 \
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_AECS_ws  \
+# REMOTE_DIR=/data/local/tmp/work_steal_AECS_ws \
 # KV_CACHE=true \
 # PROMPT_TOKENS=512 \
 # GENERATE_TOKENS=128 \
 # REPEAT_COUNT=5 \
 # SPLIT_PHASE_BENCH=true \
 # bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/work_steal_tune  \
+# REMOTE_DIR=/data/local/tmp/work_steal_tune \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260411_170313  \
+# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260411_170313 \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh
+
+# LOCAL_PKG=/home/hefeng/MNN_last/MNN_Perfetto_hybrid_stepwise/mnn_aecs_run_20260411_180028  \
+# REMOTE_DIR=/data/local/tmp/mnn_aecs_run_20260411_180028 \
+# KV_CACHE=true \
+# PROMPT_TOKENS=512 \
+# GENERATE_TOKENS=128 \
+# REPEAT_COUNT=5 \
+# SPLIT_PHASE_BENCH=true \
+# bash ./run_perfetto_batch.sh --decode-prime
 # ============================================================
 # MNN LLM 性能测试自动化脚本 - 基线版本 (统一全局绑核)
 # ============================================================
@@ -305,7 +332,9 @@ adb shell "killall -9 perfetto > /dev/null 2>&1"
 # ---------------------------------------------------------
 TEST_CASES=(
     # 7:2,3,4,5,6,7
-    "6:2,3,4,5,6,7:7"
+    # 使用 6 段格式显式表达：
+    # pool=8(0-7), real prefill=6(2-7), real decode=1(7)
+    "8:0,1,2,3,4,5,6,7:2,3,4,5,6,7:7:6:1"
     # "8:0,1,2,3,4,5,6,7:7"
     # 5:2,3,4,6,7
     
@@ -374,6 +403,23 @@ for case in "${TEST_CASES[@]}"; do
     fi
     if [[ -z "$decode_threads" ]]; then
         decode_threads="$threads"
+    fi
+
+    if [[ -n "$case_prefill_ids" ]]; then
+        prefill_cpu_count=$(count_csv_items "$case_prefill_ids")
+        if (( prefill_threads > prefill_cpu_count )); then
+            echo ">>> [错误] case '$case' 展开后 prefill_threads=$prefill_threads，但 prefill cpu ids 只有 $prefill_cpu_count 个: $case_prefill_ids" >&2
+            echo ">>> [提示] 需要用 6 段格式显式写成 threads:pool_ids:prefill_ids:decode_ids:prefill_threads:decode_threads" >&2
+            exit 1
+        fi
+    fi
+    if [[ -n "$case_decode_ids" ]]; then
+        decode_cpu_count=$(count_csv_items "$case_decode_ids")
+        if (( decode_threads > decode_cpu_count )); then
+            echo ">>> [错误] case '$case' 展开后 decode_threads=$decode_threads，但 decode cpu ids 只有 $decode_cpu_count 个: $case_decode_ids" >&2
+            echo ">>> [提示] 需要用 6 段格式显式写成 threads:pool_ids:prefill_ids:decode_ids:prefill_threads:decode_threads" >&2
+            exit 1
+        fi
     fi
 
     CASE_GLOBAL_ARGS=()

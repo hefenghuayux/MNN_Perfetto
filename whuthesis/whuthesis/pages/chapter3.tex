@@ -1,141 +1,258 @@
-\chapter{优化方法与系统设计}
+\chapter{优化方法与算法设计}
 
 \section{系统总体设计}
 
-\subsection{设计目标与最小侵入原则}
+\subsection{设计目标}
 
-本文的优化目标很明确：在不改变 MNN 原有总体执行框架的前提下，把面向移动端异构多核 CPU 的分阶段绑核、线程数配置和任务划分机制嵌入现有运行时。这里的“不改变总体框架”有两层含义。第一，不重写 MNN 的后端组织方式，仍然沿用 CPUBackend、线程池和算子执行器的既有结构。第二，不把调度逻辑散落到应用层脚本，而是尽量以统一接口进入运行时，使不同算子在同一套阶段状态下工作。
+围绕移动端异构多核 CPU 上的大模型推理过程，调度优化面临两个直接约束。其一，Prefill 与 Decode 的负载特征差异明显，难以共用同一套线程数和绑核配置。其二，移动端运行环境存在线程迁移、背景任务抢占和核心能力不均等问题，单纯依赖固定参数的静态划分难以长期保持稳定。为此，本章将优化目标归纳为三点：一是针对不同阶段分别选择更合适的线程数与核心集合；二是利用真实性能比构造更合理的初始任务分配；三是在 Prefill 阶段引入任务窃取机制，减轻尾部阻塞。
 
-这一设计选择并不是为了保守，而是为了让方案真正具备工程可复现性。若把所有优化都堆叠在外层脚本或特定 demo 上，系统很难迁移到其他模型和应用中。相反，只要调度状态能在 CPUBackend 中统一生效，并且并行入口能在 Concurrency 宏层完成切换，算子执行路径就可以共享相同的阶段策略。这也是本文选择以最小侵入方式改造 MNN 的原因。
+方法设计遵循最小侵入原则。换言之，不改变原有推理流程的基本组织方式，只在任务划分和并行执行入口处引入阶段感知的调度控制。这样做的好处在于，优化过程能够直接落到现有运行环境中，后续实验也更容易复现。
 
-围绕这一原则，系统设计形成了三个核心模块。第一，`AutoTuner` 负责维护阶段状态、线程数、affinity 掩码和调度统计。第二，`CPUBackend` 根据当前阶段生成任务划分计划，并维护 Prefill 的 work stealing 状态和 Decode 的动态任务状态。第三，`Concurrency.h` 中的并行宏负责把阶段计划接入线程池或非线程池后备路径，使算子执行代码能够以统一形式调用新的调度机制。
+\subsection{总体思路}
 
-\subsection{模块划分与数据流}
+整体流程如图~\ref{fig:chapter3_overview_placeholder} 所示。推理开始前，先根据目标机型完成线程数和绑核参数的搜索，并通过一组可复用的配置描述 Prefill 与 Decode 的执行状态。进入运行阶段后，Prefill 先根据核心相对能力生成初始任务区间，再通过无锁双端队列 work stealing 机制完成负载均衡；Decode 则采用更轻量的动态领取方式，以避免短步迭代中额外调度开销过大。
 
-从控制流上看，系统启动后先在上层 bench 或推理入口中确定当前阶段的线程数与 CPU 集合，再调用 `configurePhaseExecutionPlan` 一类接口把参数写入 `AutoTuner`。之后，算子执行进入 `CPUBackend::computeDivideSizesByPhase`，运行时根据 `AutoTuner::getPhase()` 返回当前属于 Prefill 还是 Decode，并生成相应的 `DivideSchedulePlan`。该计划包含四个关键字段：总任务量、块大小、有效线程数和调度策略。
+\begin{figure}[ht]
+  \centering
+  \fbox{
+    \parbox{0.9\textwidth}{
+      \vspace{1.2cm}
+      图位预留：系统总体流程图。\newline
+      建议内容：从左到右画出 ``阶段参数搜索''、``Prefill 执行路径''、``Decode 执行路径'' 三个模块。\newline
+      Prefill 模块中画出 ``真实性能比 -> 初始任务区间 -> 本地执行 -> work stealing''。\newline
+      Decode 模块中画出 ``均分区间 -> 原子领取 -> 执行完成''。\newline
+      图中需要标明阶段切换点、绑核参数输入和日志统计输出。
+      \vspace{1.2cm}
+    }
+  }
+  \caption{阶段感知调度总体流程示意图}
+  \label{fig:chapter3_overview_placeholder}
+\end{figure}
 
-从数据流上看，Prefill 和 Decode 的输入是一致的，区别在于任务被送入线程池之后的获取方式不同。Prefill 使用“加权初始划分 + work stealing”。每个线程先处理自己的本地区间，处理完后再尝试窃取其他线程剩余工作。Decode 使用“均分 + 动态获取”。系统把总任务范围均匀展开，线程通过原子游标继续领取后续区间，避免在短步迭代中引入过重的 stealing 成本。
+\subsection{设计原则}
 
-此外，统计数据并不在算子内部单独记录，而是统一回收至 `AutoTuner`。这样做有两个好处。第一，阶段内所有算子都能共享同一组调度统计接口，减少重复实现。第二，这些统计项可以在实验阶段直接转化为可观测指标，例如窃取次数、窃取成功次数、每线程执行任务量和总任务块数，便于将性能变化与调度行为对应起来。
+这一调度方案遵循三条原则。
 
-\subsection{关键实现接口与嵌入点}
+第一，阶段分离。Prefill 关注总工作量较大的长任务处理，关键问题是负载均衡与尾部线程拖慢整体结束时间；Decode 关注短步迭代和连续响应，关键问题是调度开销和时延抖动。因此，两阶段必须分别配置线程数和核心集合。
 
-本文的关键嵌入点主要集中在三处。第一处是 `AutoTuner` 中的阶段执行参数接口，包括 `setPrefillExecution`、`setDecodeExecution` 和 `setPhase`。这些接口使运行时可以在进入不同阶段时快速切换线程数与 affinity 掩码。第二处是 `CPUBackend` 中的 `computeDivideSizesByPhase`、`initPrefillWorkStealState`、`fetchPrefillWorkStealChunk` 和 `fetchDecodeDynamicChunk`。这些函数承担了任务计划生成和运行期任务获取的核心逻辑。第三处是 `Concurrency.h` 中的宏定义，它们把 Prefill 和 Decode 的不同并行策略统一封装到线程池调用入口中。
+第二，先给出合理初值，再做运行期修正。异构多核上的任务划分不能完全依赖运行期竞争，否则调度成本会上升；也不能完全依赖静态边界，否则一旦出现扰动就容易失衡。更合适的办法是先利用真实性能比构造较合理的初始区间，再在运行中通过 stealing 修正剩余不均衡。
 
-值得注意的是，本文并没有为每个算子单独设计新接口，而是通过宏与后端状态让已有算子自动继承新的调度方式。这一点在 `ConvInt8TiledExecutor` 等算子实现中尤其明显。算子只需调用新的阶段宏，不需要自己维护队列、游标或 victim 选择顺序。这样既减少了修改范围，也降低了后续维护成本。
+第三，重方法、轻机制。第 3 章重点说明方法设计与算法逻辑，而不是罗列大量实现接口。与章节论证直接相关的，主要是阶段划分规则、任务组织方式、窃取规则和调度统计项。
 
-\section{分阶段绑核与线程数配置机制}
+\section{分阶段线程数与绑核配置}
 
-\subsection{问题建模与参数空间}
+\subsection{问题分析}
 
-在本文设计中，线程数和 affinity 不再被视为全局固定参数，而是被拆分为 `pool`、`prefill` 和 `decode` 三组相关配置。`pool` 表示构建线程池时的总体线程上限与候选 CPU 集合；`prefill` 和 `decode` 则分别表示两个阶段真正生效的线程数和 CPU 掩码。这样做的出发点是：线程池的构建成本不应在每次阶段切换时重新支付，但阶段执行参数必须可切换。
+在同一台手机上，Prefill 与 Decode 的最优线程数通常并不一致。Prefill 阶段计算量更大，对大核利用更敏感，线程数偏少会导致高性能核心未被充分使用；线程数过多又会引入同步、访存争用和额外调度开销。Decode 阶段则不同，它以短步迭代为主，单步工作量较小，若并发度设置过高，调度开销往往先于计算收益出现。
 
-参数空间的核心变量包括三类。第一类是线程数，即 `threads`、`prefill_threads` 和 `decode_threads`。第二类是 CPU 集合，即 `cpu_ids`、`prefill_cpu_ids` 和 `decode_cpu_ids`。第三类是阶段策略，即 Prefill 固定为 `work_steal`，Decode 固定为 `dynamic`。在当前实现中，这一策略固定关系已经在 bench 层被显式写入：Prefill 采用 `SchedulerPolicy::WORK_STEAL`，Decode 采用 `SchedulerPolicy::DYNAMIC`。因此，本文的实际搜索重点不再是“用哪种策略”，而是“每个阶段用多少线程、绑定哪些核心”。
+这意味着，统一线程数与统一 affinity 的做法并不稳妥。若所有阶段共用同一组参数，通常只能得到折中解，而不是各阶段的较优解。因而，线程数与绑核配置需要按阶段独立确定。
 
-\subsection{阶段状态的统一管理}
+\subsection{配置方法}
 
-`AutoTuner` 是整个阶段感知调度的状态中心。其内部维护三组执行参数：`mDefaultExecution`、`mPrefillExecution` 和 `mDecodeExecution`。每组参数都包含两个基本字段：`active_threads` 和 `affinity_mask`。当上层调用 `setPrefillExecution` 或 `setDecodeExecution` 时，`AutoTuner` 会更新相应字段，并调用 `refreshFallbackExecutionState` 维护一个后备执行状态，用于阶段未知或尚未初始化时的安全回退。
+配置过程分为两步。第一步确定候选核心集合。对于 Prefill，优先保留高性能核心；对于 Decode，则在保证性能稳定的前提下避免过多线程竞争。第二步在给定核心集合上搜索线程数。搜索的判断依据不是单次最好值，而是重复实验下的平均表现和波动情况。若某一线程数配置虽然偶尔较快，但波动较大，则不宜作为最终配置。
 
-阶段切换通过 `setPhase` 完成。该函数内部首先用原子变量交换旧阶段与新阶段，再调用 `updateFastPhaseState`。后者的作用很直接：若当前阶段是 Prefill，就把 `mCurrentAffinityMask` 和 `mCurrentActiveThreadCount` 切到 Prefill 配置；若当前阶段是 Decode，就切到 Decode 配置；若阶段未知，则使用默认或合并后的后备配置。由于这些值都以原子变量形式保存，CPUBackend 在划分任务时可以低开销地读取当前状态。
+从方法上看，这一配置过程并不依赖复杂优化器，而是采用可解释的启发式搜索。这样做的原因是，移动端机型差异较大，过度复杂的离线模型未必能带来更稳定的实际收益。相反，围绕目标机型直接完成参数搜索，更贴近毕业论文需要强调的工程可复现路径。
 
-这种设计的核心优点是“控制平面与执行平面分离”。上层搜索逻辑只负责决定参数，下层执行逻辑只负责读取参数并按当前阶段生效。这样一来，分阶段配置就不需要深入每个算子内部，也不需要让线程池感知复杂的业务语义。
+\subsection{算法描述}
 
-\subsection{启发式配置流程}
+算法~\ref{alg:phase_config_search} 给出了分阶段线程数与绑核搜索的基本流程。其输入为候选核心集合、线程数上界和测试负载；输出为 Prefill 与 Decode 各自采用的线程数与核心集合。
 
-虽然本文第 4 章才会给出完整实验结果，但第 3 章需要先说明配置流程。当前设计采用启发式方式搜索参数，而不是构造一个复杂的全局优化器。其基本思路是：先确定总体候选核心集合，再分别为 Prefill 和 Decode 搜索更合适的线程数和 affinity 组合。对于 Prefill 这类更偏计算密集的阶段，优先从高性能核心开始扩展；对于 Decode 这类更短、更敏感的阶段，则在保证性能不明显下降的前提下选择更稳妥的线程数与核心集合。
+\begin{algorithm}[ht]
+\caption{分阶段线程数与绑核参数搜索}
+\label{alg:phase_config_search}
+\KwIn{候选核心集合 $C$，线程数搜索范围 $T$，测试负载 $W$}
+\KwOut{Prefill 参数 $(C_p, t_p)$，Decode 参数 $(C_d, t_d)$}
+根据核心能力对 $C$ 排序\;
+为 Prefill 选择高性能核心候选集合\;
+为 Decode 选择稳定性更好的核心候选集合\;
+\ForEach{候选线程数 $t \in T$}{
+  在 Prefill 负载上测试 $(C_p, t)$ 的平均时延与波动\;
+  记录较优的 $(C_p, t_p)$\;
+}
+\ForEach{候选线程数 $t \in T$}{
+  在 Decode 负载上测试 $(C_d, t)$ 的平均时延与波动\;
+  记录较优的 $(C_d, t_d)$\;
+}
+返回 $(C_p, t_p)$ 和 $(C_d, t_d)$\;
+\end{algorithm}
 
-在实现层面，这些参数最终通过 `configurePhaseExecutionPlan` 写入 `AutoTuner`。其中，`setDefaultExecution` 用于设置线程池构建时的总体范围，`setPrefillExecution` 和 `setDecodeExecution` 则分别写入阶段专属参数。与此同时，`setCoreCapacities` 还会把当前机型上各核心的 capacity 或性能比信息同步给运行时，用于后续加权初始划分。
+\subsection{图示建议}
 
-\section{基于真实性能比的加权初始划分}
+这一部分建议配两张图。
+
+第一张图放在本节后，画 Prefill 与 Decode 随线程数变化的性能曲线。横轴为线程数，纵轴可用时间或吞吐。图中应清楚看到两条曲线的最优点不重合。
+
+第二张图可以画绑核集合示意图。建议用手机 CPU 拓扑图表示 big、mid、little 三类核心，并在图中标出 Prefill 与 Decode 分别使用的核心集合。
+
+\section{Prefill 阶段的初始任务组织}
 
 \subsection{设计动机}
 
-若所有核心处理速度完全一致，任务划分只需要均分即可。但在异构多核 CPU 上，这一假设显然不成立。大核、中核和小核的执行能力不同，甚至同一簇内不同核心在真实运行中也可能因为系统负载和频率状态表现出差异。沿用固定性能比的静态划分虽然实现简单，但一旦经验值与真实机型不匹配，尾部线程就会明显拖慢整个阶段。
+Prefill 的总任务量较大，若一开始就简单均分，异构核心之间的能力差异会很快转化为执行时间差异。高性能核心可能先完成任务并空闲，而低性能核心仍保留大量工作。此时即使引入 stealing，窃取线程也需要在后期承担更多补偿性工作，整体效率并不理想。
 
-因此，本文在静态划分之前加入“按真实性能比加权”的步骤。这里的“性能比”并不追求严格的体系结构建模，而是面向任务划分的实用指标。只要它能较稳定地反映“某个核心承担多少工作更合理”，就足以服务于初始边界生成。这一思路与面向异构移动 CPU 的推理研究是一致的，即通过更贴近设备和负载的能力刻画来减少调度误差\cite{wang2021asymo,abdelgawad2022bertperf}。
+因此，Prefill 阶段的第一步不是直接窃取，而是先构造更合理的本地任务区间。这里所说的“更合理”，指的是初始工作量与核心处理能力大致匹配。能力更强的核心应拿到更大的初始区间，能力较弱的核心应拿到更小的区间。这样，stealing 的角色就从“替代主划分”变成“修正残余不均衡”。
 
-\subsection{任务边界生成逻辑}
+\subsection{真实性能比的作用}
 
-在实现上，加权初始划分通过 `_fillWeightedDivides` 完成。该函数的输入包括总任务量、各线程权重、有效线程数和总线程数。其核心做法是按权重对总任务量做累积划分，再将累积值舍入为整数边界。为避免边界回退，函数在每一步都会确保新的划分点不小于前一个边界，并且不超过总任务量。对于未参与当前阶段执行的剩余线程，边界统一填为 `fillValue`，从而保证数组长度与线程池长度保持一致。
+构造初始任务区间需要一个能够刻画核心相对能力的指标。固定经验参数虽然实现简单，但在机型变化、模型变化和系统负载变化时容易失准。更稳妥的做法是通过实测获得各核心或各簇的相对性能比，再按照这一比值分配初始工作量\cite{wang2021asymo,abdelgawad2022bertperf}。
 
-这一逻辑与均分方案最大的差别在于，任务边界不再只由线程编号决定，而是由“线程编号 + 当前活动核心能力”共同决定。对于高性能核心，对应的初始区间会更大；对于低性能核心，对应区间会更小。若所有权重近似一致，系统也可以自然退化回均分模式，而无需单独维护另一套接口。
+这里不追求精细的体系结构建模，而是把性能比作为任务组织的工作参数。只要该参数能够较稳定地反映不同核心承担工作量的合理比例，就足以支撑初始区间划分。
 
-\subsection{按阶段生成调度计划}
+\subsection{初始区间生成规则}
 
-`CPUBackend::computeDivideSizesByPhase` 是本文任务规划的中心函数。其第一步是根据线程池规模和平台上限计算 `active_threads`，第二步是从 `AutoTuner` 读取当前阶段。若阶段未知，则函数利用 `avgDiv` 与 `mComputeI` 的关系进行一次简单推断：较小任务更偏向 Decode，其他情况默认按 Prefill 处理。虽然这一推断并不是本文主线，但它为未显式标注阶段的执行路径提供了可用后备。
+设总任务量为 $N$，活动线程数为 $P$，第 $i$ 个线程对应核心的相对能力为 $w_i$，满足
+\[
+\sum_{i=1}^{P} w_i = 1.
+\]
+则第 $i$ 个线程的目标初始任务量可表示为
+\[
+n_i = N \cdot w_i.
+\]
+在实际划分时，由于任务边界必须取整数，故采用累积划分方式生成各线程边界。这样可以避免局部舍入误差不断累积，保证所有初始区间首尾相接、总和不超过任务总量。
 
-若当前阶段为 Decode，函数直接选择 `SchedulerPolicy::DYNAMIC`，并把 `step_size` 设为 `ceil(total\_size / active\_threads)`，同时采用均匀划分。这种设计强调低开销。若当前阶段为 Prefill，函数则选择 `SchedulerPolicy::WORK_STEAL`，并把基础块大小设为 `ceil(total\_size / (active\_threads \times 10))`。随后，它根据当前 affinity 掩码提取活跃线程权重，生成加权初始划分边界。
+\subsection{算法描述}
 
-这里有一个值得强调的实现细节：Prefill 的任务规划并不是“只做静态划分”或“完全交给 stealing”，而是先利用性能比生成较合理的种子区间，再把后续的不均衡交给 stealing 修正。换句话说，加权初始划分负责降低平均失衡，work stealing 负责处理残余失衡与运行时扰动。
+算法~\ref{alg:weighted_seed} 给出了基于性能比的初始区间生成方法。其输出不是最终调度结果，而是每个线程在 work stealing 开始前的本地任务种子区间。
 
-\section{Prefill 阶段的无锁双端队列 work stealing}
+\begin{algorithm}[ht]
+\caption{基于真实性能比的初始区间生成}
+\label{alg:weighted_seed}
+\KwIn{总任务量 $N$，活动线程数 $P$，性能比 $\{w_1,w_2,\ldots,w_P\}$}
+\KwOut{各线程初始区间边界 $\{b_0,b_1,\ldots,b_P\}$}
+令 $b_0 \leftarrow 0$\;
+令累计量 $s \leftarrow 0$\;
+\For{$i \leftarrow 1$ \KwTo $P$}{
+  $s \leftarrow s + N \cdot w_i$\;
+  计算边界 $b_i \leftarrow \mathrm{round}(s)$\;
+  若 $b_i < b_{i-1}$，则令 $b_i \leftarrow b_{i-1}$\;
+  若 $b_i > N$，则令 $b_i \leftarrow N$\;
+}
+返回边界序列 $\{b_0,b_1,\ldots,b_P\}$\;
+\end{algorithm}
 
-\subsection{状态结构设计}
+\begin{figure}[ht]
+  \centering
+  \fbox{
+    \parbox{0.9\textwidth}{
+      \vspace{1.0cm}
+      图位预留：Prefill 初始区间生成示意图。\newline
+      建议内容：横向条带表示总任务区间，按不同颜色切分为若干线程的初始本地区间。\newline
+      上半部分画 ``均分''，下半部分画 ``按真实性能比加权划分''。\newline
+      图中标出大核对应区间更长，小核对应区间更短。
+      \vspace{1.0cm}
+    }
+  }
+  \caption{Prefill 初始任务区间组织示意图}
+  \label{fig:prefill_seed_placeholder}
+\end{figure}
 
-Prefill 阶段的核心运行时状态保存在 `PrefillWorkStealState` 中。该结构包含以下几个关键字段：`non_empty_mask` 用于快速表示哪些线程队列当前仍有剩余任务；`total_size`、`step_size` 和 `active_threads` 表示当前调度计划的全局参数；`local_steps` 为每个线程记录局部块大小；`queues` 保存每个线程对应的任务边界；`thread_stats` 用于统计本地弹出、窃取尝试和窃取成功等指标；`victim_order` 则记录每个线程的受害者访问顺序。
+\section{Prefill 阶段的 work stealing 机制}
 
-其中最关键的数据结构是 `WorkStealQueueSlot`。它并没有采用链表或复杂节点结构，而是用一个 64 位原子变量同时编码 `begin` 和 `end` 两个边界。通过 `_packBounds`、`_unpackBegin` 和 `_unpackEnd` 三个辅助函数，系统可以在单个原子变量上执行 CAS 更新。这种设计非常适合“区间式任务队列”：队列内容不是离散对象，而是一个尚未被消费的连续整数区间。对卷积或矩阵块并行来说，这种表示既紧凑，又足够高效。
+\subsection{基本思想}
 
-\subsection{初始化过程}
+当初始区间建立后，每个线程先处理自己的本地任务。当本地任务耗尽时，再尝试从其他线程剩余任务中窃取一部分继续执行。这样做的目的是让空闲线程重新参与计算，减轻最慢线程对阶段结束时间的拖累\cite{blumofe1999workstealing,chase2005deque}。
 
-`initPrefillWorkStealState` 在 Prefill 阶段开始前执行。它首先写入总任务量、基础块大小和活动线程数，然后清空上一轮遗留的线程统计。接着，函数根据加权初始划分得到的 `divides` 数组，为每个活动线程构造本地任务区间 `[begin, end)`。若区间非空，对应线程在 `non_empty_mask` 中的位会被置为 1。
+Prefill 采用双端队列式的任务组织方式。拥有者线程优先从本地一端连续取任务；窃取线程则从受害者的另一端取走剩余区间的一部分。这样的安排有两个好处。第一，本地线程和窃取线程在访问方向上尽量分离，冲突较小。第二，本地线程能够连续处理相邻任务块，局部性较好。
 
-本文实现还加入了一个细化处理：局部块大小 `localStep` 会根据线程初始区间的大小做比例缩放。具体做法是，先计算该线程初始任务量占总任务量的比例，再用这一比例对全局基础块大小 `step_size` 做缩放和取整。这样，高性能线程不仅会在初始边界上拿到更多工作，还会在本地弹出阶段以更大的步长推进，从而减少过多的小块竞争；低性能线程则以更保守的局部步长前进，避免块粒度过大造成拖尾。这是本文实现相对“固定步长 stealing”更贴合异构场景的一个细节。
+\subsection{本地优先原则}
 
-初始化的最后一步是构建 `victim_order`。当前实现采用环形顺序，即线程优先从自己之后的线程开始依次尝试窃取。这样做不是为了追求理论最优，而是为了避免完全随机选择带来的额外开销，并在实现上保持简单可控。
+work stealing 并不意味着所有线程从一开始就频繁竞争共享任务。更合适的执行方式是本地优先，即线程先尽量消化本地任务，再在必要时发起窃取。这样可以避免过早进入跨线程竞争，也能更充分利用初始区间中已经体现出来的异构能力差异。
 
-\subsection{本地弹出优先的执行路径}
+在 Prefill 阶段，本地优先原则尤其重要。若本地任务尚未执行完就频繁窃取，不仅会增加同步冲突，还会破坏原本按核心能力构造的初始分配。
 
-`fetchPrefillWorkStealChunk` 的执行顺序遵循 work-first 原则：先尝试本地弹出，再尝试远程窃取\cite{frigo1998cilk5,blumofe1999workstealing}。对当前线程而言，函数首先读取本地队列的 `begin` 和 `end`。若区间非空，就按 `localStep` 从前向后弹出一个任务块，并通过 CAS 把 `begin` 更新到新的位置。只要 CAS 成功，该线程就获得新的本地任务区间。
+\subsection{窃取规则}
 
-本地弹出成功后，系统会更新 `local_pop_success` 和 `tasks_executed` 等统计项。这里采用“本地优先”的原因有两个。第一，本地弹出不需要跨线程争用，冲突概率最低。第二，本地任务与该线程最初绑定的核心能力和划分比例更一致，更容易保留局部性。只有在本地队列真正耗尽时，线程才进入 stealing 路径。
+窃取时并不一次性取走全部剩余任务，而是取走受害者剩余区间的一部分。这样做是为了避免“窃取得过多，新的长尾又出现”的情况。较稳妥的办法是从受害者剩余任务的尾部取走一半或接近一半的工作量，使拥有者仍保留继续推进的能力，窃取者则得到足够的补偿任务。
 
-\subsection{队尾窃取与 CAS 更新}
+受害者选择采用固定顺序轮询方式即可，不必引入复杂的随机化机制。对移动端推理而言，调度路径越短越好。只要能够在较低成本下找到仍有剩余任务的线程，方法就已经足够有效。
 
-当本地队列为空时，线程开始按 `victim_order` 依次选择受害者。系统首先通过 `non_empty_mask` 粗略过滤空队列，减少无谓访问。若某个受害者位在掩码中已被清空，则跳过该线程。对于候选受害者，当前线程读取其 `begin` 和 `end`。若受害者队列已经为空，系统会记录一次 `steal_empty`，并尝试在掩码中清除对应位。
+\subsection{局部块大小调整}
 
-若受害者仍有剩余任务，系统会把当前剩余任务量 `remaining = end - begin` 对半切分，取其中后一半作为被窃取区间，即 `stealChunk = max(1, remaining / 2)`，新的受害者边界变为 `[begin, newEnd)`，窃取线程得到 `[newEnd, end)`。这一设计对应典型的“从队尾窃取”策略：拥有者继续从队首向前推进，窃取者从队尾接手剩余任务，两者冲突相对较小。
+异构多核上的 work stealing 还有一个容易忽略的问题：即使初始区间已经按性能比划分，各线程在本地推进时也不应使用完全相同的块大小。高性能核心可以采用稍大的本地块，以减少频繁领取任务造成的额外开销；低性能核心则可采用相对保守的块大小，避免块粒度过大引发新的拖尾。
 
-整个窃取动作通过对受害者 `bounds` 的 CAS 完成。若 CAS 成功，窃取线程更新 `steal_success`、`stolen_tasks` 和 `tasks_executed`；若 CAS 失败，说明存在竞争，系统增加 `casRetries` 后继续尝试。若受害者被更新后变为空，`non_empty_mask` 中对应位会被清除。由于任务区间始终由 64 位原子边界表示，整个过程不需要显式锁。这一点也与 Chase-Lev deque 及其在弱内存模型下的实现思路相一致\cite{chase2005deque,le2013weakmemory}。
+因此，本地块大小并不是全局固定常数，而是依据初始区间大小做比例调整。直观地说，初始区间越大，说明该线程承担的基础工作越多，本地推进步长也可相应放大；初始区间越小，本地推进步长则保持较小值。
 
-\subsection{统计信息回收与观测接口}
+\subsection{算法描述}
 
-Prefill work stealing 的实验解释不能只看总时延，还必须看到“为什么会变快或变稳”。因此，本文在 `PrefillWorkStealThreadStats` 中为每个线程记录了本地弹出次数、本地成功次数、窃取尝试次数、窃取成功次数、窃取为空次数、CAS 重试次数、被窃取任务量和实际执行任务量。阶段结束后，`flushPrefillWorkStealStats` 会把这些本地统计统一提交给 `AutoTuner`。
+算法~\ref{alg:prefill_ws} 描述了 Prefill 阶段的基本执行逻辑。为便于阅读，伪代码省略了底层原子操作细节，仅保留方法层面的关键步骤。
 
-`AutoTuner::notePrefillThreadStats` 会把各线程统计累加到阶段级快照中，而 `formatScheduleStats` 则负责把这些数据格式化输出为一行日志。这样，第 4 章在分析实验现象时，就可以同时展示宏观性能和微观调度行为。例如，若某组实验性能提升明显，同时 `steal_success` 增多且 `tasks_per_thread` 更均衡，那么可以较有把握地说明收益确实来自长尾缓解，而不是偶然噪声。
+\begin{algorithm}[ht]
+\caption{Prefill 阶段的本地优先 work stealing}
+\label{alg:prefill_ws}
+\KwIn{各线程初始区间 $\{Q_1,Q_2,\ldots,Q_P\}$}
+\KwOut{Prefill 阶段全部任务执行完成}
+\ForPar{每个线程 $i$}{
+  \While{$Q_i$ 非空}{
+    从 $Q_i$ 本地领取一个任务块并执行\;
+  }
+  \While{仍存在非空队列}{
+    选择一个受害者线程 $j$\;
+    \If{$Q_j$ 非空}{
+      从 $Q_j$ 的尾部窃取一部分任务\;
+      执行窃取得到的任务块\;
+    }
+    \Else{
+      尝试下一个受害者线程\;
+    }
+  }
+}
+\end{algorithm}
+
+\begin{figure}[ht]
+  \centering
+  \fbox{
+    \parbox{0.9\textwidth}{
+      \vspace{1.0cm}
+      图位预留：Prefill 阶段 work stealing 示意图。\newline
+      建议内容：画四个线程的任务队列。前两步显示 ``本地执行''，后两步显示某个线程本地任务耗尽后，从另一线程队列尾部取走一部分任务。\newline
+      图中最好标注 ``owner 从前端推进''、``thief 从尾部窃取''，以及窃取前后队列长度变化。
+      \vspace{1.0cm}
+    }
+  }
+  \caption{Prefill 阶段任务窃取过程示意图}
+  \label{fig:prefill_ws_placeholder}
+\end{figure}
+
+\subsection{统计量设计}
+
+仅给出总时延还不足以解释 work stealing 的作用，因此还需要记录若干调度统计量。较重要的指标包括：本地任务领取次数、本地领取成功次数、窃取尝试次数、窃取成功次数、窃取失败次数、被窃取任务量以及各线程最终承担的任务总量。通过这些指标，可以判断性能提升究竟来自更合理的初始分配，还是来自运行期长尾缓解。
 
 \section{Decode 阶段的轻量动态调度}
 
 \subsection{设计原因}
 
-虽然 work stealing 在 Prefill 阶段很有价值，但在 Decode 阶段并不一定划算。Decode 的总任务量更小、执行周期更短、迭代更频繁。若沿用多队列 stealing 机制，线程将不断进入队列探测、受害者选择和 CAS 竞争，调度开销容易盖过收益。因此，当前实现把 Decode 明确固定为 `SchedulerPolicy::DYNAMIC`，并采用单一原子游标的块领取方式。
+Decode 阶段与 Prefill 不同，任务短、迭代频繁。若在这一阶段仍采用多队列 stealing，线程之间会反复进行受害者选择和任务竞争，调度成本会迅速放大。因此，Decode 更适合使用轻量动态领取方式，而不是复用 Prefill 的 work stealing 机制。
 
-\subsection{动态领取流程}
+\subsection{调度方式}
 
-Decode 阶段状态保存在 `DynamicTaskState` 中。该结构非常紧凑，只包含 `cursor`、`end`、`step_size`、`active_threads`、`policy` 和每线程统计。初始化时，`initDecodeDynamicState` 会把 `cursor` 置零，把总任务终点写入 `end`，再保存块大小和活动线程数。与 Prefill 相比，这里没有 per-thread 队列，也没有 victim 顺序。
+Decode 的基本做法是将总任务区间均匀展开，并设置一个共享游标。线程每次通过原子方式领取一个连续小区间，执行完成后再继续领取，直到总任务耗尽。这种方式只有一个共享入口，路径短、实现简单，适合短步迭代场景。
 
-执行时，`fetchDecodeDynamicChunk` 直接通过 `cursor.fetch_add(step_size)` 领取新区间。若领取起点已经超过 `end`，说明任务耗尽；否则返回 `[start, min(end, start + step\_size))`。该机制的优点是实现简单、同步路径短，而且每个线程只需要对一个共享游标做一次原子加法。对于 Decode 这类短步阶段，这种设计更符合“少做调度、多做计算”的原则。
+\subsection{算法描述}
 
-\subsection{分阶段机制之间的关系}
+算法~\ref{alg:decode_dynamic} 给出了 Decode 阶段的动态领取过程。
 
-Prefill 的 `work_steal` 和 Decode 的 `dynamic` 并不是互相独立的两套系统，而是共享同一套阶段状态控制。`AutoTuner` 负责切换当前阶段，`CPUBackend` 根据阶段决定选择哪种计划生成函数，而 `Concurrency.h` 则把二者分别接到线程池执行路径中。这样的分工使得系统既能表达阶段差异，又能保持运行时接口统一。
+\begin{algorithm}[ht]
+\caption{Decode 阶段的动态任务领取}
+\label{alg:decode_dynamic}
+\KwIn{总任务量 $N$，块大小 $s$}
+\KwOut{Decode 阶段全部任务执行完成}
+令共享游标 $c \leftarrow 0$\;
+\ForPar{每个线程}{
+  \While{true}{
+    原子领取区间起点 $l \leftarrow c$，并令 $c \leftarrow c + s$\;
+    \If{$l \geq N$}{
+      退出循环\;
+    }
+    令 $r \leftarrow \min(N, l + s)$\;
+    执行区间 $[l, r)$ 内的任务\;
+  }
+}
+\end{algorithm}
 
-\section{并行接入方式与代码侵入控制}
+\subsection{与 Prefill 调度的区别}
 
-\subsection{Concurrency 宏的阶段化封装}
-
-`Concurrency.h` 是本文把调度方案接入 MNN 算子执行路径的关键文件。当前实现为 Prefill 和 Decode 分别定义了两组宏：`MNN_CONCURRENCY_PREFILL_WORKSTEAL_BEGIN/END` 与 `MNN_CONCURRENCY_DECODE_DYNAMIC_BEGIN/END`。二者都遵循相同模式：先在后端初始化阶段状态，再把实际任务体包装成线程池任务，最后在结束处统一回收统计。
-
-对应地，`MNN_PREFILL_WORKSTEAL_RANGE` 和 `MNN_DECODE_DYNAMIC_RANGE` 两个宏负责循环领取任务块。它们内部都采用“持续获取区间，直到返回空区间为止”的统一写法。对算子实现者而言，这样的封装非常友好：算子只要提供一个处理区间 `[start, end)` 的 lambda，就能自动获得阶段化调度能力，而不必关心队列、掩码和游标的底层细节。
-
-\subsection{线程池模式与后备模式兼容}
-
-为了保持跨平台兼容性，`Concurrency.h` 同时兼容线程池模式和非线程池模式。在 `MNN_USE_THREAD_POOL` 开启时，系统通过 `ThreadPool::enqueue` 提交任务，Prefill 和 Decode 的统计都在任务结束后主动 flush。若线程池不可用，宏会退化成普通 `for` 循环或 OpenMP 路径，但仍然保持相同的初始化和统计回收接口。这保证了本文方案并不依赖单一平台特性。
-
-\subsection{侵入范围控制}
-
-本文没有改写大批算子内部逻辑，而是把新机制尽量收束在并行入口和后端状态层。这意味着：第一，调度实现不会扩散为大量重复代码；第二，后续如果需要调整 Prefill 的 stealing 粒度或 Decode 的动态块大小，主要修改点仍集中在 `CPUBackend` 和 `AutoTuner`；第三，旧有算子只要使用这些阶段宏，就可以共享同样的行为。对工业级开源框架而言，这种改法更可维护，也更容易被后续复现。
+两阶段的差异可以概括为一句话：Prefill 关注长尾均衡，Decode 关注低开销稳定。前者需要在本地优先的基础上保留窃取能力，后者则应尽量缩短任务领取路径。也正因如此，统一调度策略很难同时兼顾两个阶段。
 
 \section{本章小结}
 
-本章围绕本文系统实现给出了完整方法设计。首先，系统以 `AutoTuner` 为统一状态中心，管理阶段切换、线程数和 affinity 掩码。其次，`CPUBackend` 根据阶段生成不同的任务计划：Prefill 采用基于真实性能比的加权初始划分与无锁双端队列 work stealing，Decode 采用轻量动态领取。再次，`Concurrency.h` 把这一阶段化调度机制接入线程池与后备并行路径，使算子执行代码在最小侵入条件下获得新的调度能力。第 4 章将在真实手机平台上验证这些机制的性能收益、稳定性表现和调度行为特征，具体实验数据与结果将在后续填入。
+本章围绕阶段感知调度的核心方法展开了说明。首先，线程数与绑核参数按阶段独立配置，避免统一参数带来的折中损失。其次，Prefill 阶段利用真实性能比生成初始任务区间，并在此基础上采用本地优先的 work stealing 机制缓解尾部阻塞。再次，Decode 阶段采用轻量动态领取方式，以控制短步迭代中的调度成本。第 4 章将在真实手机平台上对这些方法进行实验评估，并补充相应的曲线图、示意图和性能结果。

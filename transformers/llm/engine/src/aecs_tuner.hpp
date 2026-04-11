@@ -120,9 +120,11 @@ struct PhaseTuningResult {
     int prefill_threads = 0;
     std::vector<int> decode_cpu_ids;
     int decode_threads = 0;
+    int op_encoder_number = 0;
     bool cache_hit = false;
     bool prefill_from_cache = false;
     bool decode_from_cache = false;
+    bool op_encoder_from_cache = false;
     AecsCandidateResult fastest_decode_candidate;
     AecsCandidateResult selected_decode_candidate;
     std::vector<AecsCandidateResult> decode_candidates;
@@ -257,14 +259,14 @@ public:
     AecsStaticCalibrationResult calibrateStaticCapacities(const AecsCacheKey& cache_key,
                                                           SchedulerPolicy target_policy,
                                                           const StaticCalibrationMeasureFn& measure) const;
+    bool loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* result) const;
+    void saveCache(const AecsCacheKey& cache_key, const PhaseTuningResult& result) const;
 
     double heuristicPower(const std::vector<int>& cpu_ids) const;
     std::vector<std::vector<int>> buildPrefillCandidates() const;
     std::vector<std::vector<int>> buildDecodeStage2Candidates(const std::vector<int>& root_cpu_ids) const;
 
 private:
-    bool loadCache(const AecsCacheKey& cache_key, PhaseTuningResult* result) const;
-    void saveCache(const AecsCacheKey& cache_key, const PhaseTuningResult& result) const;
     AecsStaticCalibrationResult tuneStaticCalibration(SchedulerPolicy target_policy,
                                                       const StaticCalibrationMeasureFn& measure) const;
     AecsCandidateResult tunePrefill(const PrefillMeasureFn& prefill_measure) const;

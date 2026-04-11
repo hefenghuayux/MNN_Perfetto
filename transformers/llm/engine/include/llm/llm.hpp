@@ -105,6 +105,8 @@ public:
     int getOutputIndex(const std::string& name) const;
     void reset();
     void tuning(TuneType type, std::vector<int> candidates);
+    int tuneOpEncoderNumber(const std::vector<int>& candidates);
+    void setOpEncoderNumberForCommit(int value);
     virtual std::vector<Express::VARP> forwardRaw(Express::VARP hiddenState, Express::VARP mask, Express::VARP inputPos, Express::VARPS extraArgs = {});
     Express::VARP forward(const std::vector<int>& input_ids, bool is_prefill = true);
     Express::VARP forward(MNN::Express::VARP input_embeds);

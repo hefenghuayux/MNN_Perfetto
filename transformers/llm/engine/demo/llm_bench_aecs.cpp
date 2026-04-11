@@ -465,6 +465,8 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
         return mRuntimePlan;
     }
 
+    const auto cache_key = buildCacheKey(mParams, mTopology);
+
     mRuntimePlan.pool_threads = mBuildPlan.pool_threads;
     mRuntimePlan.pool_cpu_ids = mBuildPlan.pool_cpu_ids;
     mRuntimePlan.final_prefill_threads = std::max(1, mParams.prefill_threads);
@@ -512,8 +514,6 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
                   joinCpuIds(mBuildPlan.build_decode_cpu_ids).c_str());
         mThermalGuard.reset(new ThermalGuard(mParams.tuning_config));
         mEnergyProfiler.reset(new EnergyProfiler(mParams.tuning_config));
-
-        const auto cache_key = buildCacheKey(mParams, mTopology);
 
         const int tuning_prompt_tokens = std::max(1, mParams.prompt_tokens);
         // Keep AECS search workload aligned with the llm_bench case so the selected plan
@@ -626,6 +626,7 @@ const LlmBenchAecsRuntimePlan& LlmBenchAecsController::prepare(Llm* llm) {
             mRuntimePlan.final_decode_cpu_ids = tuned.decode_cpu_ids;
             mRuntimePlan.final_decode_threads = std::max(1, tuned.decode_threads);
         }
+        mCachedPhaseResult = tuned;
 
         if (!tuned.fastest_decode_candidate.cpu_ids.empty()) {
             MNN_PRINT("[AECS] Fastest decode candidate=%s speed=%.3f tok/s\n",
